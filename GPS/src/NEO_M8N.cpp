@@ -5,7 +5,7 @@
  *      Author: michp
  */
 
-#include <NEO_M8N.h>
+#include "NEO_M8N.h"
 
 HAL_StatusTypeDef NEO_M8N::UART_Init()
 {
@@ -69,6 +69,7 @@ NEO_M8N::NEO_M8N()
 void NEO_M8N::Init()
 {
 	UART_Init();
+	HAL_UART_Receive_DMA(&this->huart, this->data, 4096);
 }
 
 uint32_t NEO_M8N::findString(char * str)
@@ -195,7 +196,66 @@ void NEO_M8N::processMessage(char *msg, uint8_t len)
 	}
 	// Latitude and longitude, with time of position fix and status
 	else if (strncmp("GLL", msg + 3, 3) == 0) {
-		printf("gll\n");
+		GPS_Data d;
+		bool valid;
+		uint8_t part = 0;
+		uint8_t buffer[20];
+		uint8_t bufferPos = 0;
+
+		for (uint8_t i = 7; i <= len - 4; i++) {
+			if (msg[i] == ',') {
+				buffer[bufferPos] = '\0';
+
+				switch (part) {
+				case 0:
+					if (bufferPos != 0)
+						d.latitude = atof((char*)buffer);
+					else
+						d.latitude = 0;
+					break;
+				case 1:
+					if (bufferPos != 0)
+						d.NS = msg[i - 1];
+					else
+						d.NS = '\0';
+					break;
+				case 2:
+					if (bufferPos != 0)
+						d.longitude = atof((char*)buffer);
+					else
+						d.longitude = 0;
+					break;
+				case 3:
+					if (bufferPos != 0)
+						d.EW = msg[i - 1];
+					else
+						d.EW = '\0';
+					break;
+				case 4:
+					if (bufferPos != 0)
+						this->UTC_Time = atof((char*)buffer);
+					break;
+				case 5:
+					if (bufferPos != 0)
+						valid = (msg[i - 1] == 'A');
+					else
+						valid = false;
+					break;
+				}
+
+				bufferPos = 0;
+				part++;
+			}
+			else {
+				buffer[bufferPos] = msg[i];
+				bufferPos++;
+			}
+		}
+
+		if (valid) {
+			this->Data = d;
+			printf("%f%c %f%c\n", d.latitude, d.NS, d.longitude, d.EW);
+		}
 	}
 	// GNSS fix data
 	else if (strncmp("GNS", msg + 3, 3) == 0) {

@@ -40,8 +40,6 @@ int main(void)
 
 	printf("GPS initialized\n");
 
-	HAL_UART_Receive_DMA(&neo.huart, neo.data, 4096);
-
 	while (true) {
 		neo.ParseData();
 	}
