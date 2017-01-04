@@ -25,11 +25,17 @@ int main(void)
 
 	int32_t press, temp;
 
+	ms5611->ConvertD1();
+
 	while (true) {
-		ms5611->GetData(&temp, &press);
+		if (ms5611->D1_Ready())
+			ms5611->ConvertD2();
+		else if (ms5611->D2_Ready()) {
+			ms5611->GetData(&temp, &press);
+			printf("Temp: %d, press: %d\n", temp, press);
 
-		printf("Temp: %d, press: %d\n", temp, press);
-
-		HAL_Delay(100);
+			HAL_Delay(100);
+			ms5611->ConvertD1();
+		}
 	}
 }
