@@ -21,12 +21,10 @@ int main(void)
 
 	LEDs::Init();
 
+	LEDs::TurnOn(LEDs::Green | LEDs::Yellow);
+
 	while (true) {
-		LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
-
-		HAL_Delay(500);
-
-		LEDs::TurnOff(LEDs::Green | LEDs::Orange | LEDs::Yellow);
+		LEDs::Toggle(LEDs::Green | LEDs::Orange | LEDs::Yellow);
 
 		HAL_Delay(500);
 	}

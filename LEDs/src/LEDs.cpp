@@ -54,3 +54,12 @@ void LEDs::TurnOn(uint8_t color) {
 	if (color & LEDs::Yellow)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
 }
+
+void LEDs::Toggle(uint8_t color) {
+	if (color & LEDs::Green)
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	if (color & LEDs::Orange)
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
+	if (color & LEDs::Yellow)
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
+}

@@ -19,6 +19,7 @@ public:
 	static void Init();
 	static void TurnOn(uint8_t color);
 	static void TurnOff(uint8_t color);
+	static void Toggle(uint8_t color);
 };
 
 #endif /* LEDS_H_ */
