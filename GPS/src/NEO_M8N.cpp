@@ -7,6 +7,16 @@
 
 #include "NEO_M8N.h"
 
+
+NEO_M8N* NEO_M8N::pInstance = NULL;
+
+NEO_M8N* NEO_M8N::Instance() {
+	if (NEO_M8N::pInstance == NULL)
+		pInstance = new NEO_M8N();
+
+	return pInstance;
+}
+
 HAL_StatusTypeDef NEO_M8N::UART_Init()
 {
 	if (__GPIOA_IS_CLK_DISABLED())

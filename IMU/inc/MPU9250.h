@@ -25,6 +25,11 @@ extern "C" {
 
 class MPU9250 {
 private:
+	MPU9250(){};
+	MPU9250(MPU9250 const&){};
+	MPU9250& operator=(MPU9250 const&){};
+	static MPU9250* pInstance;
+
 	struct platform_data_s {
 		signed char orientation[9];
 	};
@@ -50,6 +55,7 @@ private:
 public:
 	bool dataReady;
 
+	static MPU9250* Instance();
 	uint8_t Init();
 	void selfTest();
 	bool CheckNewData(long *euler, uint8_t *accur);

@@ -18,6 +18,12 @@ enum WaitFlag { WAIT_AT, WAIT_OK, WAIT_ERROR };
 class ESP8266_UDP
 {
 private:
+	ESP8266_UDP();
+	ESP8266_UDP(ESP8266_UDP const&){};
+	ESP8266_UDP& operator=(ESP8266_UDP const&){};
+	static ESP8266_UDP* pInstance;
+
+	const static uint32_t size = 2048;
 	uint8_t MAX_NULL_BYTES = 5;
 	char expectedResponse[20] = { '\0' };
 	char clientIP[16] = { '\0' };
@@ -27,14 +33,13 @@ private:
 	WaitFlag waitFlag;
 	bool inIPD;
 	uint32_t readPos;
-	uint32_t size;
-	uint8_t *data;
+	uint8_t data[size] = { '\0' };
 
 	HAL_StatusTypeDef UART_Init();
-	uint32_t findString(char *str);
+	int32_t findString(const char *str);
 	uint8_t readByte(uint8_t *data, bool checkNull = false);
 	void processData();
-	HAL_StatusTypeDef send(char *);
+	HAL_StatusTypeDef send(const char *);
 
 public:
 	DMA_HandleTypeDef hdma_usart3_rx;
@@ -44,10 +49,11 @@ public:
 	bool output;
 	void(*IPD_Callback)(uint8_t *data, uint16_t length);
 
-	ESP8266_UDP(uint32_t size);
+	static ESP8266_UDP* Instance();
 	HAL_StatusTypeDef SendUDP(uint8_t *data, uint16_t length);
 	HAL_StatusTypeDef WaitReady(uint16_t delay = 5000);
 	void Init();
+	void Reset();
 };
 
 #endif /* ESP8266_UDP_H_ */

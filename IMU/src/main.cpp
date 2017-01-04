@@ -16,10 +16,10 @@
 extern "C" void initialise_monitor_handles(void);
 unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
 
-MPU9250 mpu;
+MPU9250 *mpu = MPU9250::Instance();
 
 extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	mpu.dataReady = true;
+	mpu->dataReady = true;
 }
 
 int main(void)
@@ -40,7 +40,7 @@ int main(void)
 	}
 
 	uint8_t result;
-	if (result = mpu.Init()) {
+	if (result = mpu->Init()) {
 		printf("Error %d\n", result);
 	}
 
@@ -51,7 +51,7 @@ int main(void)
 	{
 		HAL_IWDG_Refresh(&hiwdg);
 
-		if (mpu.CheckNewData(data, &accuracy))
+		if (mpu->CheckNewData(data, &accuracy))
 			printf("data: %d %d %d\n", data[0], data[1], data[2]);
 	}
 }

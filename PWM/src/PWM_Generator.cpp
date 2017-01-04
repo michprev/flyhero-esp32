@@ -5,27 +5,39 @@
  *      Author: michp
  */
 
-#include <PWM_Generator.h>
+#include "PWM_Generator.h"
+
+
+PWM_Generator* PWM_Generator::pInstance = NULL;
+
+PWM_Generator* PWM_Generator::Instance() {
+	if (PWM_Generator::pInstance == NULL)
+		pInstance = new PWM_Generator();
+
+	return pInstance;
+}
 
 void PWM_Generator::Init()
 {
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_TIM2_CLK_ENABLE();
-
+	if (__GPIOA_IS_CLK_DISABLED())
+		__GPIOA_CLK_ENABLE();
+	if (__GPIOB_IS_CLK_DISABLED())
+		__GPIOB_CLK_ENABLE();
+	if (__TIM2_IS_CLK_DISABLED())
+		__TIM2_CLK_ENABLE();
 
 	const uint32_t PERIOD_US = 500;
 	const uint32_t PULSE_US = 0;
 
 	GPIO_InitTypeDef GPIO_InitStruct;
-	GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_1;
+	GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_15;
 	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	GPIO_InitStruct.Pin = GPIO_PIN_10 | GPIO_PIN_2;
+	GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_10;
 	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -146,13 +158,15 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t index)
 
 void PWM_Generator::Arm()
 {
-	this->SetPulse(2000, 0);
-	this->SetPulse(2000, 1);
-	this->SetPulse(2000, 2);
-	this->SetPulse(2000, 3);
+	// we set maximum pulse here
+	this->SetPulse(1900, 0);
+	this->SetPulse(1900, 1);
+	this->SetPulse(1900, 2);
+	this->SetPulse(1900, 3);
 
 	HAL_Delay(2000);
 
+	// we set minimum pulse here
 	this->SetPulse(1000, 0);
 	this->SetPulse(1000, 1);
 	this->SetPulse(1000, 2);
@@ -164,22 +178,4 @@ void PWM_Generator::Arm()
 	this->SetPulse(950, 1);
 	this->SetPulse(950, 2);
 	this->SetPulse(950, 3);
-
-	/*for (uint16_t p = 1020; p <= 2000; p += 10) {
-		this->SetPulse(p, 0);
-		this->SetPulse(p, 1);
-		this->SetPulse(p, 2);
-		this->SetPulse(p, 3);
-		HAL_Delay(15);
-	}
-
-	HAL_Delay(50);
-
-	for (uint16_t p = 2000; p >= 1000; p -= 10) {
-		this->SetPulse(p, 0);
-		this->SetPulse(p, 1);
-		this->SetPulse(p, 2);
-		this->SetPulse(p, 3);
-		HAL_Delay(15);
-	}*/
 }

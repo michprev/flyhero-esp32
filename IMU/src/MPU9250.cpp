@@ -5,7 +5,16 @@
  *      Author: michp
  */
 
-#include <MPU9250.h>
+#include "MPU9250.h"
+
+MPU9250* MPU9250::pInstance = NULL;
+
+MPU9250* MPU9250::Instance() {
+	if (MPU9250::pInstance == NULL)
+		pInstance = new MPU9250();
+
+	return pInstance;
+}
 
 void MPU9250::IT_Init() {
 	if (__GPIOB_IS_CLK_DISABLED())

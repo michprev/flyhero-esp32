@@ -22,6 +22,11 @@ struct GPS_Data {
 class NEO_M8N
 {
 private:
+	NEO_M8N();
+	NEO_M8N(NEO_M8N const&){};
+	NEO_M8N& operator=(NEO_M8N const&){};
+	static NEO_M8N* pInstance;
+
 	UART_HandleTypeDef huart;
 	uint32_t writePos;
 	uint32_t readPos;
@@ -39,7 +44,7 @@ public:
 	GPS_Data Data;
 	double UTC_Time = 0;
 
-	NEO_M8N();
+	static NEO_M8N* Instance();
 	void Init();
 	void ParseData();
 };

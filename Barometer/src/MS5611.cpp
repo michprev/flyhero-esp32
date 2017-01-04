@@ -1,5 +1,14 @@
 #include "MS5611.h"
 
+MS5611* MS5611::pInstance = NULL;
+
+MS5611* MS5611::Instance() {
+	if (MS5611::pInstance == NULL)
+		pInstance = new MS5611();
+
+	return pInstance;
+}
+
 HAL_StatusTypeDef MS5611::Reset()
 {
 	uint8_t reset = 0x1E;
@@ -12,7 +21,7 @@ HAL_StatusTypeDef MS5611::Reset()
 
 HAL_StatusTypeDef MS5611::Init()
 {
-	I2C_Init();
+	this->I2C_Init();
 
 	HAL_StatusTypeDef status;
 	uint8_t data[2];

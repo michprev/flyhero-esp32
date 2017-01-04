@@ -20,13 +20,13 @@ int main(void)
 	HAL_Init();
 	initialise_monitor_handles();
 
-	MS5611 ms5611;
-	ms5611.Init();
+	MS5611 *ms5611 = MS5611::Instance();
+	ms5611->Init();
 
 	int32_t press, temp;
 
 	while (true) {
-		ms5611.GetData(&temp, &press);
+		ms5611->GetData(&temp, &press);
 
 		printf("Temp: %d, press: %d\n", temp, press);
 

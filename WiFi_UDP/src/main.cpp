@@ -15,8 +15,7 @@
 			
 extern "C" void initialise_monitor_handles(void);
 
-const uint32_t UART_BUFFER_SIZE = 2048;
-ESP8266_UDP esp8266 = ESP8266_UDP(UART_BUFFER_SIZE);
+ESP8266_UDP *esp8266 = ESP8266_UDP::Instance();
 IWDG_HandleTypeDef hiwdg;
 
 extern "C" void HardFault_Handler(void)
@@ -26,7 +25,7 @@ extern "C" void HardFault_Handler(void)
 
 extern "C" void DMA1_Stream1_IRQHandler(void)
 {
-	HAL_DMA_IRQHandler(&esp8266.hdma_usart3_rx);
+	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_rx);
 }
 
 uint32_t count = 0;
@@ -72,18 +71,18 @@ int main(void)
 	HAL_Delay(250);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 
-	while (!esp8266.ready)
-		esp8266.WaitReady();
+	while (!esp8266->ready)
+		esp8266->WaitReady();
 
-	esp8266.IPD_Callback = &IPD_Callback;
-	//esp8266.output = true;
-	esp8266.Init();
+	esp8266->IPD_Callback = &IPD_Callback;
+	//esp8266->output = true;
+	esp8266->Init();
 
 	printf("init complete\n");
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 
 	while (true) {
 		HAL_IWDG_Refresh(&hiwdg);
-		esp8266.WaitReady(0);
+		esp8266->WaitReady(0);
 	}
 }

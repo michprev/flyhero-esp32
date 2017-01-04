@@ -7,6 +7,29 @@
 
 #include "ESP8266_UDP.h"
 
+
+ESP8266_UDP* ESP8266_UDP::pInstance = NULL;
+
+ESP8266_UDP* ESP8266_UDP::Instance() {
+	if (ESP8266_UDP::pInstance == NULL)
+		pInstance = new ESP8266_UDP();
+
+	return pInstance;
+}
+
+ESP8266_UDP::ESP8266_UDP()
+{
+	this->readPos = 0;
+	this->output = false;
+	this->ready = false;
+	this->inIPD = false;
+	this->huart = huart;
+	this->IPD_Callback = NULL;
+	this->handshaken = false;
+
+	UART_Init();
+}
+
 HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 {
 	if (__GPIOB_IS_CLK_DISABLED())
@@ -51,7 +74,9 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	hdma_usart3_rx.Init.Mode = DMA_CIRCULAR;
 	hdma_usart3_rx.Init.Priority = DMA_PRIORITY_LOW;
 	hdma_usart3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-	HAL_DMA_Init(&hdma_usart3_rx);
+	if (HAL_DMA_Init(&hdma_usart3_rx))
+		return HAL_ERROR;
+
 
 	__HAL_LINKDMA(&huart, hdmarx, hdma_usart3_rx);
 
@@ -63,12 +88,16 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	this->huart.Init.Mode = UART_MODE_TX_RX;
 	this->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	this->huart.Init.OverSampling = UART_OVERSAMPLING_8;
-	HAL_UART_Init(&this->huart);
+	if (HAL_UART_Init(&this->huart))
+		return HAL_ERROR;
 
-	HAL_UART_Receive_DMA(&this->huart, this->data, this->size);
+	if (HAL_UART_Receive_DMA(&this->huart, this->data, this->size))
+		return HAL_ERROR;
+
+	return HAL_OK;
 }
 
-uint32_t ESP8266_UDP::findString(char * str)
+int32_t ESP8266_UDP::findString(const char * str)
 {
 	uint32_t length = strlen(str);
 	uint32_t retval = 0;
@@ -322,7 +351,7 @@ void ESP8266_UDP::processData()
 	}
 }
 
-HAL_StatusTypeDef ESP8266_UDP::send(char *str)
+HAL_StatusTypeDef ESP8266_UDP::send(const char *str)
 {
 	HAL_StatusTypeDef s = HAL_UART_Transmit(&this->huart, (uint8_t*)str, strlen(str), 5000);
 
@@ -361,21 +390,6 @@ HAL_StatusTypeDef ESP8266_UDP::SendUDP(uint8_t *data, uint16_t length)
 
 		return status;
 	}
-}
-
-ESP8266_UDP::ESP8266_UDP(uint32_t size)
-{
-	this->readPos = 0;
-	this->size = size;
-	this->data = (uint8_t*)calloc(size, sizeof(uint8_t));
-	this->output = false;
-	this->ready = false;
-	this->inIPD = false;
-	this->huart = huart;
-	this->IPD_Callback = NULL;
-	this->handshaken = false;
-
-	UART_Init();
 }
 
 HAL_StatusTypeDef ESP8266_UDP::WaitReady(uint16_t delay)
@@ -420,4 +434,10 @@ void ESP8266_UDP::Init()
 	send("AT+CIPDINFO=1\r\n");
 	send("AT+CIPSTART=\"UDP\",\"0\",0,4789,1\r\n");
 	send("AT+CIPDINFO=1\r\n");
+}
+
+void ESP8266_UDP::Reset() {
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+	HAL_Delay(250);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 }
