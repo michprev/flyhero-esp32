@@ -10,7 +10,7 @@ Author  :
 
 
 /********************************* Globals ************************************/
-I2C_HandleTypeDef MPU6050_Handle;
+I2C_HandleTypeDef MPU_Handle;
 
 /********************************* Prototypes *********************************/
 int Sensors_I2C_WriteRegister(unsigned char slave_addr,
@@ -21,8 +21,7 @@ int Sensors_I2C_ReadRegister(unsigned char slave_addr,
 	unsigned char reg_addr,
 	unsigned short len,
 	unsigned char *data_ptr);
-//unsigned long ST_Sensors_I2C_WriteRegister(unsigned char Address, unsigned char RegisterAddr, unsigned short RegisterLen, const unsigned char *RegisterValue);
-//unsigned long ST_Sensors_I2C_ReadRegister(unsigned char Address, unsigned char RegisterAddr, unsigned short RegisterLen, unsigned char *RegisterValue);
+
 /*******************************  Function ************************************/
 
 void I2cMaster_Init(void)
@@ -41,17 +40,17 @@ void I2cMaster_Init(void)
 	GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-	MPU6050_Handle.Instance = I2C1;
-	MPU6050_Handle.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	MPU6050_Handle.Init.ClockSpeed = 100000;
-	MPU6050_Handle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	MPU6050_Handle.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	MPU6050_Handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	MPU6050_Handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	MPU6050_Handle.Init.OwnAddress1 = 0;
-	MPU6050_Handle.Init.OwnAddress2 = 0;
+	MPU_Handle.Instance = I2C1;
+	MPU_Handle.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	MPU_Handle.Init.ClockSpeed = 400000;
+	MPU_Handle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	MPU_Handle.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	MPU_Handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	MPU_Handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	MPU_Handle.Init.OwnAddress1 = 0;
+	MPU_Handle.Init.OwnAddress2 = 0;
 
-	HAL_I2C_Init(&MPU6050_Handle);
+	HAL_I2C_Init(&MPU_Handle);
 }
 
 /**
@@ -65,19 +64,19 @@ static void I2C_Reset()
 	/* The following code allows I2C error recovery and return to normal communication
 	if the error source doesn’t still exist (ie. hardware issue..) */
 	I2C_InitTypeDef I2C_InitStructure;
-	HAL_I2C_DeInit(&MPU6050_Handle);
+	HAL_I2C_DeInit(&MPU_Handle);
 
-	MPU6050_Handle.Instance = I2C1;
-	MPU6050_Handle.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	MPU6050_Handle.Init.ClockSpeed = 100000;
-	MPU6050_Handle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	MPU6050_Handle.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	MPU6050_Handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	MPU6050_Handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	MPU6050_Handle.Init.OwnAddress1 = 0;
-	MPU6050_Handle.Init.OwnAddress2 = 0;
+	MPU_Handle.Instance = I2C1;
+	MPU_Handle.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	MPU_Handle.Init.ClockSpeed = 100000;
+	MPU_Handle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	MPU_Handle.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	MPU_Handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	MPU_Handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	MPU_Handle.Init.OwnAddress1 = 0;
+	MPU_Handle.Init.OwnAddress2 = 0;
 
-	HAL_I2C_Init(&MPU6050_Handle);
+	HAL_I2C_Init(&MPU_Handle);
 }
 
 
@@ -91,9 +90,7 @@ int Sensors_I2C_WriteRegister(unsigned char slave_addr,
 	unsigned short retry_in_mlsec = Get_I2C_Retry();
 
 tryWriteAgain:
-	ret = 0;
-
-	ret = HAL_I2C_Mem_Write(&MPU6050_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 1000);
+	ret = HAL_I2C_Mem_Write(&MPU_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 500);
 
 	if (ret)
 		I2C_Reset();
@@ -119,14 +116,7 @@ int Sensors_I2C_ReadRegister(unsigned char slave_addr,
 	unsigned short retry_in_mlsec = Get_I2C_Retry();
 
 tryReadAgain:
-	ret = 0;
-	/*if ((reg_addr == 0x06 || reg_addr == 0x08 || reg_addr == 0x0A || reg_addr == 0x13 || reg_addr == 0x15 ||
-		reg_addr == 0x17 || reg_addr == 0x3B || reg_addr == 0x3D || reg_addr == 0x3F || reg_addr == 0x41 ||
-		reg_addr == 0x43 || reg_addr == 0x45 || reg_addr == 0x47 || reg_addr == 0x70 || reg_addr == 0x72) &&
-		len == 2) {
-
-	}*/
-	ret = HAL_I2C_Mem_Read(&MPU6050_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 1000);
+	ret = HAL_I2C_Mem_Read(&MPU_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 500);
 
 	if (ret)
 		I2C_Reset();
