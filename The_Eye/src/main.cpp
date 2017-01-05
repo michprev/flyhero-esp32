@@ -45,8 +45,6 @@ uint16_t prev2 = 0x00;
 uint16_t prev3 = 0x00;
 uint16_t prev4 = 0x00;
 
-bool on = true;
-bool mpuInit = true;
 void IPD_Callback(uint8_t *data, uint16_t length);
 
 int main(void)
@@ -56,21 +54,10 @@ int main(void)
 	initialise_monitor_handles();
 #endif
 
-	printf("init\n");
-
 	LEDs::Init();
 
 	pwm->Init();
 	pwm->Arm();
-
-	// reset gyro
-	uint8_t result;
-	if (result = mpu->Init()) {
-		printf("MPU error %d\n", result);
-		LEDs::TurnOn(LEDs::Orange);
-	}
-	else
-		printf("IMU ok..\n");
 
 	// reset barometer
 	ms5611->Init();
@@ -78,13 +65,28 @@ int main(void)
 	// reset ESP8266
 	esp8266->Reset();
 
-	while (!esp8266->ready)
-		esp8266->WaitReady();
+	uint32_t timestamp = HAL_GetTick();
+
+	while (!esp8266->ready) {
+		if (HAL_GetTick() - timestamp >= 750) {
+			LEDs::Toggle(LEDs::Yellow);
+			timestamp = HAL_GetTick();
+		}
+		esp8266->WaitReady(0);
+	}
+
+	LEDs::TurnOff(LEDs::Yellow);
 
 	esp8266->IPD_Callback = &IPD_Callback;
 	esp8266->output = true;
 	esp8266->Init();
-	printf("WiFi init complete\n");
+
+	// reset gyro
+	uint8_t result;
+	if (result = mpu->Init()) {
+		printf("MPU error %d\n", result);
+		LEDs::TurnOn(LEDs::Orange);
+	}
 
 	int32_t press, temp;
 	long data[3];
@@ -93,14 +95,25 @@ int main(void)
 	data[2] = 0;
 	uint8_t accuracy;
 	uint8_t udpD[22];
-	uint32_t timestamp = HAL_GetTick();
+	timestamp = HAL_GetTick();
 
 	LEDs::TurnOn(LEDs::Green);
 
+	ms5611->ConvertD1();
+
 	while (true) {
-		if (HAL_GetTick() - timestamp >= 1000 && mpuInit) {
+		mpu->CheckNewData(data, &accuracy);
+
+		if (ms5611->D1_Ready())
+			ms5611->ConvertD2();
+		else if (ms5611->D2_Ready()) {
 			ms5611->GetData(&temp, &press);
-			mpu->CheckNewData(data, &accuracy);
+			ms5611->ConvertD1();
+		}
+
+		esp8266->WaitReady(0);
+
+		if (HAL_GetTick() - timestamp >= 1000) {
 
 			udpD[0] = (data[0] >> 24) & 0xFF;
 			udpD[1] = (data[0] >> 16) & 0xFF;
@@ -132,8 +145,6 @@ int main(void)
 
 			timestamp += tmpTime;
 		}
-
-		esp8266->WaitReady(0);
 	}
 }
 
@@ -172,18 +183,19 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 		break;
 	case 3:
 		if (data[0] == 0x3D) {
-			if (on)
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-			else
-				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 
-			on = !on;
 		}
 		else if (data[0] == 0x2D) {
 
 		}
-		else if (data[0] == 0x1D)
-			mpu->selfTest();
+		else if (data[0] == 0x1D) {
+			LEDs::TurnOff(LEDs::Green);
+
+			if (mpu->SelfTest())
+				LEDs::TurnOn(LEDs::Green);
+			else
+				LEDs::TurnOn(LEDs::Orange);
+		}
 
 		break;
 	}

@@ -32,7 +32,7 @@ void MPU9250::IT_Init() {
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
 
-void MPU9250::selfTest()
+uint8_t MPU9250::SelfTest()
 {
 	int result;
 	long gyro[3], accel[3];
@@ -40,7 +40,7 @@ void MPU9250::selfTest()
 	result = mpu_run_self_test(gyro, accel);
 
 	if (result == 0x7) {
-		printf("Passed!\n");
+		/*printf("Passed!\n");
 		printf("accel: %7.4f %7.4f %7.4f\n",
 			accel[0] / 65536.f,
 			accel[1] / 65536.f,
@@ -48,7 +48,7 @@ void MPU9250::selfTest()
 		printf("gyro: %7.4f %7.4f %7.4f\n",
 			gyro[0] / 65536.f,
 			gyro[1] / 65536.f,
-			gyro[2] / 65536.f);
+			gyro[2] / 65536.f);*/
 
 		unsigned short accel_sens;
 		float gyro_sens;
@@ -71,11 +71,15 @@ void MPU9250::selfTest()
 			printf("Accel failed.\n");
 		if (!(result & 0x4))
 			printf("Compass failed.\n");
+
+		return 0;
 	}
 
 	inv_accel_was_turned_off();
 	inv_gyro_was_turned_off();
 	inv_compass_was_turned_off();
+
+	return 1;
 }
 
 uint8_t MPU9250::Init() {

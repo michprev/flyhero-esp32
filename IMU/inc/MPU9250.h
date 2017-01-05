@@ -57,7 +57,7 @@ public:
 
 	static MPU9250* Instance();
 	uint8_t Init();
-	void selfTest();
+	uint8_t SelfTest();
 	bool CheckNewData(long *euler, uint8_t *accur);
 };
 
