@@ -33,7 +33,7 @@ private:
 	const uint8_t MAX_NULL_BYTES = 0;
 	uint32_t size;
 	char buffer[255];
-	uint8_t data[4096];
+	uint8_t data[4096] = { '\0' };
 
 	HAL_StatusTypeDef UART_Init();
 	uint32_t findString(char * str);

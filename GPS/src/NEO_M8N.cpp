@@ -39,6 +39,7 @@ HAL_StatusTypeDef NEO_M8N::UART_Init()
 	GPIO_InitStruct.Pull = GPIO_PULLUP;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+	HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9 | GPIO_PIN_10);
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 	this->hdma_usart1_rx.Instance = DMA2_Stream2;
@@ -50,7 +51,11 @@ HAL_StatusTypeDef NEO_M8N::UART_Init()
 	this->hdma_usart1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
 	this->hdma_usart1_rx.Init.Mode = DMA_CIRCULAR;
 	this->hdma_usart1_rx.Init.Priority = DMA_PRIORITY_HIGH;
-	this->hdma_usart1_rx.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+	this->hdma_usart1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+
+	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart1_rx);
+
+	HAL_DMA_DeInit(&this->hdma_usart1_rx);
 	HAL_DMA_Init(&this->hdma_usart1_rx);
 
 	this->huart.Instance = USART1;
@@ -61,6 +66,7 @@ HAL_StatusTypeDef NEO_M8N::UART_Init()
 	this->huart.Init.Mode = UART_MODE_TX_RX;
 	this->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	this->huart.Init.OverSampling = UART_OVERSAMPLING_16;
+	HAL_UART_DeInit(&this->huart);
 	HAL_UART_Init(&this->huart);
 
 	__HAL_LINKDMA(&huart, hdmarx, this->hdma_usart1_rx);
