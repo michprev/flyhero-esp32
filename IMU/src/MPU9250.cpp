@@ -65,12 +65,12 @@ uint8_t MPU9250::SelfTest()
 		inv_set_gyro_bias(gyro, 3);
 	}
 	else {
-		if (!(result & 0x1))
+		/*if (!(result & 0x1))
 			printf("Gyro failed.\n");
 		if (!(result & 0x2))
 			printf("Accel failed.\n");
 		if (!(result & 0x4))
-			printf("Compass failed.\n");
+			printf("Compass failed.\n");*/
 
 		return 0;
 	}
@@ -82,8 +82,8 @@ uint8_t MPU9250::SelfTest()
 	return 1;
 }
 
-uint8_t MPU9250::Init() {
-	I2cMaster_Init();
+uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
+	I2cMaster_Init(hi2c);
 	IT_Init();
 	struct int_param_s int_param;
 	unsigned char accel_fsr, new_temp = 0;
@@ -167,7 +167,7 @@ uint8_t MPU9250::Init() {
 	return 0;
 }
 
-bool MPU9250::CheckNewData(long *euler, uint8_t *accur)
+uint8_t MPU9250::CheckNewData(long *euler, uint8_t *accur)
 {
 	bool new_data = false;
 	bool new_compass = false;
@@ -175,8 +175,7 @@ bool MPU9250::CheckNewData(long *euler, uint8_t *accur)
 
 	timestamp = HAL_GetTick();
 
-	if ((timestamp > this->next_compass_ms) /*&& !hal.lp_accel_mode*/ &&
-		dataReady /*&& (hal.sensors & COMPASS_ON)*/) {
+	if ((timestamp > this->next_compass_ms) && dataReady) {
 		this->next_compass_ms = timestamp + COMPASS_READ_MS;
 		new_compass = 1;
 	}
@@ -191,7 +190,8 @@ bool MPU9250::CheckNewData(long *euler, uint8_t *accur)
 		unsigned char more;
 		long accel[3], quat[4], temperature;
 
-		dmp_read_fifo(gyro, accel_short, quat, &sensor_timestamp, &sensors, &more);
+		if (dmp_read_fifo(gyro, accel_short, quat, &sensor_timestamp, &sensors, &more))
+			return 2;
 
 		if (!more)
 			dataReady = false;
@@ -202,7 +202,8 @@ bool MPU9250::CheckNewData(long *euler, uint8_t *accur)
 			if (new_temp) {
 				new_temp = false;
 				/* Temperature only used for gyro temp comp. */
-				mpu_get_temperature(&temperature, &sensor_timestamp);
+				if (mpu_get_temperature(&temperature, &sensor_timestamp))
+					return 2;
 				inv_build_temp(temperature, sensor_timestamp);
 			}
 		}
@@ -223,38 +224,24 @@ bool MPU9250::CheckNewData(long *euler, uint8_t *accur)
 		short compass_short[3];
 		long compass[3];
 		new_compass = 0;
-		/* For any MPU device with an AKM on the auxiliary I2C bus, the raw
-		* magnetometer registers are copied to special gyro registers.
-		*/
+
 		if (!mpu_get_compass_reg(compass_short, &sensor_timestamp)) {
 			compass[0] = (long)compass_short[0];
 			compass[1] = (long)compass_short[1];
 			compass[2] = (long)compass_short[2];
 
-			//printf("compass %d %d %d\n", compass[0], compass[1], compass[2]);
-
-			/* NOTE: If using a third-party compass calibration library,
-			* pass in the compass data in uT * 2^16 and set the second
-			* parameter to INV_CALIBRATED | acc, where acc is the
-			* accuracy from 0 to 3.
-			*/
 			inv_build_compass(compass, 0, sensor_timestamp);
 		}
 		new_data = 1;
 	}
 
 	if (new_data) {
-		inv_execute_on_data();
+		if (inv_execute_on_data())
+			return 2;
 
 		long msg, data[9];
 		int8_t accuracy;
 		unsigned long timestamp;
-
-		//if (inv_get_sensor_type_heading(data, &accuracy, (inv_time_t*)&timestamp)){}
-		//printf("heading %d accur %d\n", data[0] / 65536, accuracy);
-
-		/*if (inv_get_sensor_type_compass(data, &accuracy, (inv_time_t*)&timestamp))
-		printf("compass %d %d %d\n", data[0], data[1], data[2]);*/
 
 		if (inv_get_sensor_type_euler(data, &accuracy, (inv_time_t*)&timestamp)) {
 			euler[0] = data[0] / 65536;
@@ -263,10 +250,10 @@ bool MPU9250::CheckNewData(long *euler, uint8_t *accur)
 			(*accur) = accuracy;
 		}
 
-		return true;
+		return 1;
 	}
 
-	return false;
+	return 0;
 }
 
 extern "C" void EXTI1_IRQHandler(void)

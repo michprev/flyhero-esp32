@@ -56,9 +56,9 @@ public:
 	bool dataReady;
 
 	static MPU9250* Instance();
-	uint8_t Init();
+	uint8_t Init(I2C_HandleTypeDef *hi2c);
 	uint8_t SelfTest();
-	bool CheckNewData(long *euler, uint8_t *accur);
+	uint8_t CheckNewData(long *euler, uint8_t *accur);
 };
 
 #endif /* MPU9250_H_ */
