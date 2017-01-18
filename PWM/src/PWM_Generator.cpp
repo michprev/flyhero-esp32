@@ -102,11 +102,11 @@ void PWM_Generator::Init()
 	HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_4);
 }
 
-void PWM_Generator::SetPulse(uint16_t ticks, uint8_t index)
+void PWM_Generator::SetPulse(uint16_t ticks, uint8_t channel)
 {
 	TIM_OC_InitTypeDef sConfig;
 
-	if (index == 0) {
+	if (channel == 1) {
 		sConfig.OCMode = TIM_OCMODE_PWM1;
 		sConfig.Pulse = ticks;
 		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -118,7 +118,7 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t index)
 
 		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_1);
 	}
-	else if (index == 1) {
+	else if (channel == 2) {
 		sConfig.OCMode = TIM_OCMODE_PWM1;
 		sConfig.Pulse = ticks;
 		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -130,7 +130,7 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t index)
 
 		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_2);
 	}
-	else if (index == 2) {
+	else if (channel == 3) {
 		sConfig.OCMode = TIM_OCMODE_PWM1;
 		sConfig.Pulse = ticks;
 		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -142,7 +142,7 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t index)
 
 		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_3);
 	}
-	else {
+	else if (channel == 4) {
 		sConfig.OCMode = TIM_OCMODE_PWM1;
 		sConfig.Pulse = ticks;
 		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -159,23 +159,23 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t index)
 void PWM_Generator::Arm()
 {
 	// we set maximum pulse here
-	this->SetPulse(1900, 0);
-	this->SetPulse(1900, 1);
-	this->SetPulse(1900, 2);
-	this->SetPulse(1900, 3);
+	this->SetPulse(2000, 1);
+	this->SetPulse(2000, 2);
+	this->SetPulse(2000, 3);
+	this->SetPulse(2000, 4);
 
 	HAL_Delay(2000);
 
 	// we set minimum pulse here
-	this->SetPulse(1000, 0);
 	this->SetPulse(1000, 1);
 	this->SetPulse(1000, 2);
 	this->SetPulse(1000, 3);
+	this->SetPulse(1000, 4);
 
 	HAL_Delay(1000);
 
-	this->SetPulse(950, 0);
-	this->SetPulse(950, 1);
-	this->SetPulse(950, 2);
-	this->SetPulse(950, 3);
+	this->SetPulse(940, 1);
+	this->SetPulse(940, 2);
+	this->SetPulse(940, 3);
+	this->SetPulse(940, 4);
 }
