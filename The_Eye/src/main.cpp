@@ -17,13 +17,13 @@
 #include "MPU9250.h"
 #include "LEDs.h"
 #include "NEO_M8N.h"
+#include "PID.h"
 
-#ifdef DEBUG
+#ifdef LOG
 extern "C" void initialise_monitor_handles(void);
 #endif
 
 unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
-
 
 ESP8266_UDP *esp8266 = ESP8266_UDP::Instance();
 PWM_Generator *pwm = PWM_Generator::Instance();
@@ -40,69 +40,127 @@ extern "C" void DMA1_Stream1_IRQHandler(void)
 	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_rx);
 }
 
-uint16_t prev1 = 0x00;
-uint16_t prev2 = 0x00;
-uint16_t prev3 = 0x00;
-uint16_t prev4 = 0x00;
+extern "C" void DMA2_Stream2_IRQHandler(void)
+{
+	HAL_DMA_IRQHandler(&neo->hdma_usart1_rx);
+}
+
+void InitI2C(I2C_HandleTypeDef*);
 
 void IPD_Callback(uint8_t *data, uint16_t length);
+
+
+uint16_t throttle = 0;
+
 
 int main(void)
 {
 	HAL_Init();
-#ifdef DEBUG
+#ifdef LOG
 	initialise_monitor_handles();
 #endif
 
+	int32_t press, temp;
+	long data[3];
+	uint8_t accuracy;
+	uint8_t udpD[22];
+
+	long FL, BL, FR, BR;
+	long pitchCorrection, rollCorrection;
+
+	PID PID_Pitch;
+	PID_Pitch.kP(0.7);
+	//PID_Pitch.kI(1);
+	PID_Pitch.imax(50);
+
+	PID PID_Roll;
+	PID_Roll.kP(0.7);
+	//PID_Roll.kI(1);
+	PID_Roll.imax(50);
+
+	PID PID_Yaw;
+	PID_Yaw.kP(2.5);
+	PID_Yaw.imax(50);
+
 	LEDs::Init();
 
-	pwm->Init();
-	pwm->Arm();
 
-	// reset barometer
-	ms5611->Init();
+	I2C_HandleTypeDef hI2C_Handle;
+
+	InitI2C(&hI2C_Handle);
 
 	// reset ESP8266
 	esp8266->Reset();
 
 	uint32_t timestamp = HAL_GetTick();
-
 	while (!esp8266->ready) {
 		if (HAL_GetTick() - timestamp >= 750) {
 			LEDs::Toggle(LEDs::Yellow);
+
 			timestamp = HAL_GetTick();
 		}
 		esp8266->WaitReady(0);
 	}
-
 	LEDs::TurnOff(LEDs::Yellow);
 
 	esp8266->IPD_Callback = &IPD_Callback;
 	esp8266->output = true;
 	esp8266->Init();
 
+	timestamp = HAL_GetTick();
+	while (!esp8266->handshaken) {
+		if (HAL_GetTick() - timestamp >= 750) {
+			LEDs::Toggle(LEDs::Green);
+
+			timestamp = HAL_GetTick();
+		}
+		esp8266->WaitReady(0);
+	}
+	LEDs::TurnOff(LEDs::Green);
+
+	//pwm->Init();
+	//pwm->Arm();
+
 	// reset gyro
-	uint8_t result;
-	if (result = mpu->Init()) {
-		printf("MPU error %d\n", result);
+	if (mpu->Init(&hI2C_Handle)) {
+		LEDs::TurnOn(LEDs::Yellow);
+	}
+
+	// reset barometer
+	if (ms5611->Init(&hI2C_Handle) != HAL_OK) {
 		LEDs::TurnOn(LEDs::Orange);
 	}
 
-	int32_t press, temp;
-	long data[3];
-	data[0] = 0;
-	data[1] = 0;
-	data[2] = 0;
-	uint8_t accuracy;
-	uint8_t udpD[22];
-	timestamp = HAL_GetTick();
-
-	LEDs::TurnOn(LEDs::Green);
+	//neo->Init();
 
 	ms5611->ConvertD1();
 
+	// everything OK
+	LEDs::TurnOn(LEDs::Green);
+
+	timestamp = HAL_GetTick();
+
+	uint8_t status;
+
 	while (true) {
-		mpu->CheckNewData(data, &accuracy);
+		status = mpu->CheckNewData(data, &accuracy);
+
+		if (status == 1 && throttle >= 1100) {
+			pitchCorrection = PID_Pitch.get_pid(data[1], 1);
+			rollCorrection = PID_Roll.get_pid(data[0], 1);
+
+			FL = throttle - rollCorrection + pitchCorrection; // PB2
+			BL = throttle - rollCorrection - pitchCorrection; // PA15
+			FR = throttle + rollCorrection + pitchCorrection; // PB10
+			BR = throttle + rollCorrection - pitchCorrection; // PA1
+
+			pwm->SetPulse(FL, 4);
+			pwm->SetPulse(BL, 1);
+			pwm->SetPulse(FR, 3);
+			pwm->SetPulse(BR, 2);
+		}
+		else if (status == 2)
+			LEDs::TurnOn(LEDs::Orange);
 
 		if (ms5611->D1_Ready())
 			ms5611->ConvertD2();
@@ -112,10 +170,10 @@ int main(void)
 		}
 
 		esp8266->WaitReady(0);
+		//neo->ParseData();
 
 		if (HAL_GetTick() - timestamp >= 1000) {
-
-			udpD[0] = (data[0] >> 24) & 0xFF;
+			/*udpD[0] = (data[0] >> 24) & 0xFF;
 			udpD[1] = (data[0] >> 16) & 0xFF;
 			udpD[2] = (data[0] >> 8) & 0xFF;
 			udpD[3] = data[0] & 0xFF;
@@ -134,14 +192,23 @@ int main(void)
 			udpD[16] = (press >> 24) & 0xFF;
 			udpD[17] = (press >> 16) & 0xFF;
 			udpD[18] = (press >> 8) & 0xFF;
-			udpD[19] = press & 0xFF;
+			udpD[19] = press & 0xFF;*/
+
+			udpD[0] = (FL >> 8) & 0xFF;
+			udpD[1] = FL & 0xFF;
+			udpD[2] = (BL >> 8) & 0xFF;
+			udpD[3] = BL & 0xFF;
+			udpD[4] = (FR >> 8) & 0xFF;
+			udpD[5] = FR & 0xFF;
+			udpD[6] = (BR >> 8) & 0xFF;
+			udpD[7] = BR & 0xFF;
 
 			uint32_t tmpTime = HAL_GetTick() - timestamp;
 
-			udpD[20] = (tmpTime >> 8) & 0xFF;
-			udpD[21] = tmpTime & 0xFF;
+			udpD[8] = (tmpTime >> 8) & 0xFF;
+			udpD[9] = tmpTime & 0xFF;
 
-			esp8266->SendUDP(udpD, 22);
+			esp8266->SendUDP(udpD, 10);
 
 			timestamp += tmpTime;
 		}
@@ -152,33 +219,7 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 	switch (length) {
 	case 10:
 		if (data[0] == 0x4D && data[9] == 0x4D) {
-			uint16_t motor1, motor2, motor3, motor4;
 
-			motor1 = data[1] << 8;
-			motor1 |= data[2];
-			motor2 = data[3] << 8;
-			motor2 |= data[4];
-			motor3 = data[5] << 8;
-			motor3 |= data[6];
-			motor4 = data[7] << 8;
-			motor4 |= data[8];
-
-			if (prev1 != motor1) {
-				pwm->SetPulse(motor1 == 0xFFFF ? 950 : motor1 + 1000, 0);
-				prev1 = motor1;
-			}
-			if (prev2 != motor2) {
-				pwm->SetPulse(motor2 == 0xFFFF ? 950 : motor2 + 1000, 1);
-				prev2 = motor2;
-			}
-			if (prev3 != motor3) {
-				pwm->SetPulse(motor3 == 0xFFFF ? 950 : motor3 + 1000, 2);
-				prev3 = motor3;
-			}
-			if (prev4 != motor4) {
-				pwm->SetPulse(motor4 == 0xFFFF ? 950 : motor4 + 1000, 3);
-				prev4 = motor4;
-			}
 		}
 		break;
 	case 3:
@@ -188,6 +229,7 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 		else if (data[0] == 0x2D) {
 
 		}
+		// run self-test
 		else if (data[0] == 0x1D) {
 			LEDs::TurnOff(LEDs::Green);
 
@@ -196,7 +238,34 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 			else
 				LEDs::TurnOn(LEDs::Orange);
 		}
-
 		break;
 	}
+}
+
+void InitI2C(I2C_HandleTypeDef *I2C_Handle) {
+	if (__GPIOB_IS_CLK_DISABLED())
+		__GPIOB_CLK_ENABLE();
+
+	if (__I2C1_IS_CLK_DISABLED())
+		__I2C1_CLK_ENABLE();
+
+	GPIO_InitTypeDef GPIO_InitStruct;
+	GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	I2C_Handle->Instance = I2C1;
+	I2C_Handle->Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	I2C_Handle->Init.ClockSpeed = 400000;
+	I2C_Handle->Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	I2C_Handle->Init.DutyCycle = I2C_DUTYCYCLE_2;
+	I2C_Handle->Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	I2C_Handle->Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	I2C_Handle->Init.OwnAddress1 = 0;
+	I2C_Handle->Init.OwnAddress2 = 0;
+
+	HAL_I2C_Init(I2C_Handle);
 }
