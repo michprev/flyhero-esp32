@@ -19,22 +19,23 @@ MS5611::MS5611() {
 HAL_StatusTypeDef MS5611::Reset()
 {
 	uint8_t reset = 0x1E;
-	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&this->hi2c, this->ADDRESS, &reset, 1, HAL_MAX_DELAY);
+	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(this->hi2c, this->ADDRESS, &reset, 1, HAL_MAX_DELAY);
 
 	HAL_Delay(20);
 
 	return status;
 }
 
-HAL_StatusTypeDef MS5611::Init()
+HAL_StatusTypeDef MS5611::Init(I2C_HandleTypeDef *hi2c)
 {
-	this->I2C_Init();
+	this->hi2c = hi2c;
 
 	HAL_StatusTypeDef status;
+
 	uint8_t data[2];
 
 	for (uint8_t i = 0; i < 6; i++) {
-		status = HAL_I2C_Mem_Read(&this->hi2c, this->ADDRESS, 0xA2 + i * 2, I2C_MEMADD_SIZE_8BIT, data, 2, HAL_MAX_DELAY);
+		status = HAL_I2C_Mem_Read(this->hi2c, this->ADDRESS, 0xA2 + i * 2, I2C_MEMADD_SIZE_8BIT, data, 2, 50);
 
 		if (status != HAL_OK)
 			return status;
@@ -51,7 +52,7 @@ HAL_StatusTypeDef MS5611::Init()
 bool MS5611::D1_Ready() {
 	if (this->D1_Timestamp != 0 && HAL_GetTick() - this->D1_Timestamp >= 10) {
 		uint8_t conversionData[3];
-		HAL_I2C_Mem_Read(&this->hi2c, this->ADDRESS, 0x00, I2C_MEMADD_SIZE_8BIT, conversionData, 3, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(this->hi2c, this->ADDRESS, 0x00, I2C_MEMADD_SIZE_8BIT, conversionData, 3, HAL_MAX_DELAY);
 		this->D1 = conversionData[0] << 16;
 		this->D1 |= conversionData[1] << 8;
 		this->D1 |= conversionData[2];
@@ -67,7 +68,7 @@ bool MS5611::D1_Ready() {
 bool MS5611::D2_Ready() {
 	if (this->D2_Timestamp != 0 && HAL_GetTick() - this->D2_Timestamp >= 10) {
 		uint8_t conversionData[3];
-		HAL_I2C_Mem_Read(&this->hi2c, this->ADDRESS, 0x00, I2C_MEMADD_SIZE_8BIT, conversionData, 3, HAL_MAX_DELAY);
+		HAL_I2C_Mem_Read(this->hi2c, this->ADDRESS, 0x00, I2C_MEMADD_SIZE_8BIT, conversionData, 3, HAL_MAX_DELAY);
 		this->D2 = conversionData[0] << 16;
 		this->D2 |= conversionData[1] << 8;
 		this->D2 |= conversionData[2];
@@ -82,7 +83,7 @@ bool MS5611::D2_Ready() {
 
 HAL_StatusTypeDef MS5611::ConvertD1() {
 	uint8_t convertD1 = 0x48;
-	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&this->hi2c, this->ADDRESS, &convertD1, 1, HAL_MAX_DELAY);
+	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(this->hi2c, this->ADDRESS, &convertD1, 1, HAL_MAX_DELAY);
 	this->D1_Timestamp = HAL_GetTick();
 
 	return status;
@@ -90,7 +91,7 @@ HAL_StatusTypeDef MS5611::ConvertD1() {
 
 HAL_StatusTypeDef MS5611::ConvertD2() {
 	uint8_t convertD2 = 0x58;
-	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&this->hi2c, this->ADDRESS, &convertD2, 1, HAL_MAX_DELAY);
+	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(this->hi2c, this->ADDRESS, &convertD2, 1, HAL_MAX_DELAY);
 	this->D2_Timestamp = HAL_GetTick();
 
 	return status;
@@ -129,7 +130,7 @@ HAL_StatusTypeDef MS5611::GetData(int32_t * temperature, int32_t * pressure)
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef MS5611::I2C_Init()
+/*HAL_StatusTypeDef MS5611::I2C_Init()
 {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
@@ -143,7 +144,7 @@ HAL_StatusTypeDef MS5611::I2C_Init()
 	gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	gpio.Pull = GPIO_PULLUP;
 	gpio.Alternate = GPIO_AF4_I2C1;
-
+	HAL_GPIO_DeInit(GPIOB, GPIO_PIN_8 | GPIO_PIN_9);
 	HAL_GPIO_Init(GPIOB, &gpio);
 
 	this->hi2c.Instance = I2C1;
@@ -156,5 +157,8 @@ HAL_StatusTypeDef MS5611::I2C_Init()
 	this->hi2c.Init.OwnAddress1 = 0;
 	this->hi2c.Init.OwnAddress2 = 0;
 
+	if (HAL_I2C_DeInit(&this->hi2c) != HAL_OK)
+		return HAL_ERROR;
+
 	return HAL_I2C_Init(&this->hi2c);
-}
+}*/

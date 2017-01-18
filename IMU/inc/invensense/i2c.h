@@ -8,7 +8,7 @@ Purpose :
 #include <stm32f4xx_hal.h>
 /****************************** Defines *******************************/
 
-void I2cMaster_Init(void);
+void I2cMaster_Init(I2C_HandleTypeDef *hi2c);
 void Set_I2C_Retry(unsigned short ml_sec);
 unsigned short Get_I2C_Retry();
 

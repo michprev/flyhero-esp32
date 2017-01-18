@@ -10,7 +10,7 @@ Author  :
 
 
 /********************************* Globals ************************************/
-I2C_HandleTypeDef MPU_Handle;
+I2C_HandleTypeDef *I2C_Handle;
 
 /********************************* Prototypes *********************************/
 int Sensors_I2C_WriteRegister(unsigned char slave_addr,
@@ -24,33 +24,9 @@ int Sensors_I2C_ReadRegister(unsigned char slave_addr,
 
 /*******************************  Function ************************************/
 
-void I2cMaster_Init(void)
+void I2cMaster_Init(I2C_HandleTypeDef *hi2c)
 {
-	if (__GPIOB_IS_CLK_DISABLED())
-		__GPIOB_CLK_ENABLE();
-
-	if (__I2C1_IS_CLK_DISABLED())
-		__I2C1_CLK_ENABLE();
-
-	GPIO_InitTypeDef GPIO_InitStruct;
-	GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-	MPU_Handle.Instance = I2C1;
-	MPU_Handle.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	MPU_Handle.Init.ClockSpeed = 400000;
-	MPU_Handle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	MPU_Handle.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	MPU_Handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	MPU_Handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	MPU_Handle.Init.OwnAddress1 = 0;
-	MPU_Handle.Init.OwnAddress2 = 0;
-
-	HAL_I2C_Init(&MPU_Handle);
+	I2C_Handle = hi2c;
 }
 
 /**
@@ -63,20 +39,19 @@ static void I2C_Reset()
 
 	/* The following code allows I2C error recovery and return to normal communication
 	if the error source doesn’t still exist (ie. hardware issue..) */
-	I2C_InitTypeDef I2C_InitStructure;
-	HAL_I2C_DeInit(&MPU_Handle);
+	HAL_I2C_DeInit(I2C_Handle);
 
-	MPU_Handle.Instance = I2C1;
-	MPU_Handle.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	MPU_Handle.Init.ClockSpeed = 100000;
-	MPU_Handle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	MPU_Handle.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	MPU_Handle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	MPU_Handle.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	MPU_Handle.Init.OwnAddress1 = 0;
-	MPU_Handle.Init.OwnAddress2 = 0;
+	I2C_Handle->Instance = I2C1;
+	I2C_Handle->Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	I2C_Handle->Init.ClockSpeed = 100000;
+	I2C_Handle->Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	I2C_Handle->Init.DutyCycle = I2C_DUTYCYCLE_2;
+	I2C_Handle->Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	I2C_Handle->Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	I2C_Handle->Init.OwnAddress1 = 0;
+	I2C_Handle->Init.OwnAddress2 = 0;
 
-	HAL_I2C_Init(&MPU_Handle);
+	HAL_I2C_Init(I2C_Handle);
 }
 
 
@@ -90,7 +65,7 @@ int Sensors_I2C_WriteRegister(unsigned char slave_addr,
 	unsigned short retry_in_mlsec = Get_I2C_Retry();
 
 tryWriteAgain:
-	ret = HAL_I2C_Mem_Write(&MPU_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 500);
+	ret = HAL_I2C_Mem_Write(I2C_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 100);
 
 	if (ret)
 		I2C_Reset();
@@ -116,7 +91,7 @@ int Sensors_I2C_ReadRegister(unsigned char slave_addr,
 	unsigned short retry_in_mlsec = Get_I2C_Retry();
 
 tryReadAgain:
-	ret = HAL_I2C_Mem_Read(&MPU_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 500);
+	ret = HAL_I2C_Mem_Read(I2C_Handle, slave_addr << 1, reg_addr, I2C_MEMADD_SIZE_8BIT, data_ptr, len, 100);
 
 	if (ret)
 		I2C_Reset();

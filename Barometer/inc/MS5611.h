@@ -16,7 +16,7 @@ class MS5611
 public:
 	static MS5611* Instance();
 	HAL_StatusTypeDef Reset();
-	HAL_StatusTypeDef Init();
+	HAL_StatusTypeDef Init(I2C_HandleTypeDef *hi2c);
 	HAL_StatusTypeDef GetData(int32_t *temperature, int32_t *pressure);
 	bool D1_Ready();
 	bool D2_Ready();
@@ -34,9 +34,7 @@ private:
 	uint32_t D1;
 	uint32_t D2;
 	uint16_t C[6];
-	I2C_HandleTypeDef hi2c;
-
-	HAL_StatusTypeDef I2C_Init();
+	I2C_HandleTypeDef *hi2c;
 };
 
 #endif
