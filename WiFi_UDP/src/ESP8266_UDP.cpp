@@ -27,12 +27,14 @@ ESP8266_UDP::ESP8266_UDP()
 	this->IPD_Callback = NULL;
 	this->handshaken = false;
 
-	UART_Init();
+	if (UART_Init() != HAL_OK) {
+		printf("fef");
+	}
 }
 
 HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 {
-	if (__GPIOB_IS_CLK_DISABLED())
+	/*if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
 
 	if (__GPIOC_IS_CLK_DISABLED())
@@ -42,7 +44,19 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 		__USART3_CLK_ENABLE();
 
 	if (__DMA1_IS_CLK_DISABLED())
-		__DMA1_CLK_ENABLE();
+		__DMA1_CLK_ENABLE();*/
+
+	__GPIOB_CLK_DISABLE();
+	__GPIOB_CLK_ENABLE();
+
+	__GPIOC_CLK_DISABLE();
+	__GPIOC_CLK_ENABLE();
+
+	__USART3_CLK_DISABLE();
+	__USART3_CLK_ENABLE();
+
+	__DMA1_CLK_DISABLE();
+	__DMA1_CLK_ENABLE();
 
 	// PB7 RST
 	// PC10 TX
@@ -53,7 +67,10 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	rst.Mode = GPIO_MODE_OUTPUT_PP;
 	rst.Pull = GPIO_PULLUP;;
 	rst.Speed = GPIO_SPEED_HIGH;
+	HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
 	HAL_GPIO_Init(GPIOB, &rst);
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 
 	GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -62,6 +79,7 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	GPIO_InitStruct.Pull = GPIO_PULLUP;
 	GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+	HAL_GPIO_DeInit(GPIOC, GPIO_PIN_10 | GPIO_PIN_11);
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 	hdma_usart3_rx.Instance = DMA1_Stream1;
@@ -74,6 +92,12 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	hdma_usart3_rx.Init.Mode = DMA_CIRCULAR;
 	hdma_usart3_rx.Init.Priority = DMA_PRIORITY_LOW;
 	hdma_usart3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+
+	__HAL_DMA_RESET_HANDLE_STATE(&hdma_usart3_rx);
+
+	if (HAL_DMA_DeInit(&hdma_usart3_rx))
+		return HAL_ERROR;
+
 	if (HAL_DMA_Init(&hdma_usart3_rx))
 		return HAL_ERROR;
 
@@ -88,7 +112,7 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	this->huart.Init.Mode = UART_MODE_TX_RX;
 	this->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	this->huart.Init.OverSampling = UART_OVERSAMPLING_8;
-	if (HAL_UART_Init(&this->huart))
+	if (HAL_UART_DeInit(&this->huart) || HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
 	if (HAL_UART_Receive_DMA(&this->huart, this->data, this->size))

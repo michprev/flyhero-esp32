@@ -32,8 +32,6 @@ private:
 	char sendBuffer[2048] = { '\0' };
 	WaitFlag waitFlag;
 	bool inIPD;
-	uint32_t readPos;
-	uint8_t data[size] = { '\0' };
 
 	HAL_StatusTypeDef UART_Init();
 	int32_t findString(const char *str);
@@ -42,11 +40,13 @@ private:
 	HAL_StatusTypeDef send(const char *);
 
 public:
+	uint8_t data[size] = { '\0' };
 	DMA_HandleTypeDef hdma_usart3_rx;
 	UART_HandleTypeDef huart;
 	bool ready;
 	bool handshaken;
 	bool output;
+	uint32_t readPos;
 	void(*IPD_Callback)(uint8_t *data, uint16_t length);
 
 	static ESP8266_UDP* Instance();
