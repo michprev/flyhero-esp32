@@ -156,15 +156,23 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t channel)
 	}
 }
 
-void PWM_Generator::Arm()
+void PWM_Generator::Arm(void(*Arm_Callback)())
 {
+	uint32_t timestamp;
+
+	timestamp = HAL_GetTick();
+	while (HAL_GetTick() - timestamp < 1000)
+		Arm_Callback();
+
 	// we set maximum pulse here
 	this->SetPulse(2000, 1);
 	this->SetPulse(2000, 2);
 	this->SetPulse(2000, 3);
 	this->SetPulse(2000, 4);
 
-	HAL_Delay(2000);
+	timestamp = HAL_GetTick();
+	while (HAL_GetTick() - timestamp < 2000)
+		Arm_Callback();
 
 	// we set minimum pulse here
 	this->SetPulse(1000, 1);
@@ -172,7 +180,9 @@ void PWM_Generator::Arm()
 	this->SetPulse(1000, 3);
 	this->SetPulse(1000, 4);
 
-	HAL_Delay(1000);
+	timestamp = HAL_GetTick();
+	while (HAL_GetTick() - timestamp < 1000)
+		Arm_Callback();
 
 	this->SetPulse(940, 1);
 	this->SetPulse(940, 2);

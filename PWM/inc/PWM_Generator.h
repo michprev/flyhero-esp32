@@ -22,7 +22,7 @@ public:
 	static PWM_Generator* Instance();
 	void Init();
 	void SetPulse(uint16_t us, uint8_t index);
-	void Arm();
+	void Arm(void(*Arm_Callback)());
 };
 
 #endif /* PWM_GENERATOR_H_ */
