@@ -2950,7 +2950,9 @@ static int setup_compass(void)
 
     if (akm_addr > 0x0F) {
         /* TODO: Handle this case in all compass-related functions. */
+#ifdef LOG
         printf("Compass not found.\n");
+#endif
         return -1;
     }
 

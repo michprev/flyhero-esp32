@@ -878,7 +878,9 @@ inv_error_t inv_register_data_cb(
         inv_data_builder.process[kk].data_required = sensor_type;
         inv_data_builder.num_cb++;
     } else {
+#ifdef LOG
         printf("Unable to add feature callback as too many were already registered\n");
+#endif
         result = INV_ERROR_MEMORY_EXAUSTED;
     }
 
