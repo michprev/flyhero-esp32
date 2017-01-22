@@ -34,7 +34,7 @@ ESP8266_UDP::ESP8266_UDP()
 
 HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 {
-	/*if (__GPIOB_IS_CLK_DISABLED())
+	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
 
 	if (__GPIOC_IS_CLK_DISABLED())
@@ -44,19 +44,7 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 		__USART3_CLK_ENABLE();
 
 	if (__DMA1_IS_CLK_DISABLED())
-		__DMA1_CLK_ENABLE();*/
-
-	__GPIOB_CLK_DISABLE();
-	__GPIOB_CLK_ENABLE();
-
-	__GPIOC_CLK_DISABLE();
-	__GPIOC_CLK_ENABLE();
-
-	__USART3_CLK_DISABLE();
-	__USART3_CLK_ENABLE();
-
-	__DMA1_CLK_DISABLE();
-	__DMA1_CLK_ENABLE();
+		__DMA1_CLK_ENABLE();
 
 	// PB7 RST
 	// PC10 TX
@@ -357,8 +345,8 @@ void ESP8266_UDP::processData()
 		IPD_Pos++;
 
 		while (dataRead != IPD_Length) {
-			// check null bytes only if the first byte is 0x4D
-			readCount = readByte((uint8_t*)&c, firstByte == 0x4D);
+			// check null bytes only if the first byte is 0x5D
+			readCount = readByte((uint8_t*)&c, firstByte == 0x5D);
 
 			if (readCount == 1) {
 				this->IPD_Data[IPD_Pos] = c;
