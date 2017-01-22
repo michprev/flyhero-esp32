@@ -46,12 +46,14 @@ extern "C" void DMA2_Stream2_IRQHandler(void)
 }
 
 void InitI2C(I2C_HandleTypeDef*);
-
+void Arm_Callback();
 void IPD_Callback(uint8_t *data, uint16_t length);
 
-
+bool IWDG_Started = false;
+uint8_t rollKp, pitchKp;
+bool connected = false;
 uint16_t throttle = 0;
-
+IWDG_HandleTypeDef hiwdg;
 
 int main(void)
 {
@@ -59,34 +61,24 @@ int main(void)
 #ifdef LOG
 	initialise_monitor_handles();
 #endif
-
+	uint8_t status;
 	int32_t press, temp;
 	long data[3];
 	uint8_t accuracy;
 	uint8_t udpD[22];
-
 	long FL, BL, FR, BR;
+	FL = BL = FR = BR = 0;
 	long pitchCorrection, rollCorrection;
-
-	PID PID_Pitch;
-	PID_Pitch.kP(0.7);
-	//PID_Pitch.kI(1);
-	PID_Pitch.imax(50);
-
-	PID PID_Roll;
-	PID_Roll.kP(0.7);
-	//PID_Roll.kI(1);
-	PID_Roll.imax(50);
-
-	PID PID_Yaw;
-	PID_Yaw.kP(2.5);
-	PID_Yaw.imax(50);
 
 	LEDs::Init();
 
+	hiwdg.Instance = IWDG;
+	hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+	hiwdg.Init.Reload = 480;
+	// timeout after 2 s
+	HAL_IWDG_Init(&hiwdg);
 
 	I2C_HandleTypeDef hI2C_Handle;
-
 	InitI2C(&hI2C_Handle);
 
 	// reset ESP8266
@@ -104,11 +96,10 @@ int main(void)
 	LEDs::TurnOff(LEDs::Yellow);
 
 	esp8266->IPD_Callback = &IPD_Callback;
-	esp8266->output = true;
 	esp8266->Init();
 
 	timestamp = HAL_GetTick();
-	while (!esp8266->handshaken) {
+	while (!connected) {
 		if (HAL_GetTick() - timestamp >= 750) {
 			LEDs::Toggle(LEDs::Green);
 
@@ -118,34 +109,50 @@ int main(void)
 	}
 	LEDs::TurnOff(LEDs::Green);
 
-	//pwm->Init();
-	//pwm->Arm();
+	PID PID_Roll;
+	PID_Roll.kP(rollKp / 100.0);
+	//PID_Roll.kI(1);
+	PID_Roll.imax(50);
 
-	// reset gyro
-	if (mpu->Init(&hI2C_Handle)) {
-		LEDs::TurnOn(LEDs::Yellow);
-	}
+	PID PID_Pitch;
+	PID_Pitch.kP(pitchKp / 100.0);
+	//PID_Pitch.kI(1);
+	PID_Pitch.imax(50);
+
+	/*PID PID_Yaw;
+	PID_Yaw.kP(2.5);
+	PID_Yaw.imax(50);*/
+
+	pwm->Init();
+	pwm->Arm(&Arm_Callback);
+
+	//neo->Init();
 
 	// reset barometer
 	if (ms5611->Init(&hI2C_Handle) != HAL_OK) {
 		LEDs::TurnOn(LEDs::Orange);
+		while (true);
 	}
 
-	//neo->Init();
-
-	ms5611->ConvertD1();
+	// reset gyro
+	if (mpu->Init(&hI2C_Handle)) {
+		LEDs::TurnOn(LEDs::Yellow);
+		while (true);
+	}
 
 	// everything OK
 	LEDs::TurnOn(LEDs::Green);
 
-	timestamp = HAL_GetTick();
+	ms5611->ConvertD1();
+	HAL_IWDG_Start(&hiwdg);
+	IWDG_Started = true;
 
-	uint8_t status;
+	timestamp = HAL_GetTick();
 
 	while (true) {
 		status = mpu->CheckNewData(data, &accuracy);
 
-		if (status == 1 && throttle >= 1100) {
+		if (status == 1 && throttle >= 1050) {
 			pitchCorrection = PID_Pitch.get_pid(data[1], 1);
 			rollCorrection = PID_Roll.get_pid(data[0], 1);
 
@@ -162,6 +169,13 @@ int main(void)
 		else if (status == 2)
 			LEDs::TurnOn(LEDs::Orange);
 
+		if (throttle < 1050) {
+			pwm->SetPulse(940, 4);
+			pwm->SetPulse(940, 1);
+			pwm->SetPulse(940, 3);
+			pwm->SetPulse(940, 2);
+		}
+
 		if (ms5611->D1_Ready())
 			ms5611->ConvertD2();
 		else if (ms5611->D2_Ready()) {
@@ -170,30 +184,10 @@ int main(void)
 		}
 
 		esp8266->WaitReady(0);
+
 		//neo->ParseData();
 
-		if (HAL_GetTick() - timestamp >= 1000) {
-			/*udpD[0] = (data[0] >> 24) & 0xFF;
-			udpD[1] = (data[0] >> 16) & 0xFF;
-			udpD[2] = (data[0] >> 8) & 0xFF;
-			udpD[3] = data[0] & 0xFF;
-			udpD[4] = (data[1] >> 24) & 0xFF;
-			udpD[5] = (data[1] >> 16) & 0xFF;
-			udpD[6] = (data[1] >> 8) & 0xFF;
-			udpD[7] = data[1] & 0xFF;
-			udpD[8] = (data[2] >> 24) & 0xFF;
-			udpD[9] = (data[2] >> 16) & 0xFF;
-			udpD[10] = (data[2] >> 8) & 0xFF;
-			udpD[11] = data[2] & 0xFF;
-			udpD[12] = (temp >> 24) & 0xFF;
-			udpD[13] = (temp >> 16) & 0xFF;
-			udpD[14] = (temp >> 8) & 0xFF;
-			udpD[15] = temp & 0xFF;
-			udpD[16] = (press >> 24) & 0xFF;
-			udpD[17] = (press >> 16) & 0xFF;
-			udpD[18] = (press >> 8) & 0xFF;
-			udpD[19] = press & 0xFF;*/
-
+		if (HAL_GetTick() - timestamp >= 500) {
 			udpD[0] = (FL >> 8) & 0xFF;
 			udpD[1] = FL & 0xFF;
 			udpD[2] = (BL >> 8) & 0xFF;
@@ -217,16 +211,36 @@ int main(void)
 
 void IPD_Callback(uint8_t *data, uint16_t length) {
 	switch (length) {
-	case 10:
-		if (data[0] == 0x4D && data[9] == 0x4D) {
+	case 4:
+		if (data[0] == 0x4D && data[3] == 0x4D) {
+			if (IWDG_Started)
+				HAL_IWDG_Refresh(&hiwdg);
 
+			if (data[1] == 0xFF && data[2] == 0xFF) {
+				data[1] = 0;
+				data[2] = 0;
+			}
+			else if (data[1] == 0xFF)
+				data[1] = 0;
+
+			throttle = data[1] << 8;
+			throttle |= data[2];
+
+			throttle += 1000;
 		}
 		break;
 	case 3:
-		if (data[0] == 0x3D) {
+		if (data[0] == 0x2D) {
+			if (data[1] == 0xFF)
+				data[1] = 0;
+			if (data[2] == 0xFF)
+				data[2] = 0;
 
+			rollKp = data[1];
+			pitchKp = data[2];
+			connected = true;
 		}
-		else if (data[0] == 0x2D) {
+		else if (data[0] == 0x3D) {
 
 		}
 		// run self-test
@@ -240,6 +254,10 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 		}
 		break;
 	}
+}
+
+void Arm_Callback() {
+	esp8266->WaitReady(0);
 }
 
 void InitI2C(I2C_HandleTypeDef *I2C_Handle) {
