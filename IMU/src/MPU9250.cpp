@@ -190,8 +190,14 @@ uint8_t MPU9250::CheckNewData(long *euler, uint8_t *accur)
 		unsigned char more;
 		long accel[3], quat[4], temperature;
 
-		if (dmp_read_fifo(gyro, accel_short, quat, &sensor_timestamp, &sensors, &more))
+		int state = dmp_read_fifo(gyro, accel_short, quat, &sensor_timestamp, &sensors, &more);
+
+		// FIFO overflow
+		if (state == -2)
 			return 2;
+		// another error, data not ready e. g.
+		else if (state != 0)
+			return 3;
 
 		if (!more)
 			dataReady = false;
