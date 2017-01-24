@@ -106,63 +106,19 @@ void PWM_Generator::SetPulse(uint16_t ticks, uint8_t channel)
 {
 	TIM_OC_InitTypeDef sConfig;
 
-	if (channel == 1) {
-		sConfig.OCMode = TIM_OCMODE_PWM1;
-		sConfig.Pulse = ticks;
-		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-		sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-		sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-		sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-		sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-		HAL_TIM_PWM_ConfigChannel(&this->htim, &sConfig, TIM_CHANNEL_1);
-
-		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_1);
-	}
-	else if (channel == 2) {
-		sConfig.OCMode = TIM_OCMODE_PWM1;
-		sConfig.Pulse = ticks;
-		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-		sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-		sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-		sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-		sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-		HAL_TIM_PWM_ConfigChannel(&this->htim, &sConfig, TIM_CHANNEL_2);
-
-		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_2);
-	}
-	else if (channel == 3) {
-		sConfig.OCMode = TIM_OCMODE_PWM1;
-		sConfig.Pulse = ticks;
-		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-		sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-		sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-		sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-		sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-		HAL_TIM_PWM_ConfigChannel(&this->htim, &sConfig, TIM_CHANNEL_3);
-
-		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_3);
-	}
-	else if (channel == 4) {
-		sConfig.OCMode = TIM_OCMODE_PWM1;
-		sConfig.Pulse = ticks;
-		sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-		sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-		sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-		sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-		sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-		HAL_TIM_PWM_ConfigChannel(&this->htim, &sConfig, TIM_CHANNEL_4);
-
-		HAL_TIM_PWM_Start(&this->htim, TIM_CHANNEL_4);
-	}
+	if (channel == 1)
+		__HAL_TIM_SET_COMPARE(&this->htim, TIM_CHANNEL_1, ticks);
+	else if (channel == 2)
+		__HAL_TIM_SET_COMPARE(&this->htim, TIM_CHANNEL_2, ticks);
+	else if (channel == 3)
+		__HAL_TIM_SET_COMPARE(&this->htim, TIM_CHANNEL_3, ticks);
+	else if (channel == 4)
+		__HAL_TIM_SET_COMPARE(&this->htim, TIM_CHANNEL_4, ticks);
 }
 
 void PWM_Generator::Arm(void(*Arm_Callback)())
 {
 	uint32_t timestamp;
-
-	timestamp = HAL_GetTick();
-	while (HAL_GetTick() - timestamp < 1000)
-		Arm_Callback();
 
 	// we set maximum pulse here
 	this->SetPulse(2000, 1);
