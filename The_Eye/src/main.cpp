@@ -50,10 +50,15 @@ void Arm_Callback();
 void IPD_Callback(uint8_t *data, uint16_t length);
 
 bool IWDG_Started = false;
-uint8_t rollKp, pitchKp;
+uint16_t rollKp, pitchKp;
 bool connected = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
+
+uint8_t FL_offset = 0;
+uint8_t BL_offset = 0;
+uint8_t FR_offset = 0;
+uint8_t BR_offset = 0;
 
 int main(void)
 {
@@ -156,10 +161,10 @@ int main(void)
 			pitchCorrection = PID_Pitch.get_pid(data[1], 1);
 			rollCorrection = PID_Roll.get_pid(data[0], 1);
 
-			FL = throttle - rollCorrection + pitchCorrection; // PB2
-			BL = throttle - rollCorrection - pitchCorrection; // PA15
-			FR = throttle + rollCorrection + pitchCorrection; // PB10
-			BR = throttle + rollCorrection - pitchCorrection; // PA1
+			FL = throttle - rollCorrection + pitchCorrection + FL_offset; // PB2
+			BL = throttle - rollCorrection - pitchCorrection + BL_offset; // PA15
+			FR = throttle + rollCorrection + pitchCorrection + FR_offset; // PB10
+			BR = throttle + rollCorrection - pitchCorrection + BR_offset; // PA1
 
 			pwm->SetPulse(FL, 4);
 			pwm->SetPulse(BL, 1);
@@ -211,36 +216,48 @@ int main(void)
 
 void IPD_Callback(uint8_t *data, uint16_t length) {
 	switch (length) {
-	case 4:
-		if (data[0] == 0x4D && data[3] == 0x4D) {
+	case 8:
+		if (data[0] == 0x5D && data[7] == 0x5D) {
 			if (IWDG_Started)
 				HAL_IWDG_Refresh(&hiwdg);
-
-			if (data[1] == 0xFF && data[2] == 0xFF) {
-				data[1] = 0;
-				data[2] = 0;
-			}
-			else if (data[1] == 0xFF)
-				data[1] = 0;
 
 			throttle = data[1] << 8;
 			throttle |= data[2];
 
+			if (data[3] == 0xFF)
+				FL_offset = 0;
+			else
+				FL_offset = data[3];
+
+			if (data[4] == 0xFF)
+				BL_offset = 0;
+			else
+				BL_offset = data[4];
+
+			if (data[5] == 0xFF)
+				FR_offset = 0;
+			else
+				FR_offset = data[5];
+
+			if (data[6] == 0xFF)
+				BR_offset = 0;
+			else
+				BR_offset = data[6];
+
 			throttle += 1000;
 		}
 		break;
-	case 3:
-		if (data[0] == 0x2D) {
-			if (data[1] == 0xFF)
-				data[1] = 0;
-			if (data[2] == 0xFF)
-				data[2] = 0;
+	case 6:
+		if (data[0] == 0x5D && data[5] == 0x5D) {
+			rollKp = data[1] << 8;
+			rollKp |= data[2];
 
-			rollKp = data[1];
-			pitchKp = data[2];
-			connected = true;
+			pitchKp = data[3] << 8;
+			pitchKp |= data[4];
 		}
-		else if (data[0] == 0x3D) {
+		break;
+	case 3:
+		if (data[0] == 0x3D) {
 
 		}
 		// run self-test
