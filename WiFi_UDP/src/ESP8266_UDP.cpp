@@ -171,7 +171,7 @@ uint8_t ESP8266_UDP::readByte(uint8_t *data, bool checkNull) {
 			uint32_t p = this->readPos + 1;
 			bool found = false;
 
-			for (uint8_t i = 0; i < this->MAX_NULL_BYTES - 1; i++) {
+			for (uint8_t i = 0; i < this->MAX_NULL_BYTES; i++) {
 				if (p == this->size)
 					p = 0;
 
@@ -193,7 +193,6 @@ uint8_t ESP8266_UDP::readByte(uint8_t *data, bool checkNull) {
 	}
 	else if (data != NULL)
 		*data = this->data[this->readPos];
-
 
 	this->data[this->readPos] = '\0';
 	this->readPos++;
@@ -247,7 +246,7 @@ void ESP8266_UDP::processData()
 
 
 		if (strcmp("ready\r\n", buffer) == 0) {
-			this->MAX_NULL_BYTES = 2;
+
 			if (this->ready) {
 				printf("%s\n", this->data);
 				printf("restarted\n");

@@ -24,7 +24,7 @@ private:
 	static ESP8266_UDP* pInstance;
 
 	const static uint32_t size = 2048;
-	uint8_t MAX_NULL_BYTES = 5;
+	uint8_t MAX_NULL_BYTES = 3;
 	char expectedResponse[20] = { '\0' };
 	char clientIP[16] = { '\0' };
 	uint16_t clientPort;
