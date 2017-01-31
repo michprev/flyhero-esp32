@@ -2239,11 +2239,11 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
     unsigned char regs[3];
     if (i2c_read(st.hw->addr, REG_6500_XA_ST_DATA, 3, regs)) {
     	if(debug)
-    		log_i("Reading OTP Register Error.\n");
+    		printf("Reading OTP Register Error.\n");
     	return 0x07;
     }
     if(debug)
-    	log_i("Accel OTP:%d, %d, %d\n", regs[0], regs[1], regs[2]);
+    	printf("Accel OTP:%d, %d, %d\n", regs[0], regs[1], regs[2]);
 	for (i = 0; i < 3; i++) {
 		if (regs[i] != 0) {
 			ct_shift_prod[i] = mpu_6500_st_tb[regs[i] - 1];
@@ -2257,25 +2257,25 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
 	}
 	if(otp_value_zero == 0) {
 		if(debug)
-			log_i("ACCEL:CRITERIA A\n");
+			printf("ACCEL:CRITERIA A\n");
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 			if(debug) {
-				log_i("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
+				printf("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
 						st_shift_cust[i]/1.f, bias_regular[i]/1.f,
 						bias_st[i]/1.f);
-				log_i("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
+				printf("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
 			}
 
 			st_shift_ratio[i] = st_shift_cust[i] / ct_shift_prod[i] - 1.f;
 
 			if(debug)
-				log_i("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
+				printf("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
 							test.max_accel_var/1.f);
 
 			if (fabs(st_shift_ratio[i]) > test.max_accel_var) {
 				if(debug)
-					log_i("ACCEL Fail Axis = %d\n", i);
+					printf("ACCEL Fail Axis = %d\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2286,19 +2286,19 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
 		accel_st_al_max = test.max_g * 65536.f;
 
 		if(debug) {
-			log_i("ACCEL:CRITERIA B\r\n");
-			log_i("Min MG: %7.4f\r\n", accel_st_al_min/1.f);
-			log_i("Max MG: %7.4f\r\n", accel_st_al_max/1.f);
+			printf("ACCEL:CRITERIA B\r\n");
+			printf("Min MG: %7.4f\r\n", accel_st_al_min/1.f);
+			printf("Max MG: %7.4f\r\n", accel_st_al_max/1.f);
 		}
 
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 
 			if(debug)
-				log_i("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
+				printf("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
 			if(st_shift_cust[i] < accel_st_al_min || st_shift_cust[i] > accel_st_al_max) {
 				if(debug)
-					log_i("Accel FAIL axis:%d <= 225mg or >= 675mg\n", i);
+					printf("Accel FAIL axis:%d <= 225mg or >= 675mg\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2308,11 +2308,11 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
 	/* Self Test Pass/Fail Criteria C */
 		accel_offset_max = test.max_g_offset * 65536.f;
 		if(debug)
-			log_i("Accel:CRITERIA C: bias less than %7.4f\n", accel_offset_max/1.f);
+			printf("Accel:CRITERIA C: bias less than %7.4f\n", accel_offset_max/1.f);
 		for (i = 0; i < 3; i++) {
 			if(fabs(bias_regular[i]) > accel_offset_max) {
 				if(debug)
-					log_i("FAILED: Accel axis:%d = %ld > 500mg\n", i, bias_regular[i]);
+					printf("FAILED: Accel axis:%d = %ld > 500mg\n", i, bias_regular[i]);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2330,12 +2330,12 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 
     if (i2c_read(st.hw->addr, REG_6500_XG_ST_DATA, 3, regs)) {
     	if(debug)
-    		log_i("Reading OTP Register Error.\n");
+    		printf("Reading OTP Register Error.\n");
         return 0x07;
     }
 
     if(debug)
-    	log_i("Gyro OTP:%d, %d, %d\r\n", regs[0], regs[1], regs[2]);
+    	printf("Gyro OTP:%d, %d, %d\r\n", regs[0], regs[1], regs[2]);
 
 	for (i = 0; i < 3; i++) {
 		if (regs[i] != 0) {
@@ -2351,27 +2351,27 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 
 	if(otp_value_zero == 0) {
 		if(debug)
-			log_i("GYRO:CRITERIA A\n");
+			printf("GYRO:CRITERIA A\n");
 		/* Self Test Pass/Fail Criteria A */
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 
 			if(debug) {
-				log_i("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
+				printf("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
 						st_shift_cust[i]/1.f, bias_regular[i]/1.f,
 						bias_st[i]/1.f);
-				log_i("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
+				printf("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
 			}
 
 			st_shift_ratio[i] = st_shift_cust[i] / ct_shift_prod[i];
 
 			if(debug)
-				log_i("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
+				printf("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
 							test.max_gyro_var/1.f);
 
 			if (fabs(st_shift_ratio[i]) < test.max_gyro_var) {
 				if(debug)
-					log_i("Gyro Fail Axis = %d\n", i);
+					printf("Gyro Fail Axis = %d\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2381,18 +2381,18 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 		gyro_st_al_max = test.max_dps * 65536.f;
 
 		if(debug) {
-			log_i("GYRO:CRITERIA B\r\n");
-			log_i("Max DPS: %7.4f\r\n", gyro_st_al_max/1.f);
+			printf("GYRO:CRITERIA B\r\n");
+			printf("Max DPS: %7.4f\r\n", gyro_st_al_max/1.f);
 		}
 
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 
 			if(debug)
-				log_i("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
+				printf("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
 			if(st_shift_cust[i] < gyro_st_al_max) {
 				if(debug)
-					log_i("GYRO FAIL axis:%d greater than 60dps\n", i);
+					printf("GYRO FAIL axis:%d greater than 60dps\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2402,11 +2402,11 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 	/* Self Test Pass/Fail Criteria C */
 		gyro_offset_max = test.min_dps * 65536.f;
 		if(debug)
-			log_i("Gyro:CRITERIA C: bias less than %7.4f\n", gyro_offset_max/1.f);
+			printf("Gyro:CRITERIA C: bias less than %7.4f\n", gyro_offset_max/1.f);
 		for (i = 0; i < 3; i++) {
 			if(fabs(bias_regular[i]) > gyro_offset_max) {
 				if(debug)
-					log_i("FAILED: Gyro axis:%d = %ld > 20dps\n", i, bias_regular[i]);
+					printf("FAILED: Gyro axis:%d = %ld > 20dps\n", i, bias_regular[i]);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2476,7 +2476,7 @@ static int get_st_6500_biases(long *gyro, long *accel, unsigned char hw_test, in
     accel[0] = accel[1] = accel[2] = 0;
 
     if(debug)
-    	log_i("Starting Bias Loop Reads\n");
+    	printf("Starting Bias Loop Reads\n");
 
     //start reading samples
     while (s < test.packet_thresh) {
@@ -2513,7 +2513,7 @@ static int get_st_6500_biases(long *gyro, long *accel, unsigned char hw_test, in
     }
 
     if(debug)
-    	log_i("Samples: %d\n", s);
+    	printf("Samples: %d\n", s);
 
     //stop FIFO
     data[0] = 0;
@@ -2534,8 +2534,8 @@ static int get_st_6500_biases(long *gyro, long *accel, unsigned char hw_test, in
 
 
     if(debug) {
-    	log_i("Accel offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, accel[0]/65536.f, accel[1]/65536.f, accel[2]/65536.f);
-    	log_i("Gyro offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, gyro[0]/65536.f, gyro[1]/65536.f, gyro[2]/65536.f);
+    	printf("Accel offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, accel[0]/65536.f, accel[1]/65536.f, accel[2]/65536.f);
+    	printf("Gyro offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, gyro[0]/65536.f, gyro[1]/65536.f, gyro[2]/65536.f);
     }
 
     return 0;
@@ -2574,7 +2574,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 
 
     if(debug)
-    	log_i("Starting MPU6500 HWST!\r\n");
+    	printf("Starting MPU6500 HWST!\r\n");
 
     if (st.chip_cfg.dmp_on) {
         mpu_set_dmp_state(0);
@@ -2591,7 +2591,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
     mpu_get_fifo_config(&fifo_sensors);
 
     if(debug)
-    	log_i("Retrieving Biases\r\n");
+    	printf("Retrieving Biases\r\n");
 
     for (ii = 0; ii < tries; ii++)
         if (!get_st_6500_biases(gyro, accel, 0, debug))
@@ -2601,14 +2601,14 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
          * We'll just report an error for all three sensors.
          */
         if(debug)
-        	log_i("Retrieving Biases Error - possible I2C error\n");
+        	printf("Retrieving Biases Error - possible I2C error\n");
 
         result = 0;
         goto restore;
     }
 
     if(debug)
-    	log_i("Retrieving ST Biases\n");
+    	printf("Retrieving ST Biases\n");
 
     for (ii = 0; ii < tries; ii++)
         if (!get_st_6500_biases(gyro_st, accel_st, 1, debug))
@@ -2616,7 +2616,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
     if (ii == tries) {
 
         if(debug)
-        	log_i("Retrieving ST Biases Error - possible I2C error\n");
+        	printf("Retrieving ST Biases Error - possible I2C error\n");
 
         /* Again, probably an I2C error. */
         result = 0;
@@ -2625,11 +2625,11 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 
     accel_result = accel_6500_self_test(accel, accel_st, debug);
     if(debug)
-    	log_i("Accel Self Test Results: %d\n", accel_result);
+    	printf("Accel Self Test Results: %d\n", accel_result);
 
     gyro_result = gyro_6500_self_test(gyro, gyro_st, debug);
     if(debug)
-    	log_i("Gyro Self Test Results: %d\n", gyro_result);
+    	printf("Gyro Self Test Results: %d\n", gyro_result);
 
     result = 0;
     if (!gyro_result)
@@ -2640,7 +2640,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 #ifdef AK89xx_SECONDARY
     compass_result = compass_self_test();
     if(debug)
-    	log_i("Compass Self Test Results: %d\n", compass_result);
+    	printf("Compass Self Test Results: %d\n", compass_result);
     if (!compass_result)
         result |= 0x04;
 #else
@@ -2648,7 +2648,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 #endif
 restore:
 	if(debug)
-		log_i("Exiting HWST\n");
+		printf("Exiting HWST\n");
 	/* Set to invalid values to ensure no I2C writes are skipped. */
 	st.chip_cfg.gyro_fsr = 0xFF;
 	st.chip_cfg.accel_fsr = 0xFF;
