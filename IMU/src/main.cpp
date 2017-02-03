@@ -72,14 +72,24 @@ int main(void)
 		printf("Error %d\n", result);
 	}
 
-	long data[3];
+	float data[3];
 	uint8_t accuracy;
+
+	uint32_t t = HAL_GetTick();
+	bool run = true;
 
 	while (true)
 	{
-		HAL_IWDG_Refresh(&hiwdg);
+		//HAL_IWDG_Refresh(&hiwdg);
 
-		if (mpu->CheckNewData(data, &accuracy))
-			printf("data: %d %d %d\n", data[0], data[1], data[2]);
+
+		if (HAL_GetTick() - t >= 10000 && run) {
+			//printf("start\n");
+			mpu->SelfTest();
+			run = false;
+		}
+
+		if (mpu->CheckNewData(data, &accuracy) && HAL_GetTick() - t >= 20000)
+			printf("data: %f %f %f\n", data[0], data[1], data[2]);
 	}
 }

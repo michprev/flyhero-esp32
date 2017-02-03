@@ -37,7 +37,8 @@ uint8_t MPU9250::SelfTest()
 	int result;
 	long gyro[3], accel[3];
 
-	result = mpu_run_self_test(gyro, accel);
+	// run MPU6050 (or MPU9250) self-test with debugging turned off
+	result = mpu_run_6500_self_test(gyro, accel, 0);
 
 	if (result == 0x7) {
 		/*printf("Passed!\n");
@@ -115,7 +116,7 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 
 	if (inv_enable_vector_compass_cal())
 		return 7;
-	if (inv_enable_magnetic_disturbance() || inv_enable_heading_from_gyro())
+	if (inv_enable_magnetic_disturbance() /*|| inv_enable_heading_from_gyro()*/)
 		return 8;
 
 	/* Allows use of the MPL APIs in read_from_mpl. */
@@ -157,7 +158,7 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	if (dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_pdata.orientation)))
 		return 14;
 
-	if (dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_GYRO | DMP_FEATURE_SEND_RAW_ACCEL))
+	if (dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL))
 		return 15;
 	if (dmp_set_fifo_rate(this->GYRO_SAMPLE_RATE))
 		return 16;
@@ -167,7 +168,7 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	return 0;
 }
 
-uint8_t MPU9250::CheckNewData(long *euler, uint8_t *accur)
+uint8_t MPU9250::CheckNewData(float *euler, uint8_t *accur)
 {
 	bool new_data = false;
 	bool new_compass = false;
@@ -250,9 +251,9 @@ uint8_t MPU9250::CheckNewData(long *euler, uint8_t *accur)
 		unsigned long timestamp;
 
 		if (inv_get_sensor_type_euler(data, &accuracy, (inv_time_t*)&timestamp)) {
-			euler[0] = data[0] / 65536;
-			euler[1] = data[1] / 65536;
-			euler[2] = data[2] / 65536;
+			euler[0] = data[0] / 65536.f;
+			euler[1] = data[1] / 65536.f;
+			euler[2] = data[2] / 65536.f;
 			(*accur) = accuracy;
 		}
 
