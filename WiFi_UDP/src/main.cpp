@@ -23,23 +23,20 @@ extern "C" void HardFault_Handler(void)
 	printf("hard fault\n");
 }
 
-extern "C" void DMA1_Stream1_IRQHandler(void)
+extern "C" void DMA1_Stream3_IRQHandler(void)
 {
-	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_rx);
+	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_tx);
+}
+
+extern "C" void USART3_IRQHandler(void)
+{
+	HAL_UART_IRQHandler(&esp8266->huart);
 }
 
 uint32_t count = 0;
 
 void IPD_Callback(uint8_t *data, uint16_t length) {
 	//printf("IPD: %s\n", data);
-}
-
-extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	//printf("a\n");
-}
-
-extern "C" void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
-	//printf("a\n");
 }
 
 int main(void)
@@ -68,8 +65,10 @@ int main(void)
 
 	esp8266->Reset();
 
-	while (!esp8266->ready)
-		esp8266->WaitReady();
+	HAL_Delay(500);
+
+	//while (!esp8266->ready)
+		//esp8266->WaitReady();
 
 	esp8266->IPD_Callback = &IPD_Callback;
 	//esp8266->output = true;
@@ -80,6 +79,6 @@ int main(void)
 
 	while (true) {
 		HAL_IWDG_Refresh(&hiwdg);
-		esp8266->WaitReady(0);
+		esp8266->ProcessData();
 	}
 }

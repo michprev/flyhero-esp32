@@ -20,16 +20,55 @@ ESP8266_UDP* ESP8266_UDP::Instance() {
 ESP8266_UDP::ESP8266_UDP()
 {
 	this->readPos = 0;
-	this->output = false;
-	this->ready = false;
+	this->Output = false;
+	this->Ready = false;
 	this->inIPD = false;
 	this->huart = huart;
 	this->IPD_Callback = NULL;
 	this->handshaken = false;
+	this->State = ESP_READY;
+
+	TIM_Init();
 
 	if (UART_Init() != HAL_OK) {
-		printf("fef");
+		LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
+		while (true);
 	}
+}
+
+void ESP8266_UDP::TIM_Init() {
+	RCC_ClkInitTypeDef RCC_ClkInitStruct;
+	uint32_t PclkFreq;
+
+	// Get clock configuration
+	// Note: PclkFreq contains here the Latency (not used after)
+	HAL_RCC_GetClockConfig(&RCC_ClkInitStruct, &PclkFreq);
+
+	// Get TIM5 clock value
+	PclkFreq = HAL_RCC_GetPCLK1Freq();
+
+	// Enable timer clock
+	__TIM5_CLK_ENABLE();
+
+	// Reset timer
+	__TIM5_FORCE_RESET();
+	__TIM5_RELEASE_RESET();
+
+	// Configure time base
+	htim5.Instance = TIM5;
+	htim5.Init.Period = 0xFFFFFFFF;
+	htim5.Init.Prescaler = (uint16_t)((PclkFreq) / 1000000) - 1; // 1 us tick
+	htim5.Init.ClockDivision = RCC_HCLK_DIV1;
+	htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim5.Init.RepetitionCounter = 0;
+	HAL_TIM_OC_Init(&htim5);
+
+	// Channel 1 for 1 us tick with no interrupt
+	HAL_TIM_OC_Start(&htim5, TIM_CHANNEL_1);
+}
+
+uint32_t ESP8266_UDP::getTick() {
+	return this->htim5.Instance->CNT;
 }
 
 HAL_StatusTypeDef ESP8266_UDP::UART_Init()
@@ -89,8 +128,26 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	if (HAL_DMA_Init(&hdma_usart3_rx))
 		return HAL_ERROR;
 
-
 	__HAL_LINKDMA(&huart, hdmarx, hdma_usart3_rx);
+
+	hdma_usart3_tx.Instance = DMA1_Stream3;
+	hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
+	hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
+	hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	hdma_usart3_tx.Init.Mode = DMA_NORMAL;
+	hdma_usart3_tx.Init.Priority = DMA_PRIORITY_LOW;
+	hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+
+	__HAL_DMA_RESET_HANDLE_STATE(&hdma_usart3_tx);
+
+	if (HAL_DMA_Init(&hdma_usart3_tx))
+		return HAL_ERROR;
+
+	__HAL_LINKDMA(&huart, hdmatx, hdma_usart3_tx);
+
 
 	this->huart.Instance = USART3;
 	this->huart.Init.BaudRate = 115200;
@@ -103,10 +160,41 @@ HAL_StatusTypeDef ESP8266_UDP::UART_Init()
 	if (HAL_UART_DeInit(&this->huart) || HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
-	if (HAL_UART_Receive_DMA(&this->huart, this->data, this->size))
+	if (HAL_UART_Receive_DMA(&this->huart, this->data, this->SIZE))
 		return HAL_ERROR;
 
+	HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+	HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(USART3_IRQn);
+
 	return HAL_OK;
+}
+
+HAL_StatusTypeDef ESP8266_UDP::UART_Send(uint8_t *data, uint16_t size) {
+
+	if (HAL_DMA_DeInit(&hdma_usart3_tx))
+		return HAL_ERROR;
+
+	hdma_usart3_tx.Instance = DMA1_Stream3;
+	hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
+	hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
+	hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	hdma_usart3_tx.Init.Mode = DMA_NORMAL;
+	hdma_usart3_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+	hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+
+	__HAL_DMA_RESET_HANDLE_STATE(&hdma_usart3_tx);
+
+	if (HAL_DMA_Init(&hdma_usart3_tx))
+		return HAL_ERROR;
+
+	__HAL_LINKDMA(&huart, hdmatx, hdma_usart3_tx);
+
+	return HAL_UART_Transmit_DMA(&this->huart, data, size);
 }
 
 int32_t ESP8266_UDP::findString(const char * str)
@@ -120,18 +208,18 @@ int32_t ESP8266_UDP::findString(const char * str)
 		bool found = true;
 		uint32_t tmpRead = read;
 
-		if (read >= this->size)
+		if (read >= this->SIZE)
 			read = 0;
 
 		for (uint32_t i = 0; i < length; i++) {
-			if (tmpRead >= this->size)
+			if (tmpRead >= this->SIZE)
 				tmpRead = 0;
 
 			if (this->data[tmpRead] == '\0') {
 				bool skip = false;
 				uint32_t nullCheckPos = tmpRead;
 				for (uint8_t j = 0; j < this->MAX_NULL_BYTES - 1; j++) {
-					if (nullCheckPos >= this->size)
+					if (nullCheckPos >= this->SIZE)
 						nullCheckPos = 0;
 
 					if (this->data[nullCheckPos] != '\0') {
@@ -172,7 +260,7 @@ uint8_t ESP8266_UDP::readByte(uint8_t *data, bool checkNull) {
 			bool found = false;
 
 			for (uint8_t i = 0; i < this->MAX_NULL_BYTES; i++) {
-				if (p == this->size)
+				if (p == this->SIZE)
 					p = 0;
 
 				if (this->data[p] != '\0') {
@@ -197,14 +285,17 @@ uint8_t ESP8266_UDP::readByte(uint8_t *data, bool checkNull) {
 	this->data[this->readPos] = '\0';
 	this->readPos++;
 
-	if (this->readPos == this->size)
+	if (this->readPos == this->SIZE)
 		this->readPos = 0;
 
 	return 1;
 }
 
-void ESP8266_UDP::processData()
+void ESP8266_UDP::ProcessData()
 {
+	//if (HAL_GetTick() - this->timeout > 100 && this->State == ESP_SENDING)
+		//this->State = ESP_READY;
+
 	char buffer[256];
 
 	if (findString("+IPD") == 0) {
@@ -213,7 +304,7 @@ void ESP8266_UDP::processData()
 	else if (findString("> ") == 0) {
 		readByte(NULL);
 		readByte(NULL);
-		this->waitFlag = WAIT_OK;
+		this->State = ESP_AWAITING_BODY;
 		return;
 	}
 
@@ -229,12 +320,12 @@ void ESP8266_UDP::processData()
 		else if (findString("> ") == 0) {
 			readByte(NULL);
 			readByte(NULL);
-			this->waitFlag = WAIT_OK;
+			this->State = ESP_AWAITING_BODY;
 			return;
 		}
 
 		do {
-			count = readByte((uint8_t*)&c, !this->ready);
+			count = readByte((uint8_t*)&c, !this->Ready);
 
 			if (count == 1) {
 				buffer[i] = c;
@@ -247,49 +338,45 @@ void ESP8266_UDP::processData()
 
 		if (strcmp("ready\r\n", buffer) == 0) {
 
-			if (this->ready) {
+			if (this->Ready) {
 				printf("%s\n", this->data);
 				printf("restarted\n");
 			}
 
-			this->ready = true;
+			this->Ready = true;
 		}
 		else if (strcmp("CONNECT\r\n", buffer) == 0) {
 
 		}
 		else if (strcmp("CLOSED\r\n", buffer) == 0) {
-			printf("close\n");
+			//printf("close\n");
 		}
 		else if (strcmp("ERROR\r\n", buffer) == 0) {
-			this->waitFlag = WAIT_ERROR;
+			this->State = ESP_ERROR;
 
 			return;
 		}
 		else if (strcmp("OK\r\n", buffer) == 0) {
-			this->waitFlag = WAIT_OK;
+			this->State = ESP_READY;
 		}
 		else if (strcmp("SEND OK\r\n", buffer) == 0) {
-			this->waitFlag = WAIT_OK;
+			this->State = ESP_READY;
 		}
 		else if (strcmp("SEND FAIL\r\n", buffer) == 0) {
 			this->clientPort = 0;
 			this->clientIP[0] = '\0';
 			this->handshaken = false;
+			this->State = ESP_ERROR;
 		}
 		else if (strcmp("\r\n", buffer) == 0) {
 
 		}
 		else if (strcmp("ATE0\r\r\n", buffer) == 0) {
-
 		}
 		else if (strncmp("Recv", buffer, 4) == 0) {
 
 		}
-		else if (strcmp(this->expectedResponse, buffer) == 0) {
-			this->expectedResponse[0] = '\0';
-			this->waitFlag = WAIT_OK;
-		}
-		else if (this->output)
+		else if (this->Output && handshaken)
 			printf("Msg: %s\n", buffer);
 	}
 
@@ -364,12 +451,12 @@ void ESP8266_UDP::processData()
 
 HAL_StatusTypeDef ESP8266_UDP::send(const char *str)
 {
-	HAL_StatusTypeDef s = HAL_UART_Transmit(&this->huart, (uint8_t*)str, strlen(str), 5000);
+	HAL_StatusTypeDef s = this->UART_Send((uint8_t*)str, strlen(str));
 
 	if (s != HAL_OK)
 		printf("UART error\n");
 
-	HAL_StatusTypeDef status = WaitReady(5000);
+	HAL_StatusTypeDef status = waitReady(50000);
 
 	if (status == HAL_ERROR)
 		printf("error\n");
@@ -379,57 +466,59 @@ HAL_StatusTypeDef ESP8266_UDP::send(const char *str)
 	return status;
 }
 
-HAL_StatusTypeDef ESP8266_UDP::SendUDP(uint8_t *data, uint16_t length)
-{
-	if (this->handshaken) {
+HAL_StatusTypeDef ESP8266_UDP::SendUDP_Header(uint16_t length) {
+	if (this->handshaken && this->State == ESP_READY) {
 		char command[100];
-		sprintf(command, "AT+CIPSEND=%d,\"%s\",%d\r\n", length, this->clientIP, this->clientPort);
+		sprintf(command, "AT+CIPSENDEX=%d,\"%s\",%d\r\n", length, this->clientIP, this->clientPort);
 
-		HAL_StatusTypeDef s = HAL_UART_Transmit(&this->huart, (uint8_t*)command, strlen(command), 5000);
+		HAL_StatusTypeDef state = UART_Send((uint8_t*)command, strlen(command));
 
-		this->WaitReady(5000);
+		if (state == HAL_OK)
+			this->State = ESP_SENDING;
+		else
+			this->State = ESP_READY;
 
-		s = HAL_UART_Transmit(&this->huart, data, length, 5000);
-
-		if (s != HAL_OK)
-			printf("UART error\n");
-
-		HAL_StatusTypeDef status = WaitReady(5000);
-
-		if (status == HAL_ERROR)
-			printf("error\n");
-
-		return status;
+		return state;
 	}
+
+	return HAL_ERROR;
 }
 
-HAL_StatusTypeDef ESP8266_UDP::WaitReady(uint16_t delay)
+HAL_StatusTypeDef ESP8266_UDP::SendUDP(uint8_t *data, uint16_t length)
 {
-	this->waitFlag = WAIT_AT;
+	if (this->handshaken && this->State == ESP_AWAITING_BODY) {
+		this->State = ESP_SENDING;
 
-	if (delay == 0) {
-		processData();
+		HAL_StatusTypeDef state = UART_Send(data, length);
 
-		if (this->waitFlag == WAIT_AT)
-			return HAL_TIMEOUT;
-		if (this->waitFlag == WAIT_ERROR)
-			return HAL_ERROR;
-		return HAL_OK;
+		if (state == HAL_OK)
+			this->State = ESP_SENDING;
+		else
+			this->State = ESP_AWAITING_BODY;
+
+		return state;
 	}
+
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef ESP8266_UDP::waitReady(uint16_t delay)
+{
+	this->State = ESP_SENDING;
 
 	uint32_t tick = HAL_GetTick();
 
-	while (this->waitFlag == WAIT_AT) {
-		processData();
+	while (this->State == ESP_SENDING) {
+		ProcessData();
 
 		if (HAL_GetTick() - tick > delay) {
 			return HAL_TIMEOUT;
 		}
 	}
 
-	if (this->waitFlag == WAIT_ERROR)
+	if (this->State == ESP_ERROR)
 		return HAL_ERROR;
-	else if (this->waitFlag == WAIT_AT)
+	else if (this->State == ESP_SENDING)
 		return HAL_TIMEOUT;
 
 	return HAL_OK;

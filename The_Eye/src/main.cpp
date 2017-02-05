@@ -35,9 +35,14 @@ extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	mpu->dataReady = true;
 }
 
-extern "C" void DMA1_Stream1_IRQHandler(void)
+extern "C" void DMA1_Stream3_IRQHandler(void)
 {
-	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_rx);
+	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_tx);
+}
+
+extern "C" void USART3_IRQHandler(void)
+{
+	HAL_UART_IRQHandler(&esp8266->huart);
 }
 
 extern "C" void DMA2_Stream2_IRQHandler(void)
@@ -52,6 +57,7 @@ void IPD_Callback(uint8_t *data, uint16_t length);
 bool IWDG_Started = false;
 uint16_t rollKp, pitchKp;
 bool connected = false;
+bool start = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
 
@@ -67,10 +73,11 @@ int main(void)
 	initialise_monitor_handles();
 #endif
 	uint8_t status;
-	int32_t press, temp;
-	long data[3];
+	//int32_t press, temp;
+	float data[3];
 	uint8_t accuracy;
 	uint8_t udpD[22];
+	uint8_t udpLen;
 	long FL, BL, FR, BR;
 	FL = BL = FR = BR = 0;
 	long pitchCorrection, rollCorrection;
@@ -90,13 +97,13 @@ int main(void)
 	esp8266->Reset();
 
 	uint32_t timestamp = HAL_GetTick();
-	while (!esp8266->ready) {
+	while (!esp8266->Ready) {
 		if (HAL_GetTick() - timestamp >= 750) {
 			LEDs::Toggle(LEDs::Yellow);
 
 			timestamp = HAL_GetTick();
 		}
-		esp8266->WaitReady(0);
+		esp8266->ProcessData();
 	}
 	LEDs::TurnOff(LEDs::Yellow);
 
@@ -110,7 +117,7 @@ int main(void)
 
 			timestamp = HAL_GetTick();
 		}
-		esp8266->WaitReady(0);
+		esp8266->ProcessData();
 	}
 	LEDs::TurnOff(LEDs::Green);
 
@@ -134,10 +141,10 @@ int main(void)
 	//neo->Init();
 
 	// reset barometer
-	if (ms5611->Init(&hI2C_Handle) != HAL_OK) {
+	/*if (ms5611->Init(&hI2C_Handle) != HAL_OK) {
 		LEDs::TurnOn(LEDs::Orange);
 		while (true);
-	}
+	}*/
 
 	// reset gyro
 	if (mpu->Init(&hI2C_Handle)) {
@@ -145,14 +152,32 @@ int main(void)
 		while (true);
 	}
 
-	// everything OK
+	if (mpu->SelfTest())
+		LEDs::TurnOn(LEDs::Green);
+	else
+		LEDs::TurnOn(LEDs::Yellow);
+
+	while (!start) {
+		if (HAL_GetTick() - timestamp >= 750) {
+			LEDs::Toggle(LEDs::Green);
+
+			timestamp = HAL_GetTick();
+		}
+		mpu->CheckNewData(data, &accuracy);
+		esp8266->ProcessData();
+	}
+	LEDs::TurnOff(LEDs::Green);
+
+
 	LEDs::TurnOn(LEDs::Green);
 
-	ms5611->ConvertD1();
+	//ms5611->ConvertD1();
 	HAL_IWDG_Start(&hiwdg);
 	IWDG_Started = true;
 
 	timestamp = HAL_GetTick();
+
+	uint32_t wifi = HAL_GetTick();
 
 	while (true) {
 		status = mpu->CheckNewData(data, &accuracy);
@@ -181,18 +206,68 @@ int main(void)
 			pwm->SetPulse(940, 2);
 		}
 
-		if (ms5611->D1_Ready())
+		/*if (ms5611->D1_Ready())
 			ms5611->ConvertD2();
 		else if (ms5611->D2_Ready()) {
 			ms5611->GetData(&temp, &press);
 			ms5611->ConvertD1();
+		}*/
+
+		if (esp8266->State != ESP_READY && HAL_GetTick() - wifi >= 100)
+			esp8266->State = ESP_READY;
+
+		if (esp8266->State == ESP_READY && HAL_GetTick() - wifi >= 100) {
+			long rollD, pitchD;
+			rollD = data[0] * 65536;
+			pitchD = data[1] * 65536;
+
+			uint8_t tmpD[8];
+
+			tmpD[0] = (rollD >> 24) & 0xFF;
+			tmpD[1] = (rollD >> 16) & 0xFF;
+			tmpD[2] = (rollD >> 8) & 0xFF;
+			tmpD[3] = rollD & 0xFF;
+			tmpD[4] = (pitchD >> 24) & 0xFF;
+			tmpD[5] = (pitchD >> 16) & 0xFF;
+			tmpD[6] = (pitchD >> 8) & 0xFF;
+			tmpD[7] = pitchD & 0xFF;
+
+			uint8_t pos = 0;
+
+			for (uint8_t i = 0; i < 7; i++) {
+				if (tmpD[i] == '\\' && tmpD[i + 1] == '\0') {
+					udpD[pos] = '\\';
+					udpD[pos + 1] = '\\';
+					udpD[pos + 2] = '\\';
+					i++;
+					pos += 3;
+				}
+				else {
+					udpD[pos] = tmpD[i];
+					pos++;
+				}
+			}
+
+			if (tmpD[6] != '\\' || tmpD[7] != '\0') {
+				udpD[pos] = tmpD[7];
+			}
+
+			udpLen = pos + 1;
+
+			esp8266->SendUDP_Header(udpLen);
+			wifi = HAL_GetTick();
 		}
 
-		esp8266->WaitReady(0);
+		esp8266->ProcessData();
+
+		if (esp8266->State == ESP_AWAITING_BODY) {
+			esp8266->SendUDP(udpD, udpLen);
+			esp8266->ProcessData();
+		}
 
 		//neo->ParseData();
 
-		if (HAL_GetTick() - timestamp >= 500) {
+		/*if (HAL_GetTick() - timestamp >= 500) {
 			udpD[0] = (FL >> 8) & 0xFF;
 			udpD[1] = FL & 0xFF;
 			udpD[2] = (BL >> 8) & 0xFF;
@@ -210,7 +285,7 @@ int main(void)
 			esp8266->SendUDP(udpD, 10);
 
 			timestamp += tmpTime;
-		}
+		}*/
 	}
 }
 
@@ -254,11 +329,13 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 
 			pitchKp = data[3] << 8;
 			pitchKp |= data[4];
+
+			connected = true;
 		}
 		break;
 	case 3:
 		if (data[0] == 0x3D) {
-
+			start = true;
 		}
 		// run self-test
 		else if (data[0] == 0x1D) {
@@ -274,7 +351,7 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 }
 
 void Arm_Callback() {
-	esp8266->WaitReady(0);
+	esp8266->ProcessData();
 }
 
 void InitI2C(I2C_HandleTypeDef *I2C_Handle) {
