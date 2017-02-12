@@ -528,7 +528,7 @@ void ESP8266_UDP::Init()
 {
 	send("ATE0\r\n");
 	send("AT+CWMODE_CUR=2\r\n");
-	send("AT+CWSAP_CUR=\"DRON_WIFI\",\"123456789\",5,3,1,0\r\n");
+	send("AT+CWSAP_CUR=\"DRON_WIFI\",\"123456789\",5,3,1,1\r\n");
 	send("AT+CWDHCP_CUR=0,1\r\n");
 	send("AT+CIPMUX=0\r\n");
 	send("AT+CIPDINFO=1\r\n");
