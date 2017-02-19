@@ -58,6 +58,8 @@ struct int_param_s {
 #define MPU_INT_STATUS_DMP_4            (0x1000)
 #define MPU_INT_STATUS_DMP_5            (0x2000)
 
+void SLV4_ready_cb();
+
 /* Set up APIs */
 int mpu_init(struct int_param_s *int_param);
 int mpu_init_slave(void);

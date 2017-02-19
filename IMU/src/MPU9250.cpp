@@ -83,8 +83,8 @@ uint8_t MPU9250::SelfTest()
 	return 1;
 }
 
-uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
-	I2cMaster_Init(hi2c);
+uint8_t MPU9250::Init() {
+	SPI_Master_Init();
 	IT_Init();
 	struct int_param_s int_param;
 	unsigned char accel_fsr, new_temp = 0;
@@ -116,7 +116,7 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 
 	if (inv_enable_vector_compass_cal())
 		return 7;
-	if (inv_enable_magnetic_disturbance() /*|| inv_enable_heading_from_gyro()*/)
+	if (inv_enable_magnetic_disturbance() || inv_enable_heading_from_gyro())
 		return 8;
 
 	/* Allows use of the MPL APIs in read_from_mpl. */
@@ -266,4 +266,5 @@ uint8_t MPU9250::CheckNewData(float *euler, uint8_t *accur)
 extern "C" void EXTI1_IRQHandler(void)
 {
 	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+	SLV4_ready_cb();
 }

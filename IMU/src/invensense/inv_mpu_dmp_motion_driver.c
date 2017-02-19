@@ -33,10 +33,10 @@
  * get_ms(unsigned long *count)
  */
 #if defined EMPL_TARGET_STM32F4
-#include "i2c.h"
+#include "spi.h"
 
-#define i2c_write   Sensors_I2C_WriteRegister
-#define i2c_read    Sensors_I2C_ReadRegister
+#define spi_write   Sensors_SPI_WriteRegister
+#define spi_read    Sensors_SPI_ReadRegister
 #define get_ms      get_tick_count
 
 #elif defined MOTION_DRIVER_TARGET_MSP430

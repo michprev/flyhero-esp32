@@ -19,7 +19,7 @@ extern "C" {
 #include "invensense\library\invensense_adv.h"
 #include "invensense\eMPL_outputs.h"
 #include "invensense\invensense.h"
-#include "invensense\i2c.h"
+#include "invensense\spi.h"
 
 }
 
@@ -56,7 +56,7 @@ public:
 	volatile bool dataReady;
 
 	static MPU9250* Instance();
-	uint8_t Init(I2C_HandleTypeDef *hi2c);
+	uint8_t Init();
 	uint8_t SelfTest();
 	uint8_t CheckNewData(float *euler, uint8_t *accur);
 };
