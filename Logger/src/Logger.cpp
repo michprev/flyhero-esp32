@@ -87,7 +87,7 @@ HAL_StatusTypeDef Logger::Init() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef Logger::Print(char *str) {
+HAL_StatusTypeDef Logger::Print(uint8_t *data, uint16_t len) {
 	if (HAL_DMA_DeInit(&this->hdma_uart5_tx))
 		return HAL_ERROR;
 
@@ -109,5 +109,5 @@ HAL_StatusTypeDef Logger::Print(char *str) {
 
 	__HAL_LINKDMA(&this->huart, hdmatx, this->hdma_uart5_tx);
 
-	return HAL_UART_Transmit_DMA(&this->huart, (uint8_t*)str, strlen(str));
+	return HAL_UART_Transmit_DMA(&this->huart, data, len);
 }

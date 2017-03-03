@@ -24,7 +24,7 @@ public:
 
 	static Logger* Instance();
 	HAL_StatusTypeDef Init();
-	HAL_StatusTypeDef Print(char *str);
+	HAL_StatusTypeDef Print(uint8_t *data, uint16_t len);
 };
 
 #endif /* LOGGER_H_ */
