@@ -1,25 +1,14 @@
 /**
   ******************************************************************************
-  * @file    main.c
-  * @author  Ac6
+  * @file    main.cpp
+  * @author  Michal Prevratil
   * @version V1.0
   * @date    01-December-2013
   * @brief   Default main function.
   ******************************************************************************
 */
 
-
-#include "stm32f4xx.h"
-#include "stm32f4xx_nucleo.h"
-#include "PWM_Generator.h"
-#include "ESP8266_UDP.h"
-#include "MS5611.h"
-#include "MPU9250.h"
-#include "LEDs.h"
-#include "NEO_M8N.h"
-#include "PID.h"
-#include "Logger.h"
-#include "string.h"
+#include "main.h"
 
 #define LOG
 
@@ -35,35 +24,6 @@ MPU9250 *mpu = MPU9250::Instance();
 MS5611 *ms5611 = MS5611::Instance();
 NEO_M8N *neo = NEO_M8N::Instance();
 Logger *logger = Logger::Instance();
-
-extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	mpu->dataReady = true;
-}
-
-extern "C" void DMA1_Stream3_IRQHandler(void)
-{
-	HAL_DMA_IRQHandler(&esp8266->hdma_usart3_tx);
-}
-
-extern "C" void USART3_IRQHandler(void)
-{
-	HAL_UART_IRQHandler(&esp8266->huart);
-}
-
-extern "C" void DMA2_Stream2_IRQHandler(void)
-{
-	HAL_DMA_IRQHandler(&neo->hdma_usart1_rx);
-}
-
-extern "C" void DMA1_Stream7_IRQHandler(void)
-{
-	HAL_DMA_IRQHandler(&logger->hdma_uart5_tx);
-}
-
-extern "C" void UART5_IRQHandler(void)
-{
-	HAL_UART_IRQHandler(&logger->huart);
-}
 
 void InitI2C(I2C_HandleTypeDef*);
 void Arm_Callback();
@@ -81,14 +41,12 @@ int main(void)
 {
 	HAL_Init();
 #ifdef LOG
-	//initialise_monitor_handles();
+	initialise_monitor_handles();
 #endif
 	uint8_t status;
 	//int32_t press, temp;
 	float data[3];
 	uint8_t accuracy;
-	uint8_t udpD[22];
-	uint8_t udpLen;
 	long FL, BL, FR, BR;
 	FL = BL = FR = BR = 0;
 	long pitchCorrection, rollCorrection, yawCorrection;
@@ -147,7 +105,7 @@ int main(void)
 	}*/
 
 	// reset gyro
-	if (uint8_t k = mpu->Init(&hI2C_Handle)) {
+	if (mpu->Init(&hI2C_Handle)) {
 		LEDs::TurnOn(LEDs::Yellow);
 		while (true);
 	}
@@ -172,22 +130,43 @@ int main(void)
 	LEDs::TurnOn(LEDs::Green);
 
 	//ms5611->ConvertD1();
-	//HAL_IWDG_Start(&hiwdg);
-	//IWDG_Started = true;
+#ifndef LOG
+	HAL_IWDG_Start(&hiwdg);
+	IWDG_Started = true;
+#endif
 
 	timestamp = HAL_GetTick();
 
-	uint32_t wifi = HAL_GetTick();
-
-	char log[500];
+	throttle = 0;
 
 	while (true) {
 		status = mpu->CheckNewData(data, &accuracy);
 
 #ifdef LOG
 		if (status == 1) {
-			sprintf(log, "%f;%f;%f;\r\n", data[0], data[1], data[2]);
-			logger->Print(log);
+			uint8_t logData[16];
+			int32_t tdata[3];
+			tdata[0] = data[0] * 65536.f;
+			tdata[1] = data[1] * 65536.f;
+			tdata[2] = data[2] * 65536.f;
+
+			logData[0] = (tdata[0] >> 24) & 0xFF;
+			logData[1] = (tdata[0] >> 16) & 0xFF;
+			logData[2] = (tdata[0] >> 8) & 0xFF;
+			logData[3] = tdata[0] & 0xFF;
+			logData[4] = (tdata[1] >> 24) & 0xFF;
+			logData[5] = (tdata[1] >> 16) & 0xFF;
+			logData[6] = (tdata[1] >> 8) & 0xFF;
+			logData[7] = tdata[1] & 0xFF;
+			logData[8] = (tdata[2] >> 24) & 0xFF;
+			logData[9] = (tdata[2] >> 16) & 0xFF;
+			logData[10] = (tdata[2] >> 8) & 0xFF;
+			logData[11] = tdata[2] & 0xFF;
+			logData[12] = (throttle >> 24) & 0xFF;
+			logData[13] = (throttle >> 16) & 0xFF;
+			logData[14] = (throttle >> 8) & 0xFF;
+			logData[15] = throttle & 0xFF;
+			logger->Print(logData, 16);
 		}
 #endif
 
@@ -222,7 +201,7 @@ int main(void)
 			else if (BR < 1050)
 				BR = 940;
 
-			pwm->SetPulse(FL, 4);
+			//pwm->SetPulse(FL, 4);
 			pwm->SetPulse(BL, 1);
 			pwm->SetPulse(FR, 3);
 			pwm->SetPulse(BR, 2);
@@ -244,57 +223,7 @@ int main(void)
 			ms5611->ConvertD1();
 		}*/
 
-		/*if (esp8266->State != ESP_READY && HAL_GetTick() - wifi >= 100)
-			esp8266->State = ESP_READY;
-
-		if (esp8266->State == ESP_READY && HAL_GetTick() - wifi >= 100) {
-			long rollD, pitchD;
-			rollD = data[0] * 65536;
-			pitchD = data[1] * 65536;
-
-			uint8_t tmpD[8];
-
-			tmpD[0] = (rollD >> 24) & 0xFF;
-			tmpD[1] = (rollD >> 16) & 0xFF;
-			tmpD[2] = (rollD >> 8) & 0xFF;
-			tmpD[3] = rollD & 0xFF;
-			tmpD[4] = (pitchD >> 24) & 0xFF;
-			tmpD[5] = (pitchD >> 16) & 0xFF;
-			tmpD[6] = (pitchD >> 8) & 0xFF;
-			tmpD[7] = pitchD & 0xFF;
-
-			uint8_t pos = 0;
-
-			for (uint8_t i = 0; i < 7; i++) {
-				if (tmpD[i] == '\\' && tmpD[i + 1] == '\0') {
-					udpD[pos] = '\\';
-					udpD[pos + 1] = '\\';
-					udpD[pos + 2] = '\\';
-					i++;
-					pos += 3;
-				}
-				else {
-					udpD[pos] = tmpD[i];
-					pos++;
-				}
-			}
-
-			if (tmpD[6] != '\\' || tmpD[7] != '\0') {
-				udpD[pos] = tmpD[7];
-			}
-
-			udpLen = pos + 1;
-
-			esp8266->SendUDP_Header(udpLen);
-			wifi = HAL_GetTick();
-		}*/
-
 		esp8266->ProcessData();
-
-		if (esp8266->State == ESP_AWAITING_BODY) {
-			esp8266->SendUDP(udpD, udpLen);
-			esp8266->ProcessData();
-		}
 
 		//neo->ParseData();
 	}
@@ -347,15 +276,6 @@ void IPD_Callback(uint8_t *data, uint16_t length) {
 	case 3:
 		if (data[0] == 0x3D) {
 			start = true;
-		}
-		// run self-test
-		else if (data[0] == 0x1D) {
-			/*LEDs::TurnOff(LEDs::Green);
-
-			if (mpu->SelfTest())
-				LEDs::TurnOn(LEDs::Green);
-			else
-				LEDs::TurnOn(LEDs::Orange);*/
 		}
 		break;
 	}
