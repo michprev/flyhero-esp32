@@ -21,11 +21,9 @@ ESP32* ESP32::Instance() {
 ESP32::ESP32() {
 	this->readPos.pos = 0;
 	this->processedLength = 0;
-//	this->Output = false;
 	this->ready = false;
 	this->inIPD = false;
 	this->IPD_Callback = NULL;
-//	this->handshaken = false;
 	this->state = ESP_READY;
 
 
@@ -42,24 +40,28 @@ DMA_HandleTypeDef* ESP32::Get_DMA_Tx_Handle() {
 	return &this->hdma_usart3_tx;
 }
 
+DMA_HandleTypeDef* ESP32::Get_DMA_Rx_Handle() {
+	return &this->hdma_usart3_rx;
+}
+
 UART_HandleTypeDef* ESP32::Get_UART_Handle() {
 	return &this->huart;
 }
 
 HAL_StatusTypeDef ESP32::Init() {
-	this->send("AT+RST\r\n");
+	this->Send("AT+RST\r\n");
 
 	while (!this->ready) {
-		this->ProcessData();
+		this->Process_Data();
 	}
 
-	this->send("ATE0\r\n");
+	this->Send("ATE0\r\n");
 	//this->send("AT+SYSRAM?\r\n");
-	this->send("AT+CWMODE=2\r\n");
-	this->send("AT+CWSAP=\"DRON_WIFI\",\"123456789\",5,3,1,1\r\n");
-	this->send("AT+CWDHCP=1,1\r\n");
-	this->send("AT+CIPMUX=1\r\n");
-	this->send("AT+CIPSERVER=1,80\r\n");
+	this->Send("AT+CWMODE=2\r\n");
+	this->Send("AT+CWSAP=\"DRON_WIFI\",\"123456789\",5,3,1,1\r\n");
+	this->Send("AT+CWDHCP=1,1\r\n");
+	this->Send("AT+CIPMUX=1\r\n");
+	this->Send("AT+CIPSERVER=1,80\r\n");
 }
 
 HAL_StatusTypeDef ESP32::UART_Init()
@@ -160,7 +162,7 @@ bool ESP32::next_bytes_null() {
 	return true;
 }
 
-void ESP32::ProcessData() {
+void ESP32::Process_Data() {
 	while (!this->next_bytes_null() &&
 			this->buffer[this->readPos.previous()] == '\0') {
 
@@ -177,7 +179,7 @@ void ESP32::ProcessData() {
 				this->inIPD = false;
 
 				if (this->IPD_Callback != NULL)
-					this->IPD_Callback(this->IPD_buffer, this->IPD_size);
+					this->IPD_Callback(this->link_ID, this->IPD_buffer, this->IPD_size);
 			}
 		}
 		else {
@@ -188,7 +190,7 @@ void ESP32::ProcessData() {
 
 			/*if (!((c >= ' ' && c <= '~')
 				|| c == '\r' || c == '\n')) {
-					// TODO
+					// TODO check is ASCII
 					return;
 				}*/
 
@@ -208,7 +210,7 @@ void ESP32::ProcessData() {
 				printf(">\n");
 #endif
 
-				this->waitForWrap = false;
+				this->wait_for_wrap = false;
 
 				this->processedLength = 0;
 			}
@@ -220,6 +222,8 @@ void ESP32::ProcessData() {
 				for (uint8_t i = 4; i < this->processedLength; i++) {
 					if (this->processing_buffer[i] == ',')
 						commaCount++;
+					else if (commaCount == 1)
+						this->link_ID = this->processing_buffer[i];
 					else if (commaCount == 2 && this->processing_buffer[i] != ':') {
 						lengthBuffer[lengthPos] = this->processing_buffer[i];
 						lengthPos++;
@@ -231,7 +235,8 @@ void ESP32::ProcessData() {
 				this->IPD_received = 0;
 
 #ifdef LOG
-				printf("+IPD:...\n");
+				this->processing_buffer[this->processedLength] = '\0';
+				printf("%s\n", this->processing_buffer);
 #endif
 
 				this->processedLength = 0;
@@ -253,20 +258,16 @@ void ESP32::parse(char *str, uint16_t length) {
 
 
 	if (length >= 9 && strncmp("CONNECT\r\n", str + length - 9, 9) == 0) {
-		/*char linkID_buffer[5] = { '\0' };
-		uint8_t buffer_pos = 0;
-
-		for (uint8_t i = 0; i < length; i++) {
-			if (str[i] < '0' || str[i] > '9')
-				break;
-
-			linkID_buffer[buffer_pos] = str[i];
-			buffer_pos++;
-		}*/
+		this->TCP_connections[str[0] - '0'].Connected();
 
 		// TODO double-digit LinkID?
 
-		this->LinkID = str[0];
+		return;
+	}
+	else if (length >= 8 && strncmp("CLOSED\r\n", str + length - 8, 8) == 0) {
+		this->TCP_connections[str[0] - '0'].Closed();
+
+		// TODO double-digit LinkID?
 
 		return;
 	}
@@ -277,31 +278,32 @@ void ESP32::parse(char *str, uint16_t length) {
 		return;
 	}
 
+
 	switch (length) {
 	case 1:
 		if (strncmp("\n", str, 1) == 0) {
-
+			return;
 		}
 
 		break;
 	case 2:
 		if (strncmp("\r\n", str, length) == 0) {
+			return;
 		}
 
 
 		break;
 	case 3:
-		//if (strncmp(">\r\n", str, length) == 0)
-			//this->state = ESP_READY;
 
 		break;
 	case 4:
 		if (strncmp("OK\r\n", str, length) == 0)
 			this->state = ESP_READY;
+		return;
 		break;
 	case 6:
 		if (strncmp("ATE0\r\n", str, length) == 0) {
-
+			return;
 		}
 
 		break;
@@ -312,12 +314,25 @@ void ESP32::parse(char *str, uint16_t length) {
 			}
 			else
 				this->ready = true;
+
+		}
+		else if (strncmp("ERROR\r\n", str, length) == 0) {
+			this->state = ESP_ERROR;
+			return;
 		}
 
 		break;
 	case 9:
 		if (strncmp("SEND OK\r\n", str, length) == 0) {
 			this->state = ESP_READY;
+			return;
+		}
+
+		break;
+	case 11:
+		if (strncmp("SEND FAIL\r\n", str, length) == 0) {
+			this->state = ESP_ERROR;
+			return;
 		}
 
 		break;
@@ -333,9 +348,15 @@ void ESP32::parse(char *str, uint16_t length) {
 
 		break;
 	}
+
+
+	if (this->ready) {
+		for (uint16_t i = 0; i < length; i++)
+			printf("%c", *(str + i));
+	}
 }
 
-HAL_StatusTypeDef ESP32::send(const char *command)
+HAL_StatusTypeDef ESP32::Send(const char *command)
 {
 	this->state = ESP_SENDING;
 
@@ -350,7 +371,7 @@ HAL_StatusTypeDef ESP32::send(const char *command)
 
 	// TODO implement timeout
 	while (this->state == ESP_SENDING) {
-		this->ProcessData();
+		this->Process_Data();
 	}
 
 	// TODO check state
@@ -361,7 +382,7 @@ HAL_StatusTypeDef ESP32::send(const char *command)
 	return status;
 }
 
-HAL_StatusTypeDef ESP32::send(const char * data, uint16_t count)
+HAL_StatusTypeDef ESP32::Send(const char * data, uint16_t count)
 {
 	this->state = ESP_SENDING;
 
@@ -371,12 +392,12 @@ HAL_StatusTypeDef ESP32::send(const char * data, uint16_t count)
 	printf("    Sent %d bytes\n", count);
 #endif
 
-	if (state != HAL_OK)
+	if (status != HAL_OK)
 		printf("UART error\n");
 
 	// TODO implement timeout
 	while (this->state == ESP_SENDING) {
-		this->ProcessData();
+		this->Process_Data();
 	}
 
 	// TODO check state
@@ -388,69 +409,16 @@ HAL_StatusTypeDef ESP32::send(const char * data, uint16_t count)
 	return status;
 }
 
-// TODO
-HAL_StatusTypeDef ESP32::SendFile(const char * header, const char * body, uint16_t bodySize)
+HAL_StatusTypeDef ESP32::Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t bodySize)
 {
-	//TODO assuming that header has not more than 2048 characters
-	uint16_t copied = 0;
-	char command[30];
-	sprintf(this->sendBuffer, "%s%d\r\n\r\n", header, bodySize);
-
-	uint16_t headerSize = strlen(this->sendBuffer);
-
-	if (bodySize != 0) {
-		copied += (2048 - headerSize < bodySize ? 2048 - headerSize : bodySize);
-		memcpy(this->sendBuffer + headerSize, body, copied);
-	}
-
-	sprintf(command, "AT+CIPSEND=%c,%d\r\n", this->LinkID, headerSize + copied);
-	if (this->sendPacket(command, this->sendBuffer, headerSize + copied) == HAL_ERROR)
-		return HAL_ERROR;
-
-	while (bodySize - copied >= 2048) {
-		sprintf(command, "AT+CIPSEND=%c,2048\r\n", this->LinkID);
-		memcpy(this->sendBuffer, body + copied, 2048);
-
-		if (this->sendPacket(command, this->sendBuffer, 2048) == HAL_ERROR)
-			return HAL_ERROR;
-		copied += 2048;
-	}
-
-	if (bodySize - copied != 0) {
-		sprintf(command, "AT+CIPSEND=%c,%d\r\n", this->LinkID, bodySize - copied);
-		memcpy(this->sendBuffer, body + copied, bodySize - copied);
-
-		if (this->sendPacket(command, this->sendBuffer, bodySize - copied) == HAL_ERROR)
-			return HAL_ERROR;
-	}
+	return this->TCP_connections[link_ID - '0'].Send_File(this->send_buffer, link_ID, header, body, bodySize);
 }
 
-HAL_StatusTypeDef ESP32::sendPacket(char * command, char *data, uint16_t dataSize)
-{
-	/*HAL_StatusTypeDef status;
-	uint32_t tick = HAL_GetTick();
-
-	do {
-		if (HAL_GetTick() - tick > 7000) {
-			return HAL_ERROR;
-			//printf("time out\n");
-		}
-
-		if (this->LinkID == -1)
-			return HAL_ERROR;
-
-		status = send(command);
-	} while (status != HAL_OK);*/
-
-	this->waitForWrap = true;
-
-	send(command);
-
-	while (this->waitForWrap)
-		this->ProcessData();
-
-	if (this->LinkID == -1)
-		return HAL_ERROR;
-
-	send(data, dataSize);
+void ESP32::Set_Wait_For_Wrap(bool value) {
+	this->wait_for_wrap = value;
 }
+
+bool ESP32::Get_Wait_For_Wrap() {
+	return this->wait_for_wrap;
+}
+

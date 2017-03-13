@@ -9,12 +9,13 @@
 #define ESP32_H_
 
 #include <stm32f4xx_hal.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "TCPConnection.h"
+
+//class TCP_Connection;
 
 class ESP32 {
 private:
+	/* Singleton */
 	ESP32();
 	ESP32(ESP32 const&){};
 	ESP32& operator=(ESP32 const&){};
@@ -41,13 +42,13 @@ private:
 	enum ESP_State { ESP_SENDING, ESP_READY, ESP_AWAITING_BODY, ESP_ERROR };
 
 
-	char sendBuffer[2048];
-	int8_t LinkID;
+	TCP_Connection TCP_connections[3];
+	char send_buffer[2048];
+	int8_t link_ID;
 
-	HAL_StatusTypeDef sendPacket(char * command, char *data, uint16_t dataSize);
 
 	ESP_State state;
-	bool waitForWrap;
+	bool wait_for_wrap;
 	bool ready;
 	bool inIPD;
 	uint32_t IPD_received;
@@ -62,21 +63,25 @@ private:
 	uint8_t processing_buffer[MAX_PARSE_SIZE];
 
 	HAL_StatusTypeDef UART_Init();
-	HAL_StatusTypeDef send(const char *command);
-	HAL_StatusTypeDef send(const char * data, uint16_t count);
+
 	void parse(char *str, uint16_t length);
 	bool next_bytes_null();
 
 public:
 	static ESP32* Instance();
 
-	void(*IPD_Callback)(uint8_t *data, uint16_t length);
+	void(*IPD_Callback)(uint8_t linkID, uint8_t *data, uint16_t length);
 
 	DMA_HandleTypeDef* Get_DMA_Tx_Handle();
+	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
 	UART_HandleTypeDef* Get_UART_Handle();
 	HAL_StatusTypeDef Init();
-	void ProcessData();
-	HAL_StatusTypeDef SendFile(const char * header, const char * body, uint16_t bodySize);
+	void Process_Data();
+	void Set_Wait_For_Wrap(bool value);
+	bool Get_Wait_For_Wrap();
+	HAL_StatusTypeDef Send(const char *command);
+	HAL_StatusTypeDef Send(const char *data, uint16_t count);
+	HAL_StatusTypeDef Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t body_size);
 };
 
 #endif /* ESP32_H_ */
