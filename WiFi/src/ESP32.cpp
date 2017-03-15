@@ -25,7 +25,11 @@ ESP32::ESP32() {
 	this->inIPD = false;
 	this->IPD_Callback = NULL;
 	this->state = ESP_READY;
-
+	this->timestamp = HAL_GetTick();
+	this->link_ID = -1;
+	this->wait_for_wrap = false;
+	this->IPD_received = 0;
+	this->IPD_size = 0;
 
 	memset(this->buffer, 0, this->BUFFER_SIZE);
 	memset(this->processing_buffer, 0, this->MAX_PARSE_SIZE);
@@ -153,6 +157,32 @@ HAL_StatusTypeDef ESP32::UART_Init()
 	return HAL_OK;
 }
 
+HAL_StatusTypeDef ESP32::UART_DMA_send(uint8_t *data, uint16_t size) {
+
+	//if (HAL_DMA_DeInit(&this->hdma_usart3_tx))
+		//return HAL_ERROR;
+
+	this->hdma_usart3_tx.Instance = DMA1_Stream3;
+	this->hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
+	this->hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	this->hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	this->hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
+	this->hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	this->hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	this->hdma_usart3_tx.Init.Mode = DMA_NORMAL;
+	this->hdma_usart3_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+	this->hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+
+	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart3_tx);
+
+	if (HAL_DMA_Init(&this->hdma_usart3_tx))
+		return HAL_ERROR;
+
+	__HAL_LINKDMA(&huart, hdmatx, this->hdma_usart3_tx);
+
+	return HAL_UART_Transmit_DMA(&this->huart, data, size);
+}
+
 bool ESP32::next_bytes_null() {
 	for (uint8_t i = 0; i < this->MAX_NULL_BYTES; i++) {
 		if (this->buffer[this->readPos.add(i)] != '\0')
@@ -207,7 +237,7 @@ void ESP32::Process_Data() {
 					printf("WTF\n");
 
 #ifdef LOG
-				printf(">\n");
+				printf("[%d]>\n", HAL_GetTick() - this->timestamp);
 #endif
 
 				this->wait_for_wrap = false;
@@ -236,7 +266,7 @@ void ESP32::Process_Data() {
 
 #ifdef LOG
 				this->processing_buffer[this->processedLength] = '\0';
-				printf("%s\n", this->processing_buffer);
+				printf("[%d]%s\n", HAL_GetTick() - this->timestamp, this->processing_buffer);
 #endif
 
 				this->processedLength = 0;
@@ -251,6 +281,10 @@ void ESP32::Process_Data() {
 void ESP32::parse(char *str, uint16_t length) {
 #ifdef LOG
 	if (strncmp("\r\n", str, 2) != 0 && strncmp("\n", str, 1) != 0) {
+		if (length >= 9 && strncmp("CONNECT\r\n", str + length - 9, 9) == 0)
+			this->timestamp = HAL_GetTick();
+
+		printf("[%d]", HAL_GetTick() - this->timestamp);
 		for (uint16_t i = 0; i < length; i++)
 			printf("%c", *(str + i));
 	}
@@ -260,14 +294,10 @@ void ESP32::parse(char *str, uint16_t length) {
 	if (length >= 9 && strncmp("CONNECT\r\n", str + length - 9, 9) == 0) {
 		this->TCP_connections[str[0] - '0'].Connected();
 
-		// TODO double-digit LinkID?
-
 		return;
 	}
 	else if (length >= 8 && strncmp("CLOSED\r\n", str + length - 8, 8) == 0) {
 		this->TCP_connections[str[0] - '0'].Closed();
-
-		// TODO double-digit LinkID?
 
 		return;
 	}
@@ -360,10 +390,10 @@ HAL_StatusTypeDef ESP32::Send(const char *command)
 {
 	this->state = ESP_SENDING;
 
-	HAL_StatusTypeDef status = HAL_UART_Transmit(&this->huart, (uint8_t*)command, strlen(command), this->UART_TIMEOUT);
+	HAL_StatusTypeDef status = this->UART_DMA_send((uint8_t*)command, strlen(command));
 
 #ifdef LOG
-	printf("    %s\n", command);
+	printf("[%d]    %s\n", HAL_GetTick() - this->timestamp, command);
 #endif
 
 	if (status != HAL_OK)
@@ -382,14 +412,14 @@ HAL_StatusTypeDef ESP32::Send(const char *command)
 	return status;
 }
 
-HAL_StatusTypeDef ESP32::Send(const char * data, uint16_t count)
+HAL_StatusTypeDef ESP32::Send(uint8_t *data, uint16_t count)
 {
 	this->state = ESP_SENDING;
 
-	HAL_StatusTypeDef status = HAL_UART_Transmit(&this->huart, (uint8_t*)data, count, 1000);
+	HAL_StatusTypeDef status = this->UART_DMA_send(data, count);
 
 #ifdef LOG
-	printf("    Sent %d bytes\n", count);
+	printf("[%d]    Sent %d bytes\n", HAL_GetTick() - this->timestamp, count);
 #endif
 
 	if (status != HAL_OK)
@@ -409,9 +439,13 @@ HAL_StatusTypeDef ESP32::Send(const char * data, uint16_t count)
 	return status;
 }
 
-HAL_StatusTypeDef ESP32::Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t bodySize)
+HAL_StatusTypeDef ESP32::HTTP_Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t bodySize)
 {
-	return this->TCP_connections[link_ID - '0'].Send_File(this->send_buffer, link_ID, header, body, bodySize);
+	return this->TCP_connections[link_ID - '0'].HTTP_Send_File(this->send_buffer, link_ID, header, body, bodySize);
+}
+
+HAL_StatusTypeDef ESP32::TCP_Send(uint8_t link_ID, uint8_t *data, uint16_t data_size) {
+	this->TCP_connections[link_ID - '0'].TCP_Send(link_ID, data, data_size);
 }
 
 void ESP32::Set_Wait_For_Wrap(bool value) {

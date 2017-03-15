@@ -42,10 +42,11 @@ private:
 	enum ESP_State { ESP_SENDING, ESP_READY, ESP_AWAITING_BODY, ESP_ERROR };
 
 
-	TCP_Connection TCP_connections[3];
+	TCP_Connection TCP_connections[5];
 	char send_buffer[2048];
 	int8_t link_ID;
 
+	uint32_t timestamp;
 
 	ESP_State state;
 	bool wait_for_wrap;
@@ -63,7 +64,7 @@ private:
 	uint8_t processing_buffer[MAX_PARSE_SIZE];
 
 	HAL_StatusTypeDef UART_Init();
-
+	HAL_StatusTypeDef UART_DMA_send(uint8_t *data, uint16_t size);
 	void parse(char *str, uint16_t length);
 	bool next_bytes_null();
 
@@ -80,8 +81,9 @@ public:
 	void Set_Wait_For_Wrap(bool value);
 	bool Get_Wait_For_Wrap();
 	HAL_StatusTypeDef Send(const char *command);
-	HAL_StatusTypeDef Send(const char *data, uint16_t count);
-	HAL_StatusTypeDef Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t body_size);
+	HAL_StatusTypeDef Send(uint8_t *data, uint16_t count);
+	HAL_StatusTypeDef HTTP_Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t body_size);
+	HAL_StatusTypeDef TCP_Send(uint8_t link_ID, uint8_t *data, uint16_t data_size);
 };
 
 #endif /* ESP32_H_ */

@@ -24,15 +24,15 @@ private:
 	bool reset;
 	State state;
 
-	HAL_StatusTypeDef send_packet(char *command, char *data, uint16_t data_size);
+	HAL_StatusTypeDef send_packet(char *command, uint8_t *data, uint16_t data_size);
 
 
 public:
 	TCP_Connection();
 	void Connected();
 	void Closed();
-	HAL_StatusTypeDef Send_File(char *send_buffer, uint8_t link_ID, const char *header, const char *body, uint16_t body_size);
-
+	HAL_StatusTypeDef HTTP_Send_File(char *send_buffer, uint8_t link_ID, const char *header, const char *body, uint16_t body_size);
+	HAL_StatusTypeDef TCP_Send(uint8_t link_ID, uint8_t *data, uint16_t data_size);
 };
 
 #endif /* TCPCONNECTION_H_ */
