@@ -32,10 +32,7 @@ ESP32::ESP32() {
 	this->IPD_received = 0;
 	this->IPD_size = 0;
 
-	//memset(this->buffer, 0, this->BUFFER_SIZE);
-	//memset(this->processing_buffer, 0, this->MAX_PARSE_SIZE);
-
-	if (UART_Init() != HAL_OK) {
+	if (UART_Init(115200) != HAL_OK) {
 		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
 		while (true);
 	}
@@ -53,12 +50,23 @@ UART_HandleTypeDef* ESP32::Get_UART_Handle() {
 	return &this->huart;
 }
 
+void ESP32::reset() {
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+	HAL_Delay(250);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+}
+
 HAL_StatusTypeDef ESP32::Init() {
-	this->Send("AT+RST\r\n");
+	//this->Send("AT+RST\r\n");
+	this->reset();
 
 	while (!this->ready) {
 		this->Process_Data();
 	}
+
+	this->Send("AT+UART_CUR=2000000,8,1,0,0\r\n");
+	this->UART_Init(2000000);
+
 
 	this->Send("ATE0\r\n");
 	//this->send("AT+SYSRAM?\r\n");
@@ -73,10 +81,13 @@ HAL_StatusTypeDef ESP32::Init() {
 	this->Send("AT+CIPSERVER=1,80\r\n");
 }
 
-HAL_StatusTypeDef ESP32::UART_Init()
+HAL_StatusTypeDef ESP32::UART_Init(uint32_t baudrate)
 {
 	if (__GPIOC_IS_CLK_DISABLED())
 		__GPIOC_CLK_ENABLE();
+
+	if (__GPIOB_IS_CLK_DISABLED())
+		__GPIOB_CLK_ENABLE();
 
 	if (__USART3_IS_CLK_DISABLED())
 		__USART3_CLK_ENABLE();
@@ -84,8 +95,19 @@ HAL_StatusTypeDef ESP32::UART_Init()
 	if (__DMA1_IS_CLK_DISABLED())
 		__DMA1_CLK_ENABLE();
 
+	// PB7 RST
 	// PC10 TX
 	// PC11 RX
+
+	GPIO_InitTypeDef rst;
+	rst.Pin = GPIO_PIN_7;
+	rst.Mode = GPIO_MODE_OUTPUT_PP;
+	rst.Pull = GPIO_PULLUP;;
+	rst.Speed = GPIO_SPEED_HIGH;
+	HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
+	HAL_GPIO_Init(GPIOB, &rst);
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
 
 	GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -108,6 +130,9 @@ HAL_StatusTypeDef ESP32::UART_Init()
 	this->hdma_usart3_rx.Init.Priority = DMA_PRIORITY_LOW;
 	this->hdma_usart3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 
+	if (HAL_DMA_Abort(&this->hdma_usart3_rx))
+		return HAL_ERROR;
+
 	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart3_rx);
 
 	if (HAL_DMA_DeInit(&this->hdma_usart3_rx))
@@ -129,6 +154,9 @@ HAL_StatusTypeDef ESP32::UART_Init()
 	this->hdma_usart3_tx.Init.Priority = DMA_PRIORITY_LOW;
 	this->hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 
+	if (HAL_DMA_Abort(&this->hdma_usart3_tx))
+		return HAL_ERROR;
+
 	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart3_tx);
 
 	if (HAL_DMA_DeInit(&this->hdma_usart3_tx))
@@ -141,7 +169,7 @@ HAL_StatusTypeDef ESP32::UART_Init()
 
 
 	this->huart.Instance = USART3;
-	this->huart.Init.BaudRate = 115200;
+	this->huart.Init.BaudRate = baudrate;
 	this->huart.Init.WordLength = UART_WORDLENGTH_8B;
 	this->huart.Init.StopBits = UART_STOPBITS_1;
 	this->huart.Init.Parity = UART_PARITY_NONE;
@@ -151,9 +179,12 @@ HAL_StatusTypeDef ESP32::UART_Init()
 	if (HAL_UART_DeInit(&this->huart) || HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
+	this->readPos.pos = 0;
 	if (HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE))
 		return HAL_ERROR;
 
+	HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 	HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
 	HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
@@ -189,7 +220,6 @@ HAL_StatusTypeDef ESP32::UART_DMA_send(uint8_t *data, uint16_t size) {
 }
 
 uint32_t ESP32::bytes_available() {
-	HAL_Delay(5);
 	uint32_t available_from_begin = this->BUFFER_SIZE - __HAL_DMA_GET_COUNTER(&this->hdma_usart3_rx);
 
 	if (available_from_begin >= this->readPos.pos)
@@ -376,10 +406,6 @@ void ESP32::parse(char *str, uint16_t length) {
 		if (strncmp("+SYSRAM", str, 7) == 0) {
 
 		}
-		/*else if (this->ready) {
-			for (uint16_t i = 0; i < length; i++)
-				printf("%c", *(str + i));
-		}*/
 
 		break;
 	}
