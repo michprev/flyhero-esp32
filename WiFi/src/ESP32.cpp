@@ -8,6 +8,7 @@
 #include <ESP32.h>
 
 //#define LOG
+#define ESP8266
 
 ESP32* ESP32::pInstance = NULL;
 
@@ -31,8 +32,8 @@ ESP32::ESP32() {
 	this->IPD_received = 0;
 	this->IPD_size = 0;
 
-	memset(this->buffer, 0, this->BUFFER_SIZE);
-	memset(this->processing_buffer, 0, this->MAX_PARSE_SIZE);
+	//memset(this->buffer, 0, this->BUFFER_SIZE);
+	//memset(this->processing_buffer, 0, this->MAX_PARSE_SIZE);
 
 	if (UART_Init() != HAL_OK) {
 		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
@@ -63,7 +64,11 @@ HAL_StatusTypeDef ESP32::Init() {
 	//this->send("AT+SYSRAM?\r\n");
 	this->Send("AT+CWMODE=2\r\n");
 	this->Send("AT+CWSAP=\"DRON_WIFI\",\"123456789\",5,3,1,1\r\n");
+#ifdef ESP8266
+	this->Send("AT+CWDHCP=0,1\r\n");
+#else
 	this->Send("AT+CWDHCP=1,1\r\n");
+#endif
 	this->Send("AT+CIPMUX=1\r\n");
 	this->Send("AT+CIPSERVER=1,80\r\n");
 }
@@ -159,8 +164,8 @@ HAL_StatusTypeDef ESP32::UART_Init()
 
 HAL_StatusTypeDef ESP32::UART_DMA_send(uint8_t *data, uint16_t size) {
 
-	//if (HAL_DMA_DeInit(&this->hdma_usart3_tx))
-		//return HAL_ERROR;
+	if (HAL_DMA_DeInit(&this->hdma_usart3_tx))
+		return HAL_ERROR;
 
 	this->hdma_usart3_tx.Instance = DMA1_Stream3;
 	this->hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
@@ -183,22 +188,21 @@ HAL_StatusTypeDef ESP32::UART_DMA_send(uint8_t *data, uint16_t size) {
 	return HAL_UART_Transmit_DMA(&this->huart, data, size);
 }
 
-bool ESP32::next_bytes_null() {
-	for (uint8_t i = 0; i < this->MAX_NULL_BYTES; i++) {
-		if (this->buffer[this->readPos.add(i)] != '\0')
-			return false;
-	}
+uint32_t ESP32::bytes_available() {
+	HAL_Delay(5);
+	uint32_t available_from_begin = this->BUFFER_SIZE - __HAL_DMA_GET_COUNTER(&this->hdma_usart3_rx);
 
-	return true;
+	if (available_from_begin >= this->readPos.pos)
+		return available_from_begin - this->readPos.pos;
+	else
+		return this->BUFFER_SIZE - this->readPos.pos + available_from_begin;
 }
 
 void ESP32::Process_Data() {
-	while (!this->next_bytes_null() &&
-			this->buffer[this->readPos.previous()] == '\0') {
+	while (this->bytes_available() > 0) {
 
 		if (this->inIPD && this->IPD_received < this->IPD_size) {
 			char c = this->buffer[this->readPos.pos];
-			this->buffer[this->readPos.pos] = '\0';
 
 			this->IPD_buffer[this->IPD_received] = c;
 
@@ -214,7 +218,6 @@ void ESP32::Process_Data() {
 		}
 		else {
 			char c = this->buffer[this->readPos.pos];
-			this->buffer[this->readPos.pos] = '\0';
 
 			this->processing_buffer[this->processedLength] = c;
 
@@ -324,7 +327,9 @@ void ESP32::parse(char *str, uint16_t length) {
 
 		break;
 	case 3:
-
+		if (strncmp(" \r\n", str, length) == 0) {
+			return;
+		}
 		break;
 	case 4:
 		if (strncmp("OK\r\n", str, length) == 0)

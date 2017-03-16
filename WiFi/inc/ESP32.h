@@ -66,7 +66,7 @@ private:
 	HAL_StatusTypeDef UART_Init();
 	HAL_StatusTypeDef UART_DMA_send(uint8_t *data, uint16_t size);
 	void parse(char *str, uint16_t length);
-	bool next_bytes_null();
+	uint32_t bytes_available();
 
 public:
 	static ESP32* Instance();
