@@ -50,6 +50,18 @@ UART_HandleTypeDef* ESP32::Get_UART_Handle() {
 	return &this->huart;
 }
 
+HTTP_Server* ESP32::Get_HTTP_Server() {
+	return &this->HTTP_server;
+}
+
+ESP_State ESP32::Get_State() {
+	return this->state;
+}
+
+TCP_Connection* ESP32::Get_TCP_Connection(uint8_t link_ID) {
+	return &(this->TCP_connections[link_ID - '0']);
+}
+
 void ESP32::reset() {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
 	HAL_Delay(250);
@@ -79,6 +91,7 @@ HAL_StatusTypeDef ESP32::Init() {
 #endif
 	this->Send("AT+CIPMUX=1\r\n");
 	this->Send("AT+CIPSERVER=1,80\r\n");
+	this->Send("AT+CIPSTART=4,\"UDP\",\"0\",0,4789,1\r\n");
 }
 
 HAL_StatusTypeDef ESP32::UART_Init(uint32_t baudrate)
@@ -417,6 +430,35 @@ void ESP32::parse(char *str, uint16_t length) {
 	}
 }
 
+HAL_StatusTypeDef ESP32::Send_Begin(const char *command) {
+	this->state = ESP_SENDING;
+
+	HAL_StatusTypeDef status = this->UART_DMA_send((uint8_t*)command, strlen(command));
+
+#ifdef LOG
+	printf("[%d]    %s\n", HAL_GetTick() - this->timestamp, command);
+#endif
+
+	if (status != HAL_OK)
+		printf("UART error\n");
+
+	return status;
+}
+HAL_StatusTypeDef ESP32::Send_Begin(uint8_t *data, uint16_t count) {
+	this->state = ESP_SENDING;
+
+	HAL_StatusTypeDef status = this->UART_DMA_send(data, count);
+
+#ifdef LOG
+	printf("[%d]    Sent %d bytes\n", HAL_GetTick() - this->timestamp, count);
+#endif
+
+	if (status != HAL_OK)
+		printf("UART error\n");
+
+	return status;
+}
+
 HAL_StatusTypeDef ESP32::Send(const char *command)
 {
 	this->state = ESP_SENDING;
@@ -468,15 +510,6 @@ HAL_StatusTypeDef ESP32::Send(uint8_t *data, uint16_t count)
 	}
 
 	return status;
-}
-
-HAL_StatusTypeDef ESP32::HTTP_Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t bodySize)
-{
-	return this->TCP_connections[link_ID - '0'].HTTP_Send_File(this->send_buffer, link_ID, header, body, bodySize);
-}
-
-HAL_StatusTypeDef ESP32::TCP_Send(uint8_t link_ID, uint8_t *data, uint16_t data_size) {
-	this->TCP_connections[link_ID - '0'].TCP_Send(link_ID, data, data_size);
 }
 
 void ESP32::Set_Wait_For_Wrap(bool value) {

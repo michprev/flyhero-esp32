@@ -8,10 +8,13 @@
 #ifndef ESP32_H_
 #define ESP32_H_
 
+#include <HTTP_Server.h>
+#include <TCP_Connection.h>
 #include <stm32f4xx_hal.h>
-#include "TCPConnection.h"
+#include <stdlib.h>
+#include <string.h>
 
-//class TCP_Connection;
+enum ESP_State { ESP_SENDING, ESP_READY, ESP_ERROR };
 
 class ESP32 {
 private:
@@ -39,9 +42,7 @@ private:
 		}
 	};
 
-	enum ESP_State { ESP_SENDING, ESP_READY, ESP_AWAITING_BODY, ESP_ERROR };
-
-
+	HTTP_Server HTTP_server;
 	TCP_Connection TCP_connections[5];
 	char send_buffer[2048];
 	int8_t link_ID;
@@ -74,6 +75,9 @@ public:
 
 	void(*IPD_Callback)(uint8_t linkID, uint8_t *data, uint16_t length);
 
+	ESP_State Get_State();
+	HTTP_Server* Get_HTTP_Server();
+	TCP_Connection* Get_TCP_Connection(uint8_t link_ID);
 	DMA_HandleTypeDef* Get_DMA_Tx_Handle();
 	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
 	UART_HandleTypeDef* Get_UART_Handle();
@@ -81,10 +85,10 @@ public:
 	void Process_Data();
 	void Set_Wait_For_Wrap(bool value);
 	bool Get_Wait_For_Wrap();
+	HAL_StatusTypeDef Send_Begin(const char *command);
+	HAL_StatusTypeDef Send_Begin(uint8_t *data, uint16_t count);
 	HAL_StatusTypeDef Send(const char *command);
 	HAL_StatusTypeDef Send(uint8_t *data, uint16_t count);
-	HAL_StatusTypeDef HTTP_Send_File(uint8_t link_ID, const char *header, const char *body, uint16_t body_size);
-	HAL_StatusTypeDef TCP_Send(uint8_t link_ID, uint8_t *data, uint16_t data_size);
 };
 
 #endif /* ESP32_H_ */

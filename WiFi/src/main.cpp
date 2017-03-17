@@ -71,33 +71,35 @@ int main(void)
 
 
 	while (true) {
-		esp->Process_Data();
+		if (esp->Get_HTTP_Server()->Get_State() == HTTP_READY)
+			esp->Process_Data();
+		else
+			esp->Get_HTTP_Server()->HTTP_Send_Continue();
 
-		while (urlRead != urlWrite) {
-			HAL_Delay(20);
+		while (urlRead != urlWrite && esp->Get_HTTP_Server()->Get_State() == HTTP_READY) {
 
 			if (strcmp(url[urlRead].address, "/") == 0) {
-				char body[] = "<!DOCTYPE html> <html> <head> <title>DronUI</title> <meta charset=\"utf-8\" /> <script type=\"text/javascript\" src=\"smoothie.js\"></script> <script> function init() { var tempChart = new SmoothieChart({ interpolation: 'linear' }); var tempLine = new TimeSeries(); tempChart.addTimeSeries(tempLine, { lineWidth: 2, strokeStyle: '#00ff00' }); tempChart.streamTo(document.getElementById(\"tempCanvas\"), 1000); var pressChart = new SmoothieChart({ interpolation: 'linear' }); var pressLine = new TimeSeries(); pressChart.addTimeSeries(pressLine, { lineWidth: 2, strokeStyle: '#00ff00' }); pressChart.streamTo(document.getElementById(\"pressCanvas\"), 1000); setInterval(function () { var xhttp = new XMLHttpRequest(); xhttp.onreadystatechange = function () { if (this.readyState == 4 && this.status == 200) { var data = JSON.parse(this.responseText); tempLine.append(new Date().getTime(), data.temp); pressLine.append(new Date().getTime(), data.press); } }; xhttp.open(\"GET\", \"getData\", true); xhttp.send(); }, 1000); } </script> </head> <body onload=\"init()\"> <h2>Ultrasonic sensor</h2> <canvas id=\"tempCanvas\" width=\"900\" height=\"100\"></canvas> <canvas id=\"pressCanvas\" width=\"900\" height=\"100\"></canvas> </body> </html>";
+				char body[] = "<!DOCTYPE html> <html> <head> <title>DronUI</title> <meta charset=\"utf-8\" /> <script type=\"text/javascript\" src=\"smoothie.js\"></script> <script> function init() { var tempChart = new SmoothieChart({ interpolation: 'linear' }); var tempLine = new TimeSeries(); tempChart.addTimeSeries(tempLine, { lineWidth: 2, strokeStyle: '#00ff00' }); tempChart.streamTo(document.getElementById(\"tempCanvas\"), 1000); var pressChart = new SmoothieChart({ interpolation: 'linear' }); var pressLine = new TimeSeries(); pressChart.addTimeSeries(pressLine, { lineWidth: 2, strokeStyle: '#00ff00' }); pressChart.streamTo(document.getElementById(\"pressCanvas\"), 1000); setInterval(function () { var xhttp = new XMLHttpRequest(); xhttp.onreadystatechange = function () { if (this.readyState == 4 && this.status == 200) { var data = JSON.parse(this.responseText); tempLine.append(new Date().getTime(), data.temp); pressLine.append(new Date().getTime(), data.press); } }; xhttp.open(\"GET\", \"getData\", true); xhttp.setRequestHeader(\"Connection\", \"Keep-Alive\"); xhttp.send(); }, 1000); } </script> </head> <body onload=\"init()\"> <h2>Ultrasonic sensor</h2> <canvas id=\"tempCanvas\" width=\"900\" height=\"100\"></canvas> <canvas id=\"pressCanvas\" width=\"900\" height=\"100\"></canvas> </body> </html>";
 				char header[] = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: text/html\r\nContent-Length: ";
 
-				esp->HTTP_Send_File(url[urlRead].link_ID, header, body, strlen(body));
+				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, body, strlen(body));
 			}
 			else if (strcmp(url[urlRead].address, "/smoothie.js") == 0) {
 				char header[] = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/javascript\r\nContent-Encoding: gzip\r\nContent-Length: ";
 
-				esp->HTTP_Send_File(url[urlRead].link_ID, header, smoothie, smoothie_size);
+				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, smoothie, smoothie_size);
 			}
 			else if (strcmp(url[urlRead].address, "/favicon.ico") == 0) {
 				char header[] = "HTTP/1.1 404 Not Found\r\nConnection: keep-alive\r\nContent-Type: text/html\r\nContent-Length: ";
 
-				esp->HTTP_Send_File(url[urlRead].link_ID, header, NULL, 0);
+				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, NULL, 0);
 			}
 			else if (strcmp(url[urlRead].address, "/getData") == 0) {
 				char header[] = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nContent-Length: ";
 				char body[30];
 
-				sprintf(body, "{\r\n\"d1\": %d\r\n}", rand() % 100);
-				esp->HTTP_Send_File(url[urlRead].link_ID, header, body, strlen(body));
+				sprintf(body, "{\r\n\"temp\": %d,\r\n\"press\": %d\r\n}", rand() % 100, rand() % 100);
+				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, body, strlen(body));
 			}
 			else {
 				printf("Unhandled URL: %s\n", url[urlRead]);
