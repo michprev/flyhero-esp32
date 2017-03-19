@@ -40,8 +40,8 @@ int main(void)
 	logger->Init();
 
 	while (true) {
-		if (logger->Print("abc\n") != HAL_OK)
-			logger->Print("e");
+		if (logger->Print((uint8_t*)"abc\n", 4) != HAL_OK)
+			logger->Print((uint8_t*)"e", 1);
 
 		HAL_Delay(5);
 	}
