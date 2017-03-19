@@ -1009,7 +1009,8 @@ int dmp_enable_feature(unsigned short mask)
         tmp[1] = 0xC0;
         tmp[2] = 0xC8;
         tmp[3] = 0xC2;
-    } else {
+    }
+	else {
         tmp[1] = 0xA3;
         tmp[2] = 0xA3;
         tmp[3] = 0xA3;
@@ -1018,7 +1019,8 @@ int dmp_enable_feature(unsigned short mask)
         tmp[4] = 0xC4;
         tmp[5] = 0xCC;
         tmp[6] = 0xC6;
-    } else {
+    }
+	else {
         tmp[4] = 0xA3;
         tmp[5] = 0xA3;
         tmp[6] = 0xA3;
@@ -1046,7 +1048,8 @@ int dmp_enable_feature(unsigned short mask)
             tmp[1] = 0x8B;
             tmp[2] = 0xB6;
             tmp[3] = 0x9B;
-        } else {
+        }
+		else {
             tmp[0] = DINAC0;
             tmp[1] = DINA80;
             tmp[2] = DINAC2;
@@ -1068,14 +1071,16 @@ int dmp_enable_feature(unsigned short mask)
         dmp_set_shake_reject_thresh(GYRO_SF, 200);
         dmp_set_shake_reject_time(40);
         dmp_set_shake_reject_timeout(10);
-    } else {
+    }
+	else {
         tmp[0] = 0xD8;
         mpu_write_mem(CFG_20, 1, tmp);
     }
 
     if (mask & DMP_FEATURE_ANDROID_ORIENT) {
         tmp[0] = 0xD9;
-    } else
+    }
+	else
         tmp[0] = 0xD8;
     mpu_write_mem(CFG_ANDROID_ORIENT_INT, 1, tmp);
 
@@ -1131,7 +1136,8 @@ int dmp_enable_gyro_cal(unsigned char enable)
     if (enable) {
         unsigned char regs[9] = {0xb8, 0xaa, 0xb3, 0x8d, 0xb4, 0x98, 0x0d, 0x35, 0x5d};
         return mpu_write_mem(CFG_MOTION_BIAS, 9, regs);
-    } else {
+    }
+	else {
         unsigned char regs[9] = {0xb8, 0xaa, 0xaa, 0xaa, 0xb0, 0x88, 0xc3, 0xc5, 0xc7};
         return mpu_write_mem(CFG_MOTION_BIAS, 9, regs);
     }
@@ -1176,7 +1182,8 @@ int dmp_enable_6x_lp_quat(unsigned char enable)
         regs[1] = DINA28;
         regs[2] = DINA30;
         regs[3] = DINA38;
-    } else
+    }
+	else
         memset(regs, 0xA3, 4);
 
     mpu_write_mem(CFG_8, 4, regs);
@@ -1272,10 +1279,8 @@ int dmp_read_fifo(short *gyro, short *accel, long *quat,
     sensors[0] = 0;
 
     /* Get a packet. */
-    int status = mpu_read_fifo_stream(dmp.packet_length, fifo_data, more);
-
-    if (status != 0)
-    	return status;
+    if (mpu_read_fifo_stream(dmp.packet_length, fifo_data, more))
+		return -1;
 
     /* Parse DMP packet. */
     if (dmp.feature_mask & (DMP_FEATURE_LP_QUAT | DMP_FEATURE_6X_LP_QUAT)) {

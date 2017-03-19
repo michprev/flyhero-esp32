@@ -38,7 +38,6 @@
  */
 #if defined EMPL_TARGET_STM32F4
 #include "i2c.h"
-#include "log.h"
 #include <stm32f4xx_hal.h>
 
 int get_tick_count(unsigned long *count)
@@ -51,8 +50,8 @@ int get_tick_count(unsigned long *count)
 #define i2c_read    Sensors_I2C_ReadRegister
 #define delay_ms    HAL_Delay
 #define get_ms      get_tick_count
-#define log_i       MPL_LOGI
-#define log_e       MPL_LOGE
+#define log_i       printf
+#define log_e       printf
 #define min(a,b) ((a<b)?a:b)
 
 #elif defined MOTION_DRIVER_TARGET_MSP430
@@ -652,7 +651,8 @@ static int set_int_enable(unsigned char enable)
         if (i2c_write(st.hw->addr, st.reg->int_enable, 1, &tmp))
             return -1;
         st.chip_cfg.int_enable = tmp;
-    } else {
+    }
+	else {
         if (!st.chip_cfg.sensors)
             return -1;
         if (enable && st.chip_cfg.int_enable)
@@ -839,13 +839,16 @@ int mpu_lp_accel_mode(unsigned short rate)
     if (rate == 1) {
         tmp[1] = INV_LPA_1_25HZ;
         mpu_set_lpf(5);
-    } else if (rate <= 5) {
+    }
+	else if (rate <= 5) {
         tmp[1] = INV_LPA_5HZ;
         mpu_set_lpf(5);
-    } else if (rate <= 20) {
+    }
+	else if (rate <= 20) {
         tmp[1] = INV_LPA_20HZ;
         mpu_set_lpf(10);
-    } else {
+    }
+	else {
         tmp[1] = INV_LPA_40HZ;
         mpu_set_lpf(20);
     }
@@ -1160,7 +1163,8 @@ int mpu_reset_fifo(void)
         data = 0;
         if (i2c_write(st.hw->addr, st.reg->fifo_en, 1, &data))
             return -1;
-    } else {
+    }
+	else {
         data = BIT_FIFO_RST;
         if (i2c_write(st.hw->addr, st.reg->user_ctrl, 1, &data))
             return -1;
@@ -1676,7 +1680,8 @@ int mpu_set_sensors(unsigned char sensors)
     if (sensors & INV_XYZ_COMPASS) {
         data = AKM_SINGLE_MEASUREMENT;
         user_ctrl |= BIT_AUX_IF_EN;
-    } else {
+    }
+	else {
         data = AKM_POWER_DOWN;
         user_ctrl &= ~BIT_AUX_IF_EN;
     }
@@ -1872,7 +1877,8 @@ int mpu_set_bypass(unsigned char bypass_on)
             tmp |= BIT_LATCH_EN | BIT_ANY_RD_CLR;
         if (i2c_write(st.hw->addr, st.reg->int_pin_cfg, 1, &tmp))
             return -1;
-    } else {
+    }
+	else {
         /* Enable I2C master mode if compass is being used. */
         if (i2c_read(st.hw->addr, st.reg->user_ctrl, 1, &tmp))
             return -1;
@@ -1971,7 +1977,8 @@ static int accel_self_test(long *bias_regular, long *bias_st)
             st_shift_var = st_shift_cust / st_shift[jj] - 1.f;
             if (fabs(st_shift_var) > test.max_accel_var)
                 result |= 1 << jj;
-        } else if ((st_shift_cust < test.min_g) ||
+        }
+		else if ((st_shift_cust < test.min_g) ||
             (st_shift_cust > test.max_g))
             result |= 1 << jj;
     }
@@ -2001,7 +2008,8 @@ static int gyro_self_test(long *bias_regular, long *bias_st)
             st_shift_var = st_shift_cust / st_shift - 1.f;
             if (fabs(st_shift_var) > test.max_gyro_var)
                 result |= 1 << jj;
-        } else if ((st_shift_cust < test.min_dps) ||
+        }
+		else if ((st_shift_cust < test.min_dps) ||
             (st_shift_cust > test.max_dps))
             result |= 1 << jj;
     }
@@ -2239,11 +2247,11 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
     unsigned char regs[3];
     if (i2c_read(st.hw->addr, REG_6500_XA_ST_DATA, 3, regs)) {
     	if(debug)
-    		printf("Reading OTP Register Error.\n");
+    		log_i("Reading OTP Register Error.\n");
     	return 0x07;
     }
     if(debug)
-    	printf("Accel OTP:%d, %d, %d\n", regs[0], regs[1], regs[2]);
+    	log_i("Accel OTP:%d, %d, %d\n", regs[0], regs[1], regs[2]);
 	for (i = 0; i < 3; i++) {
 		if (regs[i] != 0) {
 			ct_shift_prod[i] = mpu_6500_st_tb[regs[i] - 1];
@@ -2257,25 +2265,25 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
 	}
 	if(otp_value_zero == 0) {
 		if(debug)
-			printf("ACCEL:CRITERIA A\n");
+			log_i("ACCEL:CRITERIA A\n");
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 			if(debug) {
-				printf("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
+				log_i("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
 						st_shift_cust[i]/1.f, bias_regular[i]/1.f,
 						bias_st[i]/1.f);
-				printf("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
+				log_i("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
 			}
 
 			st_shift_ratio[i] = st_shift_cust[i] / ct_shift_prod[i] - 1.f;
 
 			if(debug)
-				printf("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
+				log_i("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
 							test.max_accel_var/1.f);
 
 			if (fabs(st_shift_ratio[i]) > test.max_accel_var) {
 				if(debug)
-					printf("ACCEL Fail Axis = %d\n", i);
+					log_i("ACCEL Fail Axis = %d\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2286,19 +2294,19 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
 		accel_st_al_max = test.max_g * 65536.f;
 
 		if(debug) {
-			printf("ACCEL:CRITERIA B\r\n");
-			printf("Min MG: %7.4f\r\n", accel_st_al_min/1.f);
-			printf("Max MG: %7.4f\r\n", accel_st_al_max/1.f);
+			log_i("ACCEL:CRITERIA B\r\n");
+			log_i("Min MG: %7.4f\r\n", accel_st_al_min/1.f);
+			log_i("Max MG: %7.4f\r\n", accel_st_al_max/1.f);
 		}
 
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 
 			if(debug)
-				printf("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
+				log_i("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
 			if(st_shift_cust[i] < accel_st_al_min || st_shift_cust[i] > accel_st_al_max) {
 				if(debug)
-					printf("Accel FAIL axis:%d <= 225mg or >= 675mg\n", i);
+					log_i("Accel FAIL axis:%d <= 225mg or >= 675mg\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2308,11 +2316,11 @@ static int accel_6500_self_test(long *bias_regular, long *bias_st, int debug)
 	/* Self Test Pass/Fail Criteria C */
 		accel_offset_max = test.max_g_offset * 65536.f;
 		if(debug)
-			printf("Accel:CRITERIA C: bias less than %7.4f\n", accel_offset_max/1.f);
+			log_i("Accel:CRITERIA C: bias less than %7.4f\n", accel_offset_max/1.f);
 		for (i = 0; i < 3; i++) {
 			if(fabs(bias_regular[i]) > accel_offset_max) {
 				if(debug)
-					printf("FAILED: Accel axis:%d = %ld > 500mg\n", i, bias_regular[i]);
+					log_i("FAILED: Accel axis:%d = %ld > 500mg\n", i, bias_regular[i]);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2330,12 +2338,12 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 
     if (i2c_read(st.hw->addr, REG_6500_XG_ST_DATA, 3, regs)) {
     	if(debug)
-    		printf("Reading OTP Register Error.\n");
+    		log_i("Reading OTP Register Error.\n");
         return 0x07;
     }
 
     if(debug)
-    	printf("Gyro OTP:%d, %d, %d\r\n", regs[0], regs[1], regs[2]);
+    	log_i("Gyro OTP:%d, %d, %d\r\n", regs[0], regs[1], regs[2]);
 
 	for (i = 0; i < 3; i++) {
 		if (regs[i] != 0) {
@@ -2351,27 +2359,27 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 
 	if(otp_value_zero == 0) {
 		if(debug)
-			printf("GYRO:CRITERIA A\n");
+			log_i("GYRO:CRITERIA A\n");
 		/* Self Test Pass/Fail Criteria A */
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 
 			if(debug) {
-				printf("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
+				log_i("Bias_Shift=%7.4f, Bias_Reg=%7.4f, Bias_HWST=%7.4f\r\n",
 						st_shift_cust[i]/1.f, bias_regular[i]/1.f,
 						bias_st[i]/1.f);
-				printf("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
+				log_i("OTP value: %7.4f\r\n", ct_shift_prod[i]/1.f);
 			}
 
 			st_shift_ratio[i] = st_shift_cust[i] / ct_shift_prod[i];
 
 			if(debug)
-				printf("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
+				log_i("ratio=%7.4f, threshold=%7.4f\r\n", st_shift_ratio[i]/1.f,
 							test.max_gyro_var/1.f);
 
 			if (fabs(st_shift_ratio[i]) < test.max_gyro_var) {
 				if(debug)
-					printf("Gyro Fail Axis = %d\n", i);
+					log_i("Gyro Fail Axis = %d\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2381,18 +2389,18 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 		gyro_st_al_max = test.max_dps * 65536.f;
 
 		if(debug) {
-			printf("GYRO:CRITERIA B\r\n");
-			printf("Max DPS: %7.4f\r\n", gyro_st_al_max/1.f);
+			log_i("GYRO:CRITERIA B\r\n");
+			log_i("Max DPS: %7.4f\r\n", gyro_st_al_max/1.f);
 		}
 
 		for (i = 0; i < 3; i++) {
 			st_shift_cust[i] = bias_st[i] - bias_regular[i];
 
 			if(debug)
-				printf("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
+				log_i("Bias_shift=%7.4f, st=%7.4f, reg=%7.4f\n", st_shift_cust[i]/1.f, bias_st[i]/1.f, bias_regular[i]/1.f);
 			if(st_shift_cust[i] < gyro_st_al_max) {
 				if(debug)
-					printf("GYRO FAIL axis:%d greater than 60dps\n", i);
+					log_i("GYRO FAIL axis:%d greater than 60dps\n", i);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2402,11 +2410,11 @@ static int gyro_6500_self_test(long *bias_regular, long *bias_st, int debug)
 	/* Self Test Pass/Fail Criteria C */
 		gyro_offset_max = test.min_dps * 65536.f;
 		if(debug)
-			printf("Gyro:CRITERIA C: bias less than %7.4f\n", gyro_offset_max/1.f);
+			log_i("Gyro:CRITERIA C: bias less than %7.4f\n", gyro_offset_max/1.f);
 		for (i = 0; i < 3; i++) {
 			if(fabs(bias_regular[i]) > gyro_offset_max) {
 				if(debug)
-					printf("FAILED: Gyro axis:%d = %ld > 20dps\n", i, bias_regular[i]);
+					log_i("FAILED: Gyro axis:%d = %ld > 20dps\n", i, bias_regular[i]);
 				result |= 1 << i;	//Error condition
 			}
 		}
@@ -2476,7 +2484,7 @@ static int get_st_6500_biases(long *gyro, long *accel, unsigned char hw_test, in
     accel[0] = accel[1] = accel[2] = 0;
 
     if(debug)
-    	printf("Starting Bias Loop Reads\n");
+    	log_i("Starting Bias Loop Reads\n");
 
     //start reading samples
     while (s < test.packet_thresh) {
@@ -2513,7 +2521,7 @@ static int get_st_6500_biases(long *gyro, long *accel, unsigned char hw_test, in
     }
 
     if(debug)
-    	printf("Samples: %d\n", s);
+    	log_i("Samples: %d\n", s);
 
     //stop FIFO
     data[0] = 0;
@@ -2534,8 +2542,8 @@ static int get_st_6500_biases(long *gyro, long *accel, unsigned char hw_test, in
 
 
     if(debug) {
-    	printf("Accel offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, accel[0]/65536.f, accel[1]/65536.f, accel[2]/65536.f);
-    	printf("Gyro offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, gyro[0]/65536.f, gyro[1]/65536.f, gyro[2]/65536.f);
+    	log_i("Accel offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, accel[0]/65536.f, accel[1]/65536.f, accel[2]/65536.f);
+    	log_i("Gyro offset data HWST bit=%d: %7.4f %7.4f %7.4f\r\n", hw_test, gyro[0]/65536.f, gyro[1]/65536.f, gyro[2]/65536.f);
     }
 
     return 0;
@@ -2574,12 +2582,13 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 
 
     if(debug)
-    	printf("Starting MPU6500 HWST!\r\n");
+    	log_i("Starting MPU6500 HWST!\r\n");
 
     if (st.chip_cfg.dmp_on) {
         mpu_set_dmp_state(0);
         dmp_was_on = 1;
-    } else
+    }
+	else
         dmp_was_on = 0;
 
     /* Get initial settings. */
@@ -2591,7 +2600,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
     mpu_get_fifo_config(&fifo_sensors);
 
     if(debug)
-    	printf("Retrieving Biases\r\n");
+    	log_i("Retrieving Biases\r\n");
 
     for (ii = 0; ii < tries; ii++)
         if (!get_st_6500_biases(gyro, accel, 0, debug))
@@ -2601,14 +2610,14 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
          * We'll just report an error for all three sensors.
          */
         if(debug)
-        	printf("Retrieving Biases Error - possible I2C error\n");
+        	log_i("Retrieving Biases Error - possible I2C error\n");
 
         result = 0;
         goto restore;
     }
 
     if(debug)
-    	printf("Retrieving ST Biases\n");
+    	log_i("Retrieving ST Biases\n");
 
     for (ii = 0; ii < tries; ii++)
         if (!get_st_6500_biases(gyro_st, accel_st, 1, debug))
@@ -2616,7 +2625,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
     if (ii == tries) {
 
         if(debug)
-        	printf("Retrieving ST Biases Error - possible I2C error\n");
+        	log_i("Retrieving ST Biases Error - possible I2C error\n");
 
         /* Again, probably an I2C error. */
         result = 0;
@@ -2625,11 +2634,11 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 
     accel_result = accel_6500_self_test(accel, accel_st, debug);
     if(debug)
-    	printf("Accel Self Test Results: %d\n", accel_result);
+    	log_i("Accel Self Test Results: %d\n", accel_result);
 
     gyro_result = gyro_6500_self_test(gyro, gyro_st, debug);
     if(debug)
-    	printf("Gyro Self Test Results: %d\n", gyro_result);
+    	log_i("Gyro Self Test Results: %d\n", gyro_result);
 
     result = 0;
     if (!gyro_result)
@@ -2640,7 +2649,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 #ifdef AK89xx_SECONDARY
     compass_result = compass_self_test();
     if(debug)
-    	printf("Compass Self Test Results: %d\n", compass_result);
+    	log_i("Compass Self Test Results: %d\n", compass_result);
     if (!compass_result)
         result |= 0x04;
 #else
@@ -2648,7 +2657,7 @@ int mpu_run_6500_self_test(long *gyro, long *accel, unsigned char debug)
 #endif
 restore:
 	if(debug)
-		printf("Exiting HWST\n");
+		log_i("Exiting HWST\n");
 	/* Set to invalid values to ensure no I2C writes are skipped. */
 	st.chip_cfg.gyro_fsr = 0xFF;
 	st.chip_cfg.accel_fsr = 0xFF;
@@ -2696,7 +2705,8 @@ int mpu_run_self_test(long *gyro, long *accel)
     if (st.chip_cfg.dmp_on) {
         mpu_set_dmp_state(0);
         dmp_was_on = 1;
-    } else
+    }
+	else
         dmp_was_on = 0;
 
     /* Get initial settings. */
@@ -2909,7 +2919,8 @@ int mpu_set_dmp_state(unsigned char enable)
         /* Enable DMP interrupt. */
         set_int_enable(1);
         mpu_reset_fifo();
-    } else {
+    }
+	else {
         /* Disable DMP interrupt. */
         set_int_enable(0);
         /* Restore FIFO settings. */
@@ -2950,9 +2961,7 @@ static int setup_compass(void)
 
     if (akm_addr > 0x0F) {
         /* TODO: Handle this case in all compass-related functions. */
-#ifdef LOG
-        printf("Compass not found.\n");
-#endif
+        log_e("Compass not found.\n");
         return -1;
     }
 
@@ -3182,7 +3191,8 @@ int mpu_lp_motion_interrupt(unsigned short thresh, unsigned char time,
             if (st.chip_cfg.dmp_on) {
                 mpu_set_dmp_state(0);
                 st.chip_cfg.cache.dmp_on = 1;
-            } else
+            }
+			else
                 st.chip_cfg.cache.dmp_on = 0;
             mpu_get_gyro_fsr(&st.chip_cfg.cache.gyro_fsr);
             mpu_get_accel_fsr(&st.chip_cfg.cache.accel_fsr);
@@ -3250,7 +3260,8 @@ int mpu_lp_motion_interrupt(unsigned short thresh, unsigned char time,
         st.chip_cfg.int_motion_only = 1;
         return 0;
 #endif
-    } else {
+    }
+	else {
         /* Don't "restore" the previous state if no state has been saved. */
         unsigned int ii;
         char *cache_ptr = (char*)&st.chip_cfg.cache;
@@ -3292,6 +3303,6 @@ lp_int_restore:
 }
 
 /**
- *  @}
- */
+*  @}
+*/
 
