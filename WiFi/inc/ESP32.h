@@ -65,7 +65,6 @@ private:
 	uint8_t processing_buffer[MAX_PARSE_SIZE];
 
 	HAL_StatusTypeDef UART_Init(uint32_t baudrate);
-	HAL_StatusTypeDef UART_DMA_send(uint8_t *data, uint16_t size);
 	void reset();
 	void parse(char *str, uint16_t length);
 	uint32_t bytes_available();

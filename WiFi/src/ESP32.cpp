@@ -31,11 +31,9 @@ ESP32::ESP32() {
 	this->wait_for_wrap = false;
 	this->IPD_received = 0;
 	this->IPD_size = 0;
-
-	if (UART_Init(115200) != HAL_OK) {
-		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
-		while (true);
-	}
+	this->huart = UART_HandleTypeDef();
+	this->hdma_usart3_rx = DMA_HandleTypeDef();
+	this->hdma_usart3_tx = DMA_HandleTypeDef();
 }
 
 DMA_HandleTypeDef* ESP32::Get_DMA_Tx_Handle() {
@@ -69,15 +67,45 @@ void ESP32::reset() {
 }
 
 HAL_StatusTypeDef ESP32::Init() {
-	//this->Send("AT+RST\r\n");
-	this->reset();
-
-	while (!this->ready) {
-		this->Process_Data();
+	if (this->UART_Init(115200) != HAL_OK) {
+		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
+		while (true);
 	}
 
-	this->Send("AT+UART_CUR=2000000,8,1,0,0\r\n");
-	this->UART_Init(2000000);
+	// PB7 RST
+
+	GPIO_InitTypeDef rst;
+	rst.Pin = GPIO_PIN_7;
+	rst.Mode = GPIO_MODE_OUTPUT_PP;
+	rst.Pull = GPIO_PULLUP;;
+	rst.Speed = GPIO_SPEED_HIGH;
+	HAL_GPIO_Init(GPIOB, &rst);
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+
+	this->reset();
+
+	HAL_Delay(1000);
+	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
+
+
+#ifdef ESP8266
+	this->Send("AT+UART_CUR=4500000,8,1,0,0\r\n");
+	HAL_DMA_Abort(&this->hdma_usart3_rx);
+	HAL_DMA_Abort(&this->hdma_usart3_tx);
+	HAL_UART_DeInit(&this->huart);
+	this->UART_Init(4500000);
+	HAL_Delay(1000);
+	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
+#else
+	this->Send("AT+UART_CUR=5000000,8,1,0,0\r\n");
+	HAL_DMA_Abort(&this->hdma_usart3_rx);
+	HAL_DMA_Abort(&this->hdma_usart3_tx);
+	HAL_UART_DeInit(&this->huart);
+	this->UART_Init(5000000);
+	HAL_Delay(1000);
+	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
+#endif
 
 
 	this->Send("ATE0\r\n");
@@ -96,90 +124,8 @@ HAL_StatusTypeDef ESP32::Init() {
 
 HAL_StatusTypeDef ESP32::UART_Init(uint32_t baudrate)
 {
-	if (__GPIOC_IS_CLK_DISABLED())
-		__GPIOC_CLK_ENABLE();
-
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
-
-	if (__USART3_IS_CLK_DISABLED())
-		__USART3_CLK_ENABLE();
-
-	if (__DMA1_IS_CLK_DISABLED())
-		__DMA1_CLK_ENABLE();
-
-	// PB7 RST
-	// PC10 TX
-	// PC11 RX
-
-	GPIO_InitTypeDef rst;
-	rst.Pin = GPIO_PIN_7;
-	rst.Mode = GPIO_MODE_OUTPUT_PP;
-	rst.Pull = GPIO_PULLUP;;
-	rst.Speed = GPIO_SPEED_HIGH;
-	HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
-	HAL_GPIO_Init(GPIOB, &rst);
-
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
-
-	GPIO_InitTypeDef GPIO_InitStruct;
-
-	GPIO_InitStruct.Pin = GPIO_PIN_10 | GPIO_PIN_11;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
-	HAL_GPIO_DeInit(GPIOC, GPIO_PIN_10 | GPIO_PIN_11);
-	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-	this->hdma_usart3_rx.Instance = DMA1_Stream1;
-	this->hdma_usart3_rx.Init.Channel = DMA_CHANNEL_4;
-	this->hdma_usart3_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-	this->hdma_usart3_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-	this->hdma_usart3_rx.Init.MemInc = DMA_MINC_ENABLE;
-	this->hdma_usart3_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-	this->hdma_usart3_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-	this->hdma_usart3_rx.Init.Mode = DMA_CIRCULAR;
-	this->hdma_usart3_rx.Init.Priority = DMA_PRIORITY_LOW;
-	this->hdma_usart3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-
-	if (HAL_DMA_Abort(&this->hdma_usart3_rx))
-		return HAL_ERROR;
-
-	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart3_rx);
-
-	if (HAL_DMA_DeInit(&this->hdma_usart3_rx))
-		return HAL_ERROR;
-
-	if (HAL_DMA_Init(&this->hdma_usart3_rx))
-		return HAL_ERROR;
-
-	__HAL_LINKDMA(&huart, hdmarx, this->hdma_usart3_rx);
-
-	this->hdma_usart3_tx.Instance = DMA1_Stream3;
-	this->hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
-	this->hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-	this->hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-	this->hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
-	this->hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-	this->hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-	this->hdma_usart3_tx.Init.Mode = DMA_NORMAL;
-	this->hdma_usart3_tx.Init.Priority = DMA_PRIORITY_LOW;
-	this->hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-
-	if (HAL_DMA_Abort(&this->hdma_usart3_tx))
-		return HAL_ERROR;
-
-	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart3_tx);
-
-	if (HAL_DMA_DeInit(&this->hdma_usart3_tx))
-		return HAL_ERROR;
-
-	if (HAL_DMA_Init(&this->hdma_usart3_tx))
-		return HAL_ERROR;
-
-	__HAL_LINKDMA(&huart, hdmatx, this->hdma_usart3_tx);
-
 
 	this->huart.Instance = USART3;
 	this->huart.Init.BaudRate = baudrate;
@@ -189,47 +135,12 @@ HAL_StatusTypeDef ESP32::UART_Init(uint32_t baudrate)
 	this->huart.Init.Mode = UART_MODE_TX_RX;
 	this->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	this->huart.Init.OverSampling = UART_OVERSAMPLING_8;
-	if (HAL_UART_DeInit(&this->huart) || HAL_UART_Init(&this->huart))
+	if (HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
 	this->readPos.pos = 0;
-	if (HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE))
-		return HAL_ERROR;
-
-	HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-	HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
-	HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(USART3_IRQn);
 
 	return HAL_OK;
-}
-
-HAL_StatusTypeDef ESP32::UART_DMA_send(uint8_t *data, uint16_t size) {
-
-	if (HAL_DMA_DeInit(&this->hdma_usart3_tx))
-		return HAL_ERROR;
-
-	this->hdma_usart3_tx.Instance = DMA1_Stream3;
-	this->hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
-	this->hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-	this->hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-	this->hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
-	this->hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-	this->hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-	this->hdma_usart3_tx.Init.Mode = DMA_NORMAL;
-	this->hdma_usart3_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-	this->hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-
-	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_usart3_tx);
-
-	if (HAL_DMA_Init(&this->hdma_usart3_tx))
-		return HAL_ERROR;
-
-	__HAL_LINKDMA(&huart, hdmatx, this->hdma_usart3_tx);
-
-	return HAL_UART_Transmit_DMA(&this->huart, data, size);
 }
 
 uint32_t ESP32::bytes_available() {
@@ -433,7 +344,7 @@ void ESP32::parse(char *str, uint16_t length) {
 HAL_StatusTypeDef ESP32::Send_Begin(const char *command) {
 	this->state = ESP_SENDING;
 
-	HAL_StatusTypeDef status = this->UART_DMA_send((uint8_t*)command, strlen(command));
+	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&this->huart, (uint8_t*)command, strlen(command));
 
 #ifdef LOG
 	printf("[%d]    %s\n", HAL_GetTick() - this->timestamp, command);
@@ -447,7 +358,7 @@ HAL_StatusTypeDef ESP32::Send_Begin(const char *command) {
 HAL_StatusTypeDef ESP32::Send_Begin(uint8_t *data, uint16_t count) {
 	this->state = ESP_SENDING;
 
-	HAL_StatusTypeDef status = this->UART_DMA_send(data, count);
+	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&this->huart, data, count);
 
 #ifdef LOG
 	printf("[%d]    Sent %d bytes\n", HAL_GetTick() - this->timestamp, count);
@@ -463,7 +374,7 @@ HAL_StatusTypeDef ESP32::Send(const char *command)
 {
 	this->state = ESP_SENDING;
 
-	HAL_StatusTypeDef status = this->UART_DMA_send((uint8_t*)command, strlen(command));
+	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&this->huart, (uint8_t*)command, strlen(command));
 
 #ifdef LOG
 	printf("[%d]    %s\n", HAL_GetTick() - this->timestamp, command);
@@ -489,7 +400,7 @@ HAL_StatusTypeDef ESP32::Send(uint8_t *data, uint16_t count)
 {
 	this->state = ESP_SENDING;
 
-	HAL_StatusTypeDef status = this->UART_DMA_send(data, count);
+	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&this->huart, data, count);
 
 #ifdef LOG
 	printf("[%d]    Sent %d bytes\n", HAL_GetTick() - this->timestamp, count);
