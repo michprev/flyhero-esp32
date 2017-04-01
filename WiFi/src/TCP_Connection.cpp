@@ -99,7 +99,7 @@ HAL_StatusTypeDef TCP_Connection::TCP_Send_Continue() {
 			else
 				this->state = TCP_DATA_SENT;
 		}
-		else if (esp->Get_State() == ESP_ERROR && this->reset)
+		else if (esp->Get_State() == ESP_ERROR /*&& this->reset*/)
 			this->state = TCP_CLOSED;
 
 		break;
