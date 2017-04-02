@@ -14,10 +14,14 @@
 #include <string.h>
 #include "smoothie.h"
 #include "http_parser.h"
+#include "ESP8266.h"
+#include "HTTP_Server.h"
 			
+using namespace The_Eye;
+
 extern "C" void initialise_monitor_handles(void);
 
-ESP32 *esp = ESP32::Instance();
+ESP *esp = ESP8266::Instance();
 uint8_t *IPD_data;
 uint8_t IPD_link_ID;
 uint16_t IPD_length;
@@ -63,7 +67,7 @@ int main(void)
 {
 	HAL_Init();
 
-	SystemClock_Config();
+	//SystemClock_Config();
 
 	initialise_monitor_handles();
 
@@ -73,37 +77,38 @@ int main(void)
 	esp->IPD_Callback = &IPD_Callback;
 	esp->Init();
 
+	HTTP_Server server(esp);
 
 	while (true) {
-		if (esp->Get_HTTP_Server()->Get_State() == HTTP_READY)
+		if (server.Get_State() == HTTP_READY)
 			esp->Process_Data();
 		else
-			esp->Get_HTTP_Server()->HTTP_Send_Continue();
+			server.HTTP_Send_Continue();
 
-		while (urlRead != urlWrite && esp->Get_HTTP_Server()->Get_State() == HTTP_READY) {
+		while (urlRead != urlWrite && server.Get_State() == HTTP_READY) {
 
 			if (strcmp(url[urlRead].address, "/") == 0) {
 				char body[] = "<!DOCTYPE html> <html> <head> <title>DronUI</title> <meta charset=\"utf-8\" /> <script type=\"text/javascript\" src=\"smoothie.js\"></script> <script> function init() { var tempChart = new SmoothieChart({ interpolation: 'linear' }); var tempLine = new TimeSeries(); tempChart.addTimeSeries(tempLine, { lineWidth: 2, strokeStyle: '#00ff00' }); tempChart.streamTo(document.getElementById(\"tempCanvas\"), 1000); var pressChart = new SmoothieChart({ interpolation: 'linear' }); var pressLine = new TimeSeries(); pressChart.addTimeSeries(pressLine, { lineWidth: 2, strokeStyle: '#00ff00' }); pressChart.streamTo(document.getElementById(\"pressCanvas\"), 1000); setInterval(function () { var xhttp = new XMLHttpRequest(); xhttp.onreadystatechange = function () { if (this.readyState == 4 && this.status == 200) { var data = JSON.parse(this.responseText); tempLine.append(new Date().getTime(), data.temp); pressLine.append(new Date().getTime(), data.press); } }; xhttp.open(\"GET\", \"getData\", true); xhttp.setRequestHeader(\"Connection\", \"Keep-Alive\"); xhttp.send(); }, 1000); } </script> </head> <body onload=\"init()\"> <h2>Ultrasonic sensor</h2> <canvas id=\"tempCanvas\" width=\"900\" height=\"100\"></canvas> <canvas id=\"pressCanvas\" width=\"900\" height=\"100\"></canvas> </body> </html>";
 				char header[] = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: text/html\r\nContent-Length: ";
 
-				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, body, strlen(body));
+				server.HTTP_Send_Begin(url[urlRead].link_ID, header, body, strlen(body));
 			}
 			else if (strcmp(url[urlRead].address, "/smoothie.js") == 0) {
 				char header[] = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/javascript\r\nContent-Encoding: gzip\r\nContent-Length: ";
 
-				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, smoothie, smoothie_size);
+				server.HTTP_Send_Begin(url[urlRead].link_ID, header, smoothie, smoothie_size);
 			}
 			else if (strcmp(url[urlRead].address, "/favicon.ico") == 0) {
 				char header[] = "HTTP/1.1 404 Not Found\r\nConnection: keep-alive\r\nContent-Type: text/html\r\nContent-Length: ";
 
-				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, NULL, 0);
+				server.HTTP_Send_Begin(url[urlRead].link_ID, header, NULL, 0);
 			}
 			else if (strcmp(url[urlRead].address, "/getData") == 0) {
 				char header[] = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Type: application/json\r\nContent-Length: ";
 				char body[30];
 
 				sprintf(body, "{\r\n\"temp\": %d,\r\n\"press\": %d\r\n}", rand() % 100, rand() % 100);
-				esp->Get_HTTP_Server()->HTTP_Send_Begin(url[urlRead].link_ID, header, body, strlen(body));
+				server.HTTP_Send_Begin(url[urlRead].link_ID, header, body, strlen(body));
 			}
 			else {
 				printf("Unhandled URL: %s\n", url[urlRead]);

@@ -1,24 +1,24 @@
 /*
- * ESP32.cpp
+ * ESP8266.cpp
  *
- *  Created on: 10. 3. 2017
+ *  Created on: 2. 4. 2017
  *      Author: michp
  */
 
-#include <ESP32.h>
+#include <ESP8266.h>
 
 namespace The_Eye {
 
-ESP32* ESP32::pInstance = NULL;
+ESP8266* ESP8266::pInstance = NULL;
 
-ESP* ESP32::Instance() {
-	if (ESP32::pInstance == NULL)
-		pInstance = new ESP32();
+ESP* ESP8266::Instance() {
+	if (ESP8266::pInstance == NULL)
+		pInstance = new ESP8266();
 
 	return pInstance;
 }
 
-ESP32::ESP32() {
+ESP8266::ESP8266() {
 	this->readPos.pos = 0;
 	this->processedLength = 0;
 	this->ready = false;
@@ -35,7 +35,7 @@ ESP32::ESP32() {
 	this->hdma_usart3_tx = DMA_HandleTypeDef();
 }
 
-HAL_StatusTypeDef ESP32::Init() {
+HAL_StatusTypeDef ESP8266::Init() {
 	if (this->UART_Init(115200) != HAL_OK) {
 		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
 		while (true);
@@ -57,23 +57,23 @@ HAL_StatusTypeDef ESP32::Init() {
 	HAL_Delay(1000);
 	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
 
-	this->Send("AT+UART_CUR=5000000,8,1,0,0\r\n");
+
+	this->Send("AT+UART_CUR=2000000,8,1,0,0\r\n");
 	HAL_DMA_Abort(&this->hdma_usart3_rx);
 	HAL_DMA_Abort(&this->hdma_usart3_tx);
 	HAL_UART_DeInit(&this->huart);
-	this->UART_Init(5000000);
+	this->UART_Init(2000000);
 	HAL_Delay(1000);
 	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
 
 
 	this->Send("ATE0\r\n");
-	//this->send("AT+SYSRAM?\r\n");
 	this->Send("AT+CWMODE=2\r\n");
 	this->Send("AT+CWSAP=\"DRON_WIFI\",\"123456789\",5,3,1,1\r\n");
-	this->Send("AT+CWDHCP=1,1\r\n");
+	this->Send("AT+CWDHCP=0,1\r\n");
 	this->Send("AT+CIPMUX=1\r\n");
 	this->Send("AT+CIPSERVER=1,80\r\n");
 	this->Send("AT+CIPSTART=4,\"UDP\",\"0\",0,4789,1\r\n");
 }
 
-}
+} /* namespace The_Eye */

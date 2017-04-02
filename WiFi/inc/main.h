@@ -8,8 +8,8 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include "ESP32.h"
+#include "ESP.h"
 
-extern ESP32 *esp;
+extern The_Eye::ESP *esp;
 
 #endif /* MAIN_H_ */
