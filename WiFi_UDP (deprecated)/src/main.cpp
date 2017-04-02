@@ -33,10 +33,8 @@ extern "C" void USART3_IRQHandler(void)
 	HAL_UART_IRQHandler(&esp8266->huart);
 }
 
-uint32_t count = 0;
-
 void IPD_Callback(uint8_t *data, uint16_t length) {
-	//printf("IPD: %s\n", data);
+	printf("IPD: %s\n", data);
 }
 
 int main(void)
@@ -50,11 +48,6 @@ int main(void)
 	hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
 	hiwdg.Init.Reload = 2047;
 
-	if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
-	{
-		printf("Could not start watchdog\n");
-	}
-
 	__GPIOA_CLK_ENABLE();
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.Pin = GPIO_PIN_5;
@@ -65,10 +58,11 @@ int main(void)
 
 	esp8266->Reset();
 
-	HAL_Delay(500);
+	HAL_Delay(1000);
 
-	//while (!esp8266->ready)
-		//esp8266->WaitReady();
+	if (esp8266->UART_Init() != HAL_OK) {
+		while (true);
+	}
 
 	esp8266->IPD_Callback = &IPD_Callback;
 	//esp8266->output = true;
@@ -76,6 +70,11 @@ int main(void)
 
 	printf("init complete\n");
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+
+	if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+	{
+		printf("Could not start watchdog\n");
+	}
 
 	while (true) {
 		HAL_IWDG_Refresh(&hiwdg);

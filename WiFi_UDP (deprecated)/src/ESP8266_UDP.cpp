@@ -28,12 +28,7 @@ ESP8266_UDP::ESP8266_UDP()
 	this->handshaken = false;
 	this->State = ESP_READY;
 
-	TIM_Init();
-
-	if (UART_Init() != HAL_OK) {
-		LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
-		while (true);
-	}
+	//TIM_Init();
 }
 
 void ESP8266_UDP::TIM_Init() {
@@ -372,6 +367,7 @@ void ESP8266_UDP::ProcessData()
 
 		}
 		else if (strcmp("ATE0\r\r\n", buffer) == 0) {
+			printf("a");
 		}
 		else if (strncmp("Recv", buffer, 4) == 0) {
 

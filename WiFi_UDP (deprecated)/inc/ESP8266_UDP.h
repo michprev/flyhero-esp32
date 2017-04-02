@@ -34,7 +34,6 @@ private:
 	uint32_t readPos;
 	bool handshaken;
 
-	HAL_StatusTypeDef UART_Init();
 	HAL_StatusTypeDef UART_Send(uint8_t *data, uint16_t size);
 	void TIM_Init();
 	uint32_t getTick();
@@ -56,6 +55,7 @@ public:
 
 	static ESP8266_UDP* Instance();
 	void ProcessData();
+	HAL_StatusTypeDef UART_Init();
 	HAL_StatusTypeDef SendUDP_Header(uint16_t length);
 	HAL_StatusTypeDef SendUDP(uint8_t *data, uint16_t length);
 	void Init();
