@@ -9,6 +9,9 @@
 */
 
 #include "main.h"
+#include "ESP32.h"
+
+using namespace The_Eye;
 
 #define LOG
 
@@ -18,7 +21,7 @@ extern "C" void initialise_monitor_handles(void);
 
 unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
 
-ESP32 *esp = ESP32::Instance();
+ESP *esp = ESP32::Instance();
 PWM_Generator *pwm = PWM_Generator::Instance();
 MPU9250 *mpu = MPU9250::Instance();
 MS5611 *ms5611 = MS5611::Instance();
@@ -167,11 +170,9 @@ int main(void)
 			logData[14] = (throttle >> 8) & 0xFF;
 			logData[15] = throttle & 0xFF;
 
-			uint32_t t = HAL_GetTick();
-
-			esp->Get_TCP_Connection('4')->TCP_Send_Begin('4', logData, 16);
-			while (esp->Get_TCP_Connection('4')->Get_State() != TCP_READY && esp->Get_TCP_Connection('4')->Get_State() != TCP_CLOSED) {
-					esp->Get_TCP_Connection('4')->TCP_Send_Continue();
+			esp->Get_Connection('4')->Connection_Send_Begin(logData, 16);
+			while (esp->Get_Connection('4')->Get_State() != CONNECTION_READY && esp->Get_Connection('4')->Get_State() != CONNECTION_CLOSED) {
+					esp->Get_Connection('4')->Connection_Send_Continue();
 			}
 		}
 

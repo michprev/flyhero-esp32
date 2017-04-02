@@ -11,7 +11,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
 #include "PWM_Generator.h"
-#include "ESP32.h"
+#include "ESP.h"
 #include "MS5611.h"
 #include "MPU9250.h"
 #include "LEDs.h"
@@ -19,7 +19,7 @@
 #include "PID.h"
 #include "Logger.h"
 
-extern ESP32 *esp;
+extern The_Eye::ESP *esp;
 extern PWM_Generator *pwm;
 extern MPU9250 *mpu;
 extern MS5611 *ms5611;
