@@ -16,6 +16,56 @@ ArduCAM* ArduCAM::Instance() {
 	return pInstance;
 }
 
+void ArduCAM::DMA_init() {
+	if (__DMA2_IS_CLK_DISABLED())
+		__DMA2_CLK_ENABLE();
+
+	this->hdma_spi1_rx.Instance = DMA2_Stream0;
+	this->hdma_spi1_rx.Init.Channel = DMA_CHANNEL_3;
+	this->hdma_spi1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+	this->hdma_spi1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+	this->hdma_spi1_rx.Init.MemInc = DMA_MINC_DISABLE;
+	this->hdma_spi1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	this->hdma_spi1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	this->hdma_spi1_rx.Init.Mode = DMA_CIRCULAR;
+	this->hdma_spi1_rx.Init.Priority = DMA_PRIORITY_LOW;
+	this->hdma_spi1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	if (HAL_DMA_Init(&this->hdma_spi1_rx) != HAL_OK)
+	{
+	}
+
+	__HAL_LINKDMA(&this->hspi, hdmarx, this->hdma_spi1_rx);
+
+
+	this->hdma_spi1_tx.Instance = DMA2_Stream3;
+	this->hdma_spi1_tx.Init.Channel = DMA_CHANNEL_3;
+	this->hdma_spi1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	this->hdma_spi1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	this->hdma_spi1_tx.Init.MemInc = DMA_MINC_DISABLE;
+	this->hdma_spi1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	this->hdma_spi1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	this->hdma_spi1_tx.Init.Mode = DMA_CIRCULAR;
+	this->hdma_spi1_tx.Init.Priority = DMA_PRIORITY_LOW;
+	this->hdma_spi1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	if (HAL_DMA_Init(&this->hdma_spi1_tx) != HAL_OK)
+	{
+	}
+
+	__HAL_LINKDMA(&this->hspi, hdmatx, this->hdma_spi1_tx);
+
+
+
+	HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+	HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
+}
+
+void ArduCAM::DMA_deinit() {
+	HAL_DMA_DeInit(&this->hdma_spi1_rx);
+	HAL_DMA_DeInit(&this->hdma_spi1_tx);
+}
+
 HAL_StatusTypeDef ArduCAM::Init() {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
@@ -78,7 +128,7 @@ HAL_StatusTypeDef ArduCAM::Init() {
 	this->hspi.Init.CLKPolarity = SPI_POLARITY_LOW;
 	this->hspi.Init.CLKPhase = SPI_PHASE_1EDGE;
 	this->hspi.Init.NSS = SPI_NSS_SOFT;
-	this->hspi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+	this->hspi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
 	this->hspi.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	this->hspi.Init.TIMode = SPI_TIMODE_DISABLE;
 	this->hspi.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -87,19 +137,19 @@ HAL_StatusTypeDef ArduCAM::Init() {
 	if (HAL_SPI_Init(&this->hspi) != HAL_OK)
 		return HAL_ERROR;
 
-	uint8_t data = 0x55;
-	uint8_t response;
+	 uint8_t data = 0x55;
+	 uint8_t response;
 
-	uint32_t ticks = HAL_GetTick();
+	 uint32_t ticks = HAL_GetTick();
 
-	uint8_t vid, pid;
-	this->i2c_read(OV5640_CHIPID_HIGH, &vid);
-	this->i2c_read(OV5640_CHIPID_LOW, &pid);
+	 uint8_t vid, pid;
+	 this->i2c_read(OV5640_CHIPID_HIGH, &vid);
+	 this->i2c_read(OV5640_CHIPID_LOW, &pid);
 
-	do {
-		this->spi_write(0x00, &data);
-		this->spi_read(0x00, &response);
-	} while (response != 0x55 && HAL_GetTick() - ticks < 5000);
+	 do {
+		 this->spi_write(0x00, &data);
+		 this->spi_read(0x00, &response);
+	 } while (response != 0x55 && HAL_GetTick() - ticks < 5000);
 
 	if (response != 0x55)
 		return HAL_TIMEOUT;
@@ -139,19 +189,33 @@ HAL_StatusTypeDef ArduCAM::Init() {
 HAL_StatusTypeDef ArduCAM::Capture() {
 	uint8_t data;
 
-	uint32_t gg = HAL_GetTick();
-
 	data = 0x01;
 	this->spi_write(0x04, &data);
 
 	data = 0x02;
 	this->spi_write(0x04, &data);
 
+
+	/*uint8_t flag = 0x00;
+	data = 0x00;
+	this->DMA_init();
+	HAL_SPI_TransmitReceive_DMA(&this->hspi, &data, &flag, 1);
+
+	while (!(flag & 0x08)) {
+		HAL_Delay(1);
+	}
+
+	HAL_SPI_DMAStop(&this->hspi);
+	this->DMA_deinit();*/
+
+	uint32_t gg = HAL_GetTick();
+
 	do {
 		this->spi_read(0x41, &data);
 
 		// data ready
 		if (data & 0x08) {
+			printf("%d\n", HAL_GetTick() - gg);
 			this->read_fifo_burst();
 
 			data = 0x01;

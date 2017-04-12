@@ -11,13 +11,10 @@
 #ifndef OV5640_REGS_H_
 #define OV5640_REGS_H_
 
+#include "sensor_reg.h"
+
 #define OV5640_CHIPID_HIGH 0x300a
 #define OV5640_CHIPID_LOW 0x300b
-
-struct sensor_reg {
-	uint16_t reg;
-	uint16_t val;
-};
 
 static const struct sensor_reg OV5640YUV_Sensor_Dvp_Init[] =
 {
