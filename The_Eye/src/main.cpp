@@ -9,11 +9,15 @@
 */
 
 #include "main.h"
-#include "ESP32.h"
+#include "ESP8266.h"
+#include "Kalman.h"
+#include "math.h"
 
 using namespace The_Eye;
 
-#define LOG
+
+#define PI 3.14159265358979323846
+//#define LOG
 
 #ifdef LOG
 extern "C" void initialise_monitor_handles(void);
@@ -21,7 +25,7 @@ extern "C" void initialise_monitor_handles(void);
 
 unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
 
-ESP *esp = ESP32::Instance();
+ESP *esp = ESP8266::Instance();
 PWM_Generator *pwm = PWM_Generator::Instance();
 MPU9250 *mpu = MPU9250::Instance();
 MS5611 *ms5611 = MS5611::Instance();
@@ -31,6 +35,7 @@ Logger *logger = Logger::Instance();
 void InitI2C(I2C_HandleTypeDef*);
 void Arm_Callback();
 void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
+void Calculate();
 
 PID PID_Roll, PID_Pitch, PID_Yaw;
 uint16_t rollKp, pitchKp, yawKp;
@@ -39,6 +44,21 @@ bool start = false;
 bool data_received = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
+
+/* Testing */
+Kalman kalmanX, kalmanY;
+
+double gyroXangle, gyroYangle; // Angle calculate using the gyro only
+double compAngleX, compAngleY; // Calculated angle using a complementary filter
+double kalAngleX, kalAngleY; // Calculated angle using a Kalman filter
+uint32_t kalman_time;
+double dt;
+MPU9250::Sensor_Data accel_data;
+MPU9250::Sensor_Data gyro_data;
+MPU9250::Sensor_Data euler_data;
+double roll, pitch;
+
+/* End Testing */
 
 int main(void)
 {
@@ -122,10 +142,22 @@ int main(void)
 
 			timestamp = HAL_GetTick();
 		}
-		mpu->CheckNewData(data, &accuracy);
+		mpu->CheckNewData();
 		esp->Process_Data();
 	}
-	LEDs::TurnOff(LEDs::Green);
+
+	while (!mpu->ReadAccel(&accel_data));
+	roll  = atan2(accel_data.y, accel_data.z) * 180 / PI;
+	pitch = atan(-accel_data.x / sqrt(accel_data.y * accel_data.y + accel_data.z * accel_data.z)) * 180 / PI;
+
+	kalmanX.setAngle(roll);
+	kalmanY.setAngle(pitch);
+	gyroXangle = roll;
+	gyroYangle = pitch;
+	compAngleX = roll;
+	compAngleY = pitch;
+
+	kalman_time = HAL_GetTick();
 
 
 	LEDs::TurnOn(LEDs::Green);
@@ -140,12 +172,30 @@ int main(void)
 	throttle = 0;
 
 	while (true) {
-		status = mpu->CheckNewData(data, &accuracy);
+		status = mpu->CheckNewData();
+		// TODO read euler
 
 		if (status == 1) {
 			if (data_received)
 				HAL_IWDG_Refresh(&hiwdg);
 			data_received = false;
+
+
+			/* Kalman begin */
+
+
+			mpu->ReadAccel(&accel_data);
+			mpu->ReadGyro(&gyro_data);
+			mpu->ReadEuler(&euler_data);
+
+			Calculate();
+
+			data[0] = kalAngleX;
+			data[1] = euler_data.x;
+			data[2] = 0;
+			/* Kalman end */
+
+
 
 			uint8_t logData[16];
 			int32_t tdata[3];
@@ -349,4 +399,47 @@ void InitI2C(I2C_HandleTypeDef *I2C_Handle) {
 		LEDs::TurnOn(LEDs::Orange);
 	if (HAL_I2C_Init(I2C_Handle) != HAL_OK)
 		LEDs::TurnOn(LEDs::Orange);
+}
+
+void Calculate() {
+	dt = (HAL_GetTick() - kalman_time) / 1000.0;
+	kalman_time = HAL_GetTick();
+
+	roll  = atan2(accel_data.y, accel_data.z) * 180 / PI;
+	pitch = atan(-accel_data.x / sqrt(accel_data.y * accel_data.y + accel_data.z * accel_data.z)) * 180 / PI;
+
+	double gyroXrate = gyro_data.x;
+	double gyroYrate = gyro_data.y;
+
+	// This fixes the transition problem when the accelerometer angle jumps between -180 and 180 degrees
+	if ((roll < -90 && kalAngleX > 90) || (roll > 90 && kalAngleX < -90)) {
+		kalmanX.setAngle(roll);
+		compAngleX = roll;
+		kalAngleX = roll;
+		gyroXangle = roll;
+	}
+	else
+		kalAngleX = kalmanX.getAngle(roll, gyroXrate, dt); // Calculate the angle using a Kalman filter
+
+	if (abs(kalAngleX) > 90)
+		gyroYrate = -gyroYrate; // Invert rate, so it fits the restriced accelerometer reading
+	kalAngleY = kalmanY.getAngle(pitch, gyroYrate, dt);
+
+
+	gyroXangle += gyroXrate * dt; // Calculate gyro angle without any filter
+	gyroYangle += gyroYrate * dt;
+	//gyroXangle += kalmanX.getRate() * dt; // Calculate gyro angle using the unbiased rate
+	//gyroYangle += kalmanY.getRate() * dt;
+
+	compAngleX = 0.93 * (compAngleX + gyroXrate * dt) + 0.07 * roll; // Calculate the angle using a Complimentary filter
+	compAngleY = 0.93 * (compAngleY + gyroYrate * dt) + 0.07 * pitch;
+
+	// Reset the gyro angle when it has drifted too much
+	if (gyroXangle < -180 || gyroXangle > 180)
+		gyroXangle = kalAngleX;
+	if (gyroYangle < -180 || gyroYangle > 180)
+		gyroYangle = kalAngleY;
+
+
+
 }
