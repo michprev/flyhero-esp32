@@ -168,7 +168,7 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	return 0;
 }
 
-uint8_t MPU9250::CheckNewData(float *euler, uint8_t *accur)
+uint8_t MPU9250::CheckNewData()
 {
 	bool new_data = false;
 	bool new_compass = false;
@@ -246,16 +246,53 @@ uint8_t MPU9250::CheckNewData(float *euler, uint8_t *accur)
 		if (inv_execute_on_data())
 			return 2;
 
-		long msg, data[9];
-		int8_t accuracy;
-		unsigned long timestamp;
+		return 1;
+	}
 
-		if (inv_get_sensor_type_euler(data, &accuracy, (inv_time_t*)&timestamp)) {
-			euler[0] = data[0] / 65536.f;
-			euler[1] = data[1] / 65536.f;
-			euler[2] = data[2] / 65536.f;
-			(*accur) = accuracy;
-		}
+	return 0;
+}
+
+uint8_t MPU9250::ReadGyro(Sensor_Data *data) {
+	long int tmp[3];
+	int8_t accuracy;
+	inv_time_t timestamp;
+
+	if (inv_get_sensor_type_gyro(tmp, &accuracy, &timestamp)) {
+		data->x = tmp[0] / 65536.0;
+		data->y = tmp[1] / 65536.0;
+		data->z = tmp[2] / 65536.0;
+
+		return 1;
+	}
+
+	return 0;
+}
+
+uint8_t MPU9250::ReadAccel(Sensor_Data *data) {
+	long int tmp[3];
+	int8_t accuracy;
+	inv_time_t timestamp;
+
+	if (inv_get_sensor_type_accel(tmp, &accuracy, &timestamp)) {
+		data->x = tmp[0] / 65536.0;
+		data->y = tmp[1] / 65536.0;
+		data->z = tmp[2] / 65536.0;
+
+		return 1;
+	}
+
+	return 0;
+}
+
+uint8_t MPU9250::ReadEuler(Sensor_Data *data) {
+	long int tmp[3];
+	int8_t accuracy;
+	inv_time_t timestamp;
+
+	if (inv_get_sensor_type_euler(tmp, &accuracy, &timestamp)) {
+		data->x = tmp[0] / 65536.0;
+		data->y = tmp[1] / 65536.0;
+		data->z = tmp[2] / 65536.0;
 
 		return 1;
 	}

@@ -53,12 +53,19 @@ private:
 	void IT_Init();
 
 public:
+	struct Sensor_Data {
+		double x, y, z;
+	};
+
 	volatile bool dataReady;
 
 	static MPU9250* Instance();
 	uint8_t Init(I2C_HandleTypeDef *hi2c);
 	uint8_t SelfTest();
-	uint8_t CheckNewData(float *euler, uint8_t *accur);
+	uint8_t CheckNewData();
+	uint8_t ReadGyro(Sensor_Data *data);
+	uint8_t ReadAccel(Sensor_Data *data);
+	uint8_t ReadEuler(Sensor_Data *data);
 };
 
 #endif /* MPU9250_H_ */
