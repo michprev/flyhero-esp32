@@ -1,12 +1,12 @@
 /*
- * MPU9250.h
+ * MPU6050.h
  *
  *  Created on: 13. 12. 2016
  *      Author: michp
  */
 
-#ifndef MPU9250_H_
-#define MPU9250_H_
+#ifndef MPU6050_H_
+#define MPU6050_H_
 
 #include <stm32f4xx_hal.h>
 
@@ -23,12 +23,12 @@ extern "C" {
 
 }
 
-class MPU9250 {
+class MPU6050 {
 private:
-	MPU9250(){};
-	MPU9250(MPU9250 const&){};
-	MPU9250& operator=(MPU9250 const&){};
-	static MPU9250* pInstance;
+	MPU6050(){};
+	MPU6050(MPU6050 const&){};
+	MPU6050& operator=(MPU6050 const&){};
+	static MPU6050* pInstance;
 
 	struct platform_data_s {
 		signed char orientation[9];
@@ -59,7 +59,7 @@ public:
 
 	volatile bool dataReady;
 
-	static MPU9250* Instance();
+	static MPU6050* Instance();
 	uint8_t Init(I2C_HandleTypeDef *hi2c);
 	uint8_t SelfTest();
 	uint8_t CheckNewData();
@@ -68,4 +68,4 @@ public:
 	uint8_t ReadEuler(Sensor_Data *data);
 };
 
-#endif /* MPU9250_H_ */
+#endif /* MPU6050_H_ */

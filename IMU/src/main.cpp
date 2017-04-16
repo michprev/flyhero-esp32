@@ -9,14 +9,14 @@
 */
 
 
+#include <MPU6050.h>
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
-#include "MPU9250.h"
 
 extern "C" void initialise_monitor_handles(void);
 unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
 
-MPU9250 *mpu = MPU9250::Instance();
+MPU6050 *mpu = MPU6050::Instance();
 
 extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	mpu->dataReady = true;
@@ -34,10 +34,10 @@ int main(void)
 	hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
 	hiwdg.Init.Reload = 2047;
 
-	if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+	/*if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
 	{
 		printf("Could not start watchdog\n");
-	}
+	}*/
 
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
@@ -72,8 +72,7 @@ int main(void)
 		printf("Error %d\n", result);
 	}
 
-	float data[3];
-	uint8_t accuracy;
+	MPU6050::Sensor_Data data;
 
 	uint32_t t = HAL_GetTick();
 	bool run = true;
@@ -89,7 +88,9 @@ int main(void)
 			run = false;
 		}
 
-		if (mpu->CheckNewData(data, &accuracy) && HAL_GetTick() - t >= 20000)
-			printf("data: %f %f %f\n", data[0], data[1], data[2]);
+		if (mpu->CheckNewData() && HAL_GetTick() - t >= 20000) {
+			mpu->ReadEuler(&data);
+			printf("data: %f %f %f\n", data.x, data.y, data.z);
+		}
 	}
 }

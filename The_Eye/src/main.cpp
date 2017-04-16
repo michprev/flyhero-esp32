@@ -27,7 +27,7 @@ unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
 
 ESP *esp = ESP8266::Instance();
 PWM_Generator *pwm = PWM_Generator::Instance();
-MPU9250 *mpu = MPU9250::Instance();
+MPU6050 *mpu = MPU6050::Instance();
 MS5611 *ms5611 = MS5611::Instance();
 NEO_M8N *neo = NEO_M8N::Instance();
 Logger *logger = Logger::Instance();
@@ -53,9 +53,9 @@ double compAngleX, compAngleY; // Calculated angle using a complementary filter
 double kalAngleX, kalAngleY; // Calculated angle using a Kalman filter
 uint32_t kalman_time;
 double dt;
-MPU9250::Sensor_Data accel_data;
-MPU9250::Sensor_Data gyro_data;
-MPU9250::Sensor_Data euler_data;
+MPU6050::Sensor_Data accel_data;
+MPU6050::Sensor_Data gyro_data;
+MPU6050::Sensor_Data euler_data;
 double roll, pitch;
 
 /* End Testing */
@@ -173,7 +173,6 @@ int main(void)
 
 	while (true) {
 		status = mpu->CheckNewData();
-		// TODO read euler
 
 		if (status == 1) {
 			if (data_received)

@@ -1,22 +1,22 @@
 /*
- * MPU9250.cpp
+ * MPU6050.cpp
  *
  *  Created on: 13. 12. 2016
  *      Author: michp
  */
 
-#include "MPU9250.h"
+#include "MPU6050.h"
 
-MPU9250* MPU9250::pInstance = NULL;
+MPU6050* MPU6050::pInstance = NULL;
 
-MPU9250* MPU9250::Instance() {
-	if (MPU9250::pInstance == NULL)
-		pInstance = new MPU9250();
+MPU6050* MPU6050::Instance() {
+	if (MPU6050::pInstance == NULL)
+		pInstance = new MPU6050();
 
 	return pInstance;
 }
 
-void MPU9250::IT_Init() {
+void MPU6050::IT_Init() {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
 
@@ -32,13 +32,12 @@ void MPU9250::IT_Init() {
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
 
-uint8_t MPU9250::SelfTest()
+uint8_t MPU6050::SelfTest()
 {
 	int result;
 	long gyro[3], accel[3];
 
-	// run MPU6050 (or MPU9250) self-test with debugging turned off
-	result = mpu_run_6500_self_test(gyro, accel, 0);
+	result = mpu_run_self_test(gyro, accel);
 
 	if (result == 0x7) {
 		/*printf("Passed!\n");
@@ -83,12 +82,12 @@ uint8_t MPU9250::SelfTest()
 	return 1;
 }
 
-uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
+uint8_t MPU6050::Init(I2C_HandleTypeDef *hi2c) {
 	I2cMaster_Init(hi2c);
 	IT_Init();
 	struct int_param_s int_param;
-	unsigned char accel_fsr, new_temp = 0;
-	unsigned short gyro_rate, gyro_fsr, compass_fsr;
+	unsigned char accel_fsr;
+	unsigned short gyro_rate, gyro_fsr;
 
 	if (mpu_init(&int_param))
 		return 1;
@@ -114,9 +113,7 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	if (inv_enable_gyro_tc())
 		return 6;
 
-	if (inv_enable_vector_compass_cal())
-		return 7;
-	if (inv_enable_magnetic_disturbance() /*|| inv_enable_heading_from_gyro()*/)
+	if (inv_enable_heading_from_gyro())
 		return 8;
 
 	/* Allows use of the MPL APIs in read_from_mpl. */
@@ -126,18 +123,16 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	if (inv_start_mpl())
 		return 10;
 
-	if (mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL | INV_XYZ_COMPASS) || mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL) || mpu_set_sample_rate(this->GYRO_SAMPLE_RATE) || mpu_set_compass_sample_rate(10))
+	if (mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL) || mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL) || mpu_set_sample_rate(this->GYRO_SAMPLE_RATE))
 		return 11;
 	/* Read back configuration in case it was set improperly. */
-	if (mpu_get_sample_rate(&gyro_rate) || mpu_get_gyro_fsr(&gyro_fsr) || mpu_get_accel_fsr(&accel_fsr) || mpu_get_compass_fsr(&compass_fsr))
+	if (mpu_get_sample_rate(&gyro_rate) || mpu_get_gyro_fsr(&gyro_fsr) || mpu_get_accel_fsr(&accel_fsr))
 		return 12;
 
 	/* Sync driver configuration with MPL. */
 	/* Sample rate expected in microseconds. */
 	inv_set_gyro_sample_rate(1000000L / gyro_rate);
 	inv_set_accel_sample_rate(1000000L / gyro_rate);
-
-	inv_set_compass_sample_rate(100 * 1000L);
 
 	/* Set chip-to-body orientation matrix.
 	* Set hardware units to dps/g's/degrees scaling factor.
@@ -148,10 +143,6 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	inv_set_accel_orientation_and_scale(
 		inv_orientation_matrix_to_scalar(gyro_pdata.orientation),
 		(long)accel_fsr << 15);
-
-	inv_set_compass_orientation_and_scale(
-		inv_orientation_matrix_to_scalar(compass_pdata.orientation),
-		(long)compass_fsr << 15);
 
 	if (dmp_load_motion_driver_firmware())
 		return 13;
@@ -168,18 +159,12 @@ uint8_t MPU9250::Init(I2C_HandleTypeDef *hi2c) {
 	return 0;
 }
 
-uint8_t MPU9250::CheckNewData()
+uint8_t MPU6050::CheckNewData()
 {
 	bool new_data = false;
-	bool new_compass = false;
 	unsigned long sensor_timestamp;
 
 	timestamp = HAL_GetTick();
-
-	if ((timestamp > this->next_compass_ms) && dataReady) {
-		this->next_compass_ms = timestamp + COMPASS_READ_MS;
-		new_compass = 1;
-	}
 
 	if (timestamp > next_temp_ms) {
 		next_temp_ms = timestamp + 500;
@@ -227,21 +212,6 @@ uint8_t MPU9250::CheckNewData()
 		}
 	}
 
-	if (new_compass) {
-		short compass_short[3];
-		long compass[3];
-		new_compass = 0;
-
-		if (!mpu_get_compass_reg(compass_short, &sensor_timestamp)) {
-			compass[0] = (long)compass_short[0];
-			compass[1] = (long)compass_short[1];
-			compass[2] = (long)compass_short[2];
-
-			inv_build_compass(compass, 0, sensor_timestamp);
-		}
-		new_data = 1;
-	}
-
 	if (new_data) {
 		if (inv_execute_on_data())
 			return 2;
@@ -252,7 +222,7 @@ uint8_t MPU9250::CheckNewData()
 	return 0;
 }
 
-uint8_t MPU9250::ReadGyro(Sensor_Data *data) {
+uint8_t MPU6050::ReadGyro(Sensor_Data *data) {
 	long int tmp[3];
 	int8_t accuracy;
 	inv_time_t timestamp;
@@ -268,7 +238,7 @@ uint8_t MPU9250::ReadGyro(Sensor_Data *data) {
 	return 0;
 }
 
-uint8_t MPU9250::ReadAccel(Sensor_Data *data) {
+uint8_t MPU6050::ReadAccel(Sensor_Data *data) {
 	long int tmp[3];
 	int8_t accuracy;
 	inv_time_t timestamp;
@@ -284,7 +254,7 @@ uint8_t MPU9250::ReadAccel(Sensor_Data *data) {
 	return 0;
 }
 
-uint8_t MPU9250::ReadEuler(Sensor_Data *data) {
+uint8_t MPU6050::ReadEuler(Sensor_Data *data) {
 	long int tmp[3];
 	int8_t accuracy;
 	inv_time_t timestamp;
