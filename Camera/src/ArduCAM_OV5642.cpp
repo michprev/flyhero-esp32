@@ -1,22 +1,22 @@
 /*
- * ArduCAM.cpp
+ * ArduCAM_OV5642.cpp
  *
- *  Created on: 9. 3. 2017
+ *  Created on: 17. 4. 2017
  *      Author: michp
  */
 
-#include <ArduCAM.h>
+#include "ArduCAM_OV5642.h"
 
-ArduCAM* ArduCAM::pInstance = NULL;
+ArduCAM_OV5642* ArduCAM_OV5642::pInstance = NULL;
 
-ArduCAM* ArduCAM::Instance() {
-	if (ArduCAM::pInstance == NULL)
-		pInstance = new ArduCAM();
+ArduCAM_OV5642* ArduCAM_OV5642::Instance() {
+	if (ArduCAM_OV5642::pInstance == NULL)
+		pInstance = new ArduCAM_OV5642();
 
 	return pInstance;
 }
 
-void ArduCAM::DMA_init() {
+void ArduCAM_OV5642::DMA_init() {
 	if (__DMA2_IS_CLK_DISABLED())
 		__DMA2_CLK_ENABLE();
 
@@ -24,10 +24,10 @@ void ArduCAM::DMA_init() {
 	this->hdma_spi1_rx.Init.Channel = DMA_CHANNEL_3;
 	this->hdma_spi1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
 	this->hdma_spi1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-	this->hdma_spi1_rx.Init.MemInc = DMA_MINC_DISABLE;
+	this->hdma_spi1_rx.Init.MemInc = DMA_MINC_ENABLE;
 	this->hdma_spi1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
 	this->hdma_spi1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-	this->hdma_spi1_rx.Init.Mode = DMA_CIRCULAR;
+	this->hdma_spi1_rx.Init.Mode = DMA_NORMAL;
 	this->hdma_spi1_rx.Init.Priority = DMA_PRIORITY_LOW;
 	this->hdma_spi1_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	if (HAL_DMA_Init(&this->hdma_spi1_rx) != HAL_OK)
@@ -44,7 +44,7 @@ void ArduCAM::DMA_init() {
 	this->hdma_spi1_tx.Init.MemInc = DMA_MINC_DISABLE;
 	this->hdma_spi1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
 	this->hdma_spi1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-	this->hdma_spi1_tx.Init.Mode = DMA_CIRCULAR;
+	this->hdma_spi1_tx.Init.Mode = DMA_NORMAL;
 	this->hdma_spi1_tx.Init.Priority = DMA_PRIORITY_LOW;
 	this->hdma_spi1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 	if (HAL_DMA_Init(&this->hdma_spi1_tx) != HAL_OK)
@@ -61,12 +61,17 @@ void ArduCAM::DMA_init() {
 	HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
 }
 
-void ArduCAM::DMA_deinit() {
+void ArduCAM_OV5642::DMA_deinit() {
 	HAL_DMA_DeInit(&this->hdma_spi1_rx);
 	HAL_DMA_DeInit(&this->hdma_spi1_tx);
 }
 
-HAL_StatusTypeDef ArduCAM::Init() {
+void ArduCAM_OV5642::delay_us(uint32_t us) {
+	uint32_t start = htim5.Instance->CNT;
+	while (htim5.Instance->CNT - start < us);
+}
+
+HAL_StatusTypeDef ArduCAM_OV5642::Init() {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
 
@@ -78,6 +83,28 @@ HAL_StatusTypeDef ArduCAM::Init() {
 
 	if (__I2C1_IS_CLK_DISABLED())
 		__I2C1_CLK_ENABLE();
+
+
+	__TIM5_CLK_ENABLE();
+
+	// Reset timer
+	__TIM5_FORCE_RESET();
+	__TIM5_RELEASE_RESET();
+
+	// Configure time base
+	htim5.Instance = TIM5;
+	htim5.Init.Period = 0xFFFFFFFF;
+	htim5.Init.Prescaler = (uint16_t)((HAL_RCC_GetPCLK1Freq()) / 1000000) - 1; // 1 us tick
+	htim5.Init.ClockDivision = RCC_HCLK_DIV1;
+	htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim5.Init.RepetitionCounter = 0;
+	HAL_TIM_OC_Init(&htim5);
+
+	HAL_NVIC_SetPriority(TIM5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(TIM5_IRQn);
+
+	// Channel 1 for 1 us tick with no interrupt
+	HAL_TIM_OC_Start(&htim5, TIM_CHANNEL_1);
 
 	GPIO_InitTypeDef gpio;
 	gpio.Pin = GPIO_PIN_8 | GPIO_PIN_9;
@@ -135,7 +162,7 @@ HAL_StatusTypeDef ArduCAM::Init() {
 	this->hspi.Init.CLKPolarity = SPI_POLARITY_LOW;
 	this->hspi.Init.CLKPhase = SPI_PHASE_1EDGE;
 	this->hspi.Init.NSS = SPI_NSS_SOFT;
-	this->hspi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+	this->hspi.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
 	this->hspi.Init.FirstBit = SPI_FIRSTBIT_MSB;
 	this->hspi.Init.TIMode = SPI_TIMODE_DISABLE;
 	this->hspi.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -144,42 +171,46 @@ HAL_StatusTypeDef ArduCAM::Init() {
 	if (HAL_SPI_Init(&this->hspi) != HAL_OK)
 		return HAL_ERROR;
 
+	this->DMA_init();
+
 	 uint8_t data = 0x55;
 	 uint8_t response;
 
 	 uint32_t ticks = HAL_GetTick();
 
 	 uint8_t vid, pid;
-	 this->i2c_read(OV5640_CHIPID_HIGH, &vid);
-	 this->i2c_read(OV5640_CHIPID_LOW, &pid);
+	 this->i2c_read(OV5642_CHIPID_HIGH, &vid);
+	 this->i2c_read(OV5642_CHIPID_LOW, &pid);
 
 	 do {
 		 this->spi_write(0x00, &data);
 		 this->spi_read(0x00, &response);
 	 } while (response != 0x55 && HAL_GetTick() - ticks < 5000);
 
-
 	if (response != 0x55)
 		return HAL_TIMEOUT;
 
 
-
-	data = 0x11;
-	this->i2c_write(0x3103, &data);
-
-	data = 0x82;
+	data = 0x80;
 	this->i2c_write(0x3008, &data);
+
+	this->i2c_write_regs(OV5642_QVGA_Preview);
+
+	HAL_Delay(200);
+
+	this->i2c_write_regs(OV5642_JPEG_Capture_QSXGA);
+	this->i2c_write_regs(ov5642_320x240);
 
 	HAL_Delay(100);
 
-	this->i2c_write_regs(OV5640YUV_Sensor_Dvp_Init);
+	data = 0xa8;
+	this->i2c_write(0x3818, &data);
 
-	HAL_Delay(500);
+	data = 0x10;
+	this->i2c_write(0x3621, &data);
 
-	this->i2c_write_regs(OV5640_JPEG_QSXGA);
-	this->i2c_write_regs(OV5640_QSXGA2QVGA);
-	this->i2c_write_regs(ov5640_vga_preview);
-
+	data = 0xb0;
+	this->i2c_write(0x3801, &data);
 
 	data = 0x04;
 	this->i2c_write(0x4407, &data);
@@ -197,29 +228,16 @@ HAL_StatusTypeDef ArduCAM::Init() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef ArduCAM::Capture() {
+HAL_StatusTypeDef ArduCAM_OV5642::Capture() {
 	uint8_t data;
 
 	data = 0x01;
-		this->spi_write(0x04, &data);
-		data = 0x01;
-			this->spi_write(0x04, &data);
+	this->spi_write(0x04, &data);
+	data = 0x01;
+	this->spi_write(0x04, &data);
 
 	data = 0x02;
 	this->spi_write(0x04, &data);
-
-
-	/*uint8_t flag = 0x00;
-	data = 0x00;
-	this->DMA_init();
-	HAL_SPI_TransmitReceive_DMA(&this->hspi, &data, &flag, 1);
-
-	while (!(flag & 0x08)) {
-		HAL_Delay(1);
-	}
-
-	HAL_SPI_DMAStop(&this->hspi);
-	this->DMA_deinit();*/
 
 	uint32_t gg = HAL_GetTick();
 
@@ -241,7 +259,7 @@ HAL_StatusTypeDef ArduCAM::Capture() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef ArduCAM::read_fifo_burst() {
+HAL_StatusTypeDef ArduCAM_OV5642::read_fifo_burst() {
 	uint32_t fifo_size = 0;
 
 	uint8_t data;
@@ -256,29 +274,32 @@ HAL_StatusTypeDef ArduCAM::read_fifo_burst() {
 	fifo_size |= ((data & 0x7F) << 16);
 
 	if (fifo_size == 0 || fifo_size >= 20000) {
-		data = 0x01;
-		this->spi_write(0x04, &data);
+		fifo_size = 20000;
+		//data = 0x01;
+		//this->spi_write(0x04, &data);
 
-		return HAL_ERROR;
+		//return HAL_ERROR;
 	}
 
 	this->image_size = fifo_size;
 
 	// enable fifo read burst mode
-	data = 0x3C;
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+	data = 0x3C;
 	HAL_SPI_Transmit(&this->hspi,& data, 1, this->SPI_TIMEOUT);
 
 	uint32_t buffer_pos = 0;
 	bool eoi = false;
 
-	int ccc = 0;
+	HAL_Delay(100);
 
 	for (uint32_t i = 0; i < fifo_size; i++) {
-		HAL_SPI_Receive(&this->hspi, this->buffer + ccc, 1, this->SPI_TIMEOUT);
 
-		ccc++;
-		if (!eoi)
+		HAL_SPI_Receive(&this->hspi, this->buffer + buffer_pos, 1, this->SPI_TIMEOUT);
+
+		buffer_pos++;
+
+		/*if (!eoi)
 			buffer_pos++;
 
 		if (buffer_pos == 2) {
@@ -291,12 +312,11 @@ HAL_StatusTypeDef ArduCAM::read_fifo_burst() {
 		else if (buffer_pos >= 4) {
 			if (this->buffer[buffer_pos - 2] == 0xFF && this->buffer[buffer_pos - 1] == 0xD9)
 				eoi = true;
-		}
+		}*/
+		this->delay_us(15);
 	}
 
-	if (buffer_pos == 0) {
-		this->image_size = 0;
-	}
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 
 	this->image_size = buffer_pos;
 
@@ -306,15 +326,16 @@ HAL_StatusTypeDef ArduCAM::read_fifo_burst() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef ArduCAM::i2c_read(uint16_t reg_address, uint8_t *data) {
-	return HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, reg_address, I2C_MEMADD_SIZE_16BIT, data, 1, this->I2C_TIMEOUT);
+HAL_StatusTypeDef ArduCAM_OV5642::i2c_read(uint16_t reg_address, uint8_t *data) {
+	HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, reg_address, I2C_MEMADD_SIZE_16BIT, data, 1, this->I2C_TIMEOUT);
+	HAL_Delay(1);
 }
 
-HAL_StatusTypeDef ArduCAM::i2c_write(uint16_t reg_address, uint8_t *data) {
+HAL_StatusTypeDef ArduCAM_OV5642::i2c_write(uint16_t reg_address, uint8_t *data) {
 	return HAL_I2C_Mem_Write(&this->hi2c, this->I2C_ADDRESS, reg_address, I2C_MEMADD_SIZE_16BIT, data, 1, this->I2C_TIMEOUT);
 }
 
-HAL_StatusTypeDef ArduCAM::i2c_write_regs(const sensor_reg *reg_list) {
+HAL_StatusTypeDef ArduCAM_OV5642::i2c_write_regs(const sensor_reg *reg_list) {
 	const sensor_reg *next = reg_list;
 	uint8_t val;
 
@@ -329,7 +350,7 @@ HAL_StatusTypeDef ArduCAM::i2c_write_regs(const sensor_reg *reg_list) {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef ArduCAM::spi_read(uint8_t reg_address, uint8_t *data) {
+HAL_StatusTypeDef ArduCAM_OV5642::spi_read(uint8_t reg_address, uint8_t *data) {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
 	reg_address &= 0x7F;
@@ -341,7 +362,7 @@ HAL_StatusTypeDef ArduCAM::spi_read(uint8_t reg_address, uint8_t *data) {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 }
 
-HAL_StatusTypeDef ArduCAM::spi_write(uint8_t reg_address, uint8_t *data) {
+HAL_StatusTypeDef ArduCAM_OV5642::spi_write(uint8_t reg_address, uint8_t *data) {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
 	reg_address |= 0x80;
@@ -352,3 +373,5 @@ HAL_StatusTypeDef ArduCAM::spi_write(uint8_t reg_address, uint8_t *data) {
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 }
+
+
