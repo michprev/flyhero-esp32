@@ -17,7 +17,6 @@ using namespace The_Eye;
 
 
 #define PI 3.14159265358979323846
-//#define LOG
 
 #ifdef LOG
 extern "C" void initialise_monitor_handles(void);
@@ -46,7 +45,7 @@ uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
 
 /* Testing */
-Kalman kalmanX, kalmanY;
+/*Kalman kalmanX, kalmanY;
 
 double gyroXangle, gyroYangle; // Angle calculate using the gyro only
 double compAngleX, compAngleY; // Calculated angle using a complementary filter
@@ -54,9 +53,9 @@ double kalAngleX, kalAngleY; // Calculated angle using a Kalman filter
 uint32_t kalman_time;
 double dt;
 MPU6050::Sensor_Data accel_data;
-MPU6050::Sensor_Data gyro_data;
+MPU6050::Sensor_Data gyro_data;*/
 MPU6050::Sensor_Data euler_data;
-double roll, pitch;
+//double roll, pitch;
 
 /* End Testing */
 
@@ -66,19 +65,15 @@ int main(void)
 #ifdef LOG
 	initialise_monitor_handles();
 #endif
+
 	uint8_t status;
 	uint32_t timestamp;
-	//int32_t press, temp;
 	float data[3];
-	uint8_t accuracy;
 	long FL, BL, FR, BR;
 	FL = BL = FR = BR = 0;
 	long pitchCorrection, rollCorrection, yawCorrection;
 
 	LEDs::Init();
-#ifdef LOG
-	logger->Init();
-#endif
 
 	hiwdg.Instance = IWDG;
 	hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
@@ -104,14 +99,6 @@ int main(void)
 
 	pwm->Init();
 	pwm->Arm(&Arm_Callback);
-
-	//neo->Init();
-
-	// reset barometer
-	/*if (ms5611->Init(&hI2C_Handle) != HAL_OK) {
-		LEDs::TurnOn(LEDs::Orange);
-		while (true);
-	}*/
 
 	// reset gyro
 	if (mpu->Init(&hI2C_Handle)) {
@@ -146,7 +133,7 @@ int main(void)
 		esp->Process_Data();
 	}
 
-	while (!mpu->ReadAccel(&accel_data));
+	/*while (!mpu->ReadAccel(&accel_data));
 	roll  = atan2(accel_data.y, accel_data.z) * 180 / PI;
 	pitch = atan(-accel_data.x / sqrt(accel_data.y * accel_data.y + accel_data.z * accel_data.z)) * 180 / PI;
 
@@ -157,17 +144,16 @@ int main(void)
 	compAngleX = roll;
 	compAngleY = pitch;
 
-	kalman_time = HAL_GetTick();
+	kalman_time = HAL_GetTick();*/
 
 
 	LEDs::TurnOn(LEDs::Green);
 
-	//ms5611->ConvertD1();
+	timestamp = HAL_GetTick();
+
 #ifndef LOG
 	HAL_IWDG_Init(&hiwdg);
 #endif
-
-	timestamp = HAL_GetTick();
 
 	throttle = 0;
 
@@ -180,23 +166,18 @@ int main(void)
 			data_received = false;
 
 
-			/* Kalman begin */
-
-
-			mpu->ReadAccel(&accel_data);
-			mpu->ReadGyro(&gyro_data);
+			//mpu->ReadAccel(&accel_data);
+			//mpu->ReadGyro(&gyro_data);
 			mpu->ReadEuler(&euler_data);
 
-			Calculate();
+			//Calculate();
 
-			data[0] = kalAngleX;
-			data[1] = euler_data.x;
-			data[2] = 0;
-			/* Kalman end */
-
+			data[0] = euler_data.x;
+			data[1] = euler_data.y;
+			data[2] = euler_data.z;
 
 
-			uint8_t logData[16];
+			/*uint8_t logData[16];
 			int32_t tdata[3];
 			tdata[0] = data[0] * 65536.f;
 			tdata[1] = data[1] * 65536.f;
@@ -222,36 +203,8 @@ int main(void)
 			esp->Get_Connection('4')->Connection_Send_Begin(logData, 16);
 			while (esp->Get_Connection('4')->Get_State() != CONNECTION_READY && esp->Get_Connection('4')->Get_State() != CONNECTION_CLOSED) {
 					esp->Get_Connection('4')->Connection_Send_Continue();
-			}
+			}*/
 		}
-
-#ifdef LOG
-		if (status == 1) {
-			uint8_t logData[16];
-			int32_t tdata[3];
-			tdata[0] = data[0] * 65536.f;
-			tdata[1] = data[1] * 65536.f;
-			tdata[2] = data[2] * 65536.f;
-
-			logData[0] = (tdata[0] >> 24) & 0xFF;
-			logData[1] = (tdata[0] >> 16) & 0xFF;
-			logData[2] = (tdata[0] >> 8) & 0xFF;
-			logData[3] = tdata[0] & 0xFF;
-			logData[4] = (tdata[1] >> 24) & 0xFF;
-			logData[5] = (tdata[1] >> 16) & 0xFF;
-			logData[6] = (tdata[1] >> 8) & 0xFF;
-			logData[7] = tdata[1] & 0xFF;
-			logData[8] = (tdata[2] >> 24) & 0xFF;
-			logData[9] = (tdata[2] >> 16) & 0xFF;
-			logData[10] = (tdata[2] >> 8) & 0xFF;
-			logData[11] = tdata[2] & 0xFF;
-			logData[12] = (throttle >> 24) & 0xFF;
-			logData[13] = (throttle >> 16) & 0xFF;
-			logData[14] = (throttle >> 8) & 0xFF;
-			logData[15] = throttle & 0xFF;
-			logger->Print(logData, 16);
-		}
-#endif
 
 		if (status == 1 && throttle >= 1050) {
 			pitchCorrection = PID_Pitch.get_pid(data[1], 1);
@@ -259,10 +212,10 @@ int main(void)
 			yawCorrection = PID_Yaw.get_pid(data[2], 1);
 
 			// not sure about yaw signs
-			FL = throttle - rollCorrection + pitchCorrection /*+ yawCorrection*/; // PB2
-			BL = throttle - rollCorrection - pitchCorrection /*- yawCorrection*/; // PA15
-			FR = throttle + rollCorrection + pitchCorrection /*- yawCorrection*/; // PB10
-			BR = throttle + rollCorrection - pitchCorrection /*+ yawCorrection*/; // PA1
+			FL = throttle + rollCorrection + pitchCorrection /*+ yawCorrection*/; // PB2
+			BL = throttle + rollCorrection - pitchCorrection /*- yawCorrection*/; // PA15
+			FR = throttle - rollCorrection + pitchCorrection /*- yawCorrection*/; // PB10
+			BR = throttle - rollCorrection - pitchCorrection /*+ yawCorrection*/; // PA1
 
 			if (FL > 2000)
 				FL = 2000;
@@ -299,15 +252,7 @@ int main(void)
 			pwm->SetPulse(940, 2);
 		}
 
-		/*if (ms5611->D1_Ready())
-			ms5611->ConvertD2();
-		else if (ms5611->D2_Ready()) {
-			ms5611->GetData(&temp, &press);
-			ms5611->ConvertD1();
-		}*/
-
 		esp->Process_Data();
-		//neo->ParseData();
 	}
 }
 
@@ -364,6 +309,7 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 
 void Arm_Callback() {
 	esp->Process_Data();
+	//HAL_IWDG_Refresh(&hiwdg);
 }
 
 void InitI2C(I2C_HandleTypeDef *I2C_Handle) {
@@ -400,7 +346,7 @@ void InitI2C(I2C_HandleTypeDef *I2C_Handle) {
 		LEDs::TurnOn(LEDs::Orange);
 }
 
-void Calculate() {
+/*void Calculate() {
 	dt = (HAL_GetTick() - kalman_time) / 1000.0;
 	kalman_time = HAL_GetTick();
 
@@ -441,4 +387,4 @@ void Calculate() {
 
 
 
-}
+}*/
