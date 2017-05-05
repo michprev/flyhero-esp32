@@ -12,6 +12,8 @@
 #include <stm32f4xx_hal.h>
 #include "sensor_reg.h"
 
+namespace flyhero {
+
 class ArduCAM_OV5642 {
 private:
 	ArduCAM_OV5642(){};
@@ -47,5 +49,7 @@ public:
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Capture();
 };
+
+}
 
 #endif /* ARDUCAMOV5642_H_ */

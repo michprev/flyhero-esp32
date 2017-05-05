@@ -9,9 +9,10 @@
 */
 
 
-#include "stm32f4xx.h"
-#include "stm32f4xx_nucleo.h"
+#include "stm32f4xx_hal.h"
 #include "MS5611.h"
+
+using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 

@@ -14,7 +14,7 @@
 #include "MPU6050.h"
 #include "LEDs.h"
 
-using namespace The_Eye;
+using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 

@@ -7,6 +7,8 @@
 
 #include "LEDs.h"
 
+namespace flyhero {
+
 void LEDs::Init() {
 	if (__GPIOA_IS_CLK_DISABLED())
 		__GPIOA_CLK_ENABLE();
@@ -62,4 +64,6 @@ void LEDs::Toggle(uint8_t color) {
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
 	if (color & LEDs::Yellow)
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
+}
+
 }

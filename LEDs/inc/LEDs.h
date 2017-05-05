@@ -10,6 +10,8 @@
 
 #include "stm32f4xx_hal.h"
 
+namespace flyhero {
+
 class LEDs {
 public:
 	static const uint8_t Green = 1 << 0;
@@ -21,5 +23,7 @@ public:
 	static void TurnOff(uint8_t color);
 	static void Toggle(uint8_t color);
 };
+
+}
 
 #endif /* LEDS_H_ */

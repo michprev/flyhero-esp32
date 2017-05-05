@@ -19,7 +19,9 @@
 #include "PID.h"
 #include "Logger.h"
 
-extern The_Eye::ESP *esp;
+using namespace flyhero;
+
+extern ESP *esp;
 extern PWM_Generator *pwm;
 extern MPU6050 *mpu;
 extern MS5611 *ms5611;

@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 class ESP;
 

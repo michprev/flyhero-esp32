@@ -7,7 +7,7 @@
 
 #include <MPU6050.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 MPU6050* MPU6050::pInstance = NULL;
 
@@ -164,8 +164,6 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 	if (this->set_sample_rate(200))
 		return HAL_ERROR;
 
-
-	inv_enable_fast_nomot();
 
 	/*inv_enable_quaternion();
 	inv_enable_fast_nomot();

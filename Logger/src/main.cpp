@@ -12,7 +12,9 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
 #include "Logger.h"
-			
+
+using namespace flyhero;
+
 extern "C" void initialise_monitor_handles(void);
 
 Logger *logger = Logger::Instance();

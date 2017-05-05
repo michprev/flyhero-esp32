@@ -8,7 +8,7 @@
 #include <ESP_Connection.h>
 #include "ESP.h"
 
-namespace The_Eye {
+namespace flyhero {
 
 ESP_Connection::ESP_Connection(ESP *esp, uint8_t link_ID) : LINK_ID(link_ID) {
 	this->esp = esp;

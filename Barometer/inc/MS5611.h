@@ -11,6 +11,8 @@
 #include <stm32f4xx_hal.h>
 #include <math.h>
 
+namespace flyhero {
+
 class MS5611
 {
 public:
@@ -36,5 +38,7 @@ private:
 	uint16_t C[6];
 	I2C_HandleTypeDef *hi2c;
 };
+
+}
 
 #endif

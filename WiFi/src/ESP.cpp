@@ -7,7 +7,7 @@
 
 #include <ESP.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 //#define LOG
 

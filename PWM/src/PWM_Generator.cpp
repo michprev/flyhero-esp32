@@ -7,6 +7,7 @@
 
 #include "PWM_Generator.h"
 
+namespace flyhero {
 
 PWM_Generator* PWM_Generator::pInstance = NULL;
 
@@ -148,4 +149,6 @@ void PWM_Generator::Arm(void(*Arm_Callback)())
 	this->SetPulse(940, 2);
 	this->SetPulse(940, 3);
 	this->SetPulse(940, 4);
+}
+
 }

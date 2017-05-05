@@ -13,7 +13,9 @@
 #include "stm32f4xx_nucleo.h"
 #include "stm32f4xx_hal.h"
 #include "PWM_Generator.h"
-			
+
+using namespace flyhero;
+
 extern "C" void initialise_monitor_handles(void);
 
 int main(void)

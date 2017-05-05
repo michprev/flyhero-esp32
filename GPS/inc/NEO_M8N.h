@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+namespace flyhero {
+
 struct GPS_Data {
 	double latitude;
 	double longitude;
@@ -48,5 +50,7 @@ public:
 	void Init();
 	void ParseData();
 };
+
+}
 
 #endif /* NEO_M8N_H_ */

@@ -7,6 +7,8 @@
 
 #include "Logger.h"
 
+namespace flyhero {
+
 Logger* Logger::pInstance = NULL;
 
 Logger* Logger::Instance() {
@@ -110,4 +112,6 @@ HAL_StatusTypeDef Logger::Print(uint8_t *data, uint16_t len) {
 	__HAL_LINKDMA(&this->huart, hdmatx, this->hdma_uart5_tx);
 
 	return HAL_UART_Transmit_DMA(&this->huart, data, len);
+}
+
 }

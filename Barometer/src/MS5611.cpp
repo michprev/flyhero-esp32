@@ -1,5 +1,7 @@
 #include "MS5611.h"
 
+namespace flyhero {
+
 MS5611* MS5611::pInstance = NULL;
 
 MS5611* MS5611::Instance() {
@@ -162,3 +164,5 @@ HAL_StatusTypeDef MS5611::GetData(int32_t * temperature, int32_t * pressure)
 
 	return HAL_I2C_Init(&this->hi2c);
 }*/
+
+}

@@ -11,6 +11,8 @@
 #include "stm32f4xx_hal.h"
 #include "ov5640_regs.h"
 
+namespace flyhero {
+
 class ArduCAM {
 private:
 	ArduCAM(){};
@@ -47,5 +49,7 @@ public:
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Capture();
 };
+
+}
 
 #endif /* ARDUCAM_H_ */

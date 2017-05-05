@@ -10,6 +10,8 @@
 
 #include <stm32f4xx_hal.h>
 
+namespace flyhero {
+
 class PWM_Generator
 {
 private:
@@ -24,5 +26,7 @@ public:
 	void SetPulse(uint16_t us, uint8_t index);
 	void Arm(void(*Arm_Callback)());
 };
+
+}
 
 #endif /* PWM_GENERATOR_H_ */

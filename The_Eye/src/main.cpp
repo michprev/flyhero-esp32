@@ -13,7 +13,7 @@
 #include "Kalman.h"
 #include "math.h"
 
-using namespace The_Eye;
+using namespace flyhero;
 
 
 #define PI 3.14159265358979323846

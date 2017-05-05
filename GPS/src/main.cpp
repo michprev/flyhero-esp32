@@ -13,6 +13,8 @@
 #include "stm32f4xx_nucleo.h"
 #include "NEO_M8N.h"
 
+using namespace flyhero;
+
 extern "C" void initialise_monitor_handles(void);
 
 NEO_M8N *neo = NEO_M8N::Instance();

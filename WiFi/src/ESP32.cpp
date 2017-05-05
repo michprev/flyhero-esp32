@@ -7,7 +7,7 @@
 
 #include <ESP32.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 ESP32* ESP32::pInstance = NULL;
 

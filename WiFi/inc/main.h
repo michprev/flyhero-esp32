@@ -10,6 +10,6 @@
 
 #include "ESP.h"
 
-extern The_Eye::ESP *esp;
+extern flyhero::ESP *esp;
 
 #endif /* MAIN_H_ */

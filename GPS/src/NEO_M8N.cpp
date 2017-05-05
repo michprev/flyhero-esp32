@@ -7,6 +7,7 @@
 
 #include "NEO_M8N.h"
 
+namespace flyhero {
 
 NEO_M8N* NEO_M8N::pInstance = NULL;
 
@@ -337,4 +338,6 @@ void NEO_M8N::ParseData()
 
 		processMessage(buffer, i);
 	}
+}
+
 }

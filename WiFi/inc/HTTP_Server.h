@@ -12,7 +12,7 @@
 #include <stm32f4xx_hal.h>
 #include "ESP.h"
 
-namespace The_Eye {
+namespace flyhero {
 
 enum HTTP_State { HTTP_READY, HTTP_HEADER_SENDING, HTTP_HEADER_SENT, HTTP_BODY_SENDING };
 

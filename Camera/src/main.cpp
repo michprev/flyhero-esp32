@@ -13,7 +13,9 @@
 #include "stm32f4xx_nucleo.h"
 #include "stm32f4xx_hal.h"
 #include "ArduCAM_OV5642.h".h"
-			
+
+using namespace flyhero;
+
 extern "C" void initialise_monitor_handles(void);
 
 ArduCAM_OV5642 *camera = ArduCAM_OV5642::Instance();

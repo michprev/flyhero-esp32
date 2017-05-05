@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 enum ESP_State { ESP_SENDING, ESP_READY, ESP_ERROR };
 

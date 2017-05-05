@@ -23,6 +23,8 @@ extern "C" {
 
 }
 
+namespace flyhero {
+
 class MPU6050 {
 private:
 	MPU6050(){};
@@ -67,5 +69,7 @@ public:
 	uint8_t ReadAccel(Sensor_Data *data);
 	uint8_t ReadEuler(Sensor_Data *data);
 };
+
+}
 
 #endif /* MPU6050_H_ */

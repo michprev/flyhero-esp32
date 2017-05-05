@@ -7,6 +7,8 @@
 
 #include "ArduCAM_OV5642.h"
 
+namespace flyhero {
+
 ArduCAM_OV5642* ArduCAM_OV5642::pInstance = NULL;
 
 ArduCAM_OV5642* ArduCAM_OV5642::Instance() {
@@ -374,4 +376,4 @@ HAL_StatusTypeDef ArduCAM_OV5642::spi_write(uint8_t reg_address, uint8_t *data) 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 }
 
-
+}

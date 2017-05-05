@@ -17,7 +17,7 @@
 #include "ESP8266.h"
 #include "HTTP_Server.h"
 			
-using namespace The_Eye;
+using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 

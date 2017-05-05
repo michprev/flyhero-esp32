@@ -11,7 +11,7 @@
 #include <stm32f4xx_hal.h>
 #include "ESP.h"
 
-namespace The_Eye {
+namespace flyhero {
 
 class ESP32 : ESP {
 private:

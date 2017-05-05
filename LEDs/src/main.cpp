@@ -14,6 +14,7 @@
 #include "stm32f4xx_nucleo.h"
 #include "stm32f4xx_hal.h"
 			
+using namespace flyhero;
 
 int main(void)
 {

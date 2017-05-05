@@ -11,6 +11,8 @@
 #include "stm32f4xx_hal.h"
 #include "string.h"
 
+namespace flyhero {
+
 class Logger {
 private:
 	Logger(){};
@@ -26,5 +28,7 @@ public:
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Print(uint8_t *data, uint16_t len);
 };
+
+}
 
 #endif /* LOGGER_H_ */

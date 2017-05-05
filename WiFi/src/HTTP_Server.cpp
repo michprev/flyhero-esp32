@@ -7,7 +7,7 @@
 
 #include <HTTP_Server.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 HTTP_Server::HTTP_Server(ESP *esp) {
 	this->esp = esp;

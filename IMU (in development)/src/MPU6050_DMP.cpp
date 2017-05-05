@@ -7,7 +7,7 @@
 
 #include "MPU6050.h"
 
-namespace The_Eye {
+namespace flyhero {
 
 const uint8_t MPU6050::DMP_FIRMWARE[MPU6050::DMP_FIRMWARE_SIZE] = {
     /* bank # 0 */

@@ -7,6 +7,8 @@
 
 #include <ArduCAM.h>
 
+namespace flyhero {
+
 ArduCAM* ArduCAM::pInstance = NULL;
 
 ArduCAM* ArduCAM::Instance() {
@@ -351,4 +353,6 @@ HAL_StatusTypeDef ArduCAM::spi_write(uint8_t reg_address, uint8_t *data) {
 	HAL_SPI_Transmit(&this->hspi, data, 1, this->SPI_TIMEOUT);
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+}
+
 }

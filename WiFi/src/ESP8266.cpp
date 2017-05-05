@@ -7,7 +7,7 @@
 
 #include <ESP8266.h>
 
-namespace The_Eye {
+namespace flyhero {
 
 ESP8266* ESP8266::pInstance = NULL;
 

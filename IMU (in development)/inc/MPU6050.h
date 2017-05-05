@@ -11,9 +11,9 @@
 #include <stdio.h>
 #include <stm32f4xx_hal.h>
 
-#include "invensense/library/fast_no_motion.h"
+//#include "invensense/library/fast_no_motion.h"
 
-namespace The_Eye {
+namespace flyhero {
 
 class MPU6050 {
 private:

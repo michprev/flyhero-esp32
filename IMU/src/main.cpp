@@ -13,6 +13,8 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
 
+using namespace flyhero;
+
 extern "C" void initialise_monitor_handles(void);
 unsigned char *mpl_key = (unsigned char*)"eMPL 5.1";
 

@@ -7,6 +7,8 @@
 
 #include "MPU6050.h"
 
+namespace flyhero {
+
 MPU6050* MPU6050::pInstance = NULL;
 
 MPU6050* MPU6050::Instance() {
@@ -268,6 +270,8 @@ uint8_t MPU6050::ReadEuler(Sensor_Data *data) {
 	}
 
 	return 0;
+}
+
 }
 
 extern "C" void EXTI1_IRQHandler(void)
