@@ -85,8 +85,8 @@ void ESP::Process_Data() {
 			if (this->IPD_received == this->IPD_size) {
 				this->inIPD = false;
 
-				if (this->IPD_Callback != NULL)
-					this->IPD_Callback(this->link_ID, this->IPD_buffer, this->IPD_size);
+				if (this->IPD_callback != NULL)
+					this->IPD_callback(this->link_ID, this->IPD_buffer, this->IPD_size);
 			}
 		}
 		else {

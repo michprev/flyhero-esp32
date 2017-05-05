@@ -23,7 +23,7 @@ ESP32::ESP32() {
 	this->processedLength = 0;
 	this->ready = false;
 	this->inIPD = false;
-	this->IPD_Callback = NULL;
+	this->IPD_callback = NULL;
 	this->state = ESP_READY;
 	this->timestamp = HAL_GetTick();
 	this->link_ID = -1;
@@ -35,7 +35,8 @@ ESP32::ESP32() {
 	this->hdma_usart3_tx = DMA_HandleTypeDef();
 }
 
-HAL_StatusTypeDef ESP32::Init() {
+HAL_StatusTypeDef ESP32::Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) {
+	this->IPD_callback = IPD_callback;
 	if (this->UART_Init(115200) != HAL_OK) {
 		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
 		while (true);

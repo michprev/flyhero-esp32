@@ -23,7 +23,7 @@ private:
 
 public:
 	static ESP* Instance();
-	HAL_StatusTypeDef Init() override;
+	HAL_StatusTypeDef Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) override;
 };
 
 }

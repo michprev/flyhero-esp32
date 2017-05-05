@@ -58,6 +58,8 @@ protected:
 	uint8_t buffer[BUFFER_SIZE];
 	uint8_t processing_buffer[MAX_PARSE_SIZE];
 
+	void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length);
+
 	ESP();
 	HAL_StatusTypeDef UART_Init(uint32_t baudrate);
 	void reset();
@@ -65,10 +67,7 @@ protected:
 	uint32_t bytes_available();
 
 public:
-	//virtual static ESP* Instance();
-	virtual HAL_StatusTypeDef Init() = 0;
-
-	void(*IPD_Callback)(uint8_t linkID, uint8_t *data, uint16_t length);
+	virtual HAL_StatusTypeDef Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) = 0;
 
 	ESP_State Get_State();
 	ESP_Connection* Get_Connection(uint8_t link_ID);
@@ -84,6 +83,6 @@ public:
 	HAL_StatusTypeDef Send(uint8_t *data, uint16_t count);
 };
 
-} /* namespace The_Eye */
+} /* namespace flyhero */
 
 #endif /* ESP_H_ */

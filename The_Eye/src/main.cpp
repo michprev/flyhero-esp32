@@ -83,8 +83,7 @@ int main(void)
 	I2C_HandleTypeDef hI2C_Handle;
 	InitI2C(&hI2C_Handle);
 
-	esp->IPD_Callback = &IPD_Callback;
-	esp->Init();
+	esp->Init(&IPD_Callback);
 
 	timestamp = HAL_GetTick();
 	while (!connected) {
