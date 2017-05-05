@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stm32f4xx_hal.h>
 
+#include "invensense/library/fast_no_motion.h"
+
 namespace The_Eye {
 
 class MPU6050 {
@@ -49,26 +51,60 @@ enum lpf_bandwidth {
 	LPF_NOT_SET = 0xFF
 };
 
-const uint8_t ADDRESS = 0x68;
+const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
+const uint16_t DMP_START_ADDRESS = 0x0400;
+static const uint16_t DMP_FIRMWARE_SIZE = 3062;
+static const uint8_t DMP_FIRMWARE[DMP_FIRMWARE_SIZE];
+
 const struct {
+	uint8_t SMPRT_DIV = 0x19;
 	uint8_t CONFIG = 0x1A;
 	uint8_t GYRO_CONFIG = 0x1B;
 	uint8_t ACCEL_CONFIG = 0x1C;
+	uint8_t FIFO_EN = 0x23;
+	uint8_t INT_PIN_CFG = 0x37;
+	uint8_t INT_ENABLE = 0x38;
+	uint8_t INT_STATUS = 0x3A;
+	uint8_t ACCEL_XOUT_H = 0x3B;
 	uint8_t SIGNAL_PATH_RESET = 0x68;
+	uint8_t USER_CTRL = 0x6A;
 	uint8_t PWR_MGMT_1 = 0x6B;
+	uint8_t PWR_MGMT_2 = 0x6C;
+	uint8_t BANK_SEL = 0x6D;
+	uint8_t FIFO_COUNT_H = 0x72;
+	uint8_t FIFO_COUNT_L = 0x73;
+	uint8_t FIFO_R_W = 0x74;
+	uint8_t WHO_AM_I = 0x75;
 } REGISTERS;
 
 bool use_DMP;
+bool ready;
 I2C_HandleTypeDef hi2c;
+DMA_HandleTypeDef hdma_i2c_rx;
 gyro_fsr g_fsr; // TODO better variable/enum name
 accel_fsr a_fsr;
 lpf_bandwidth lpf;
+int16_t sample_rate;
+uint16_t data_size;
+uint8_t data_buffer[1024];
 
-HAL_StatusTypeDef i2c_write(uint8_t reg, uint8_t val);
+HAL_StatusTypeDef i2c_init();
+void int_init();
+HAL_StatusTypeDef i2c_write(uint8_t reg, uint8_t data);
+HAL_StatusTypeDef i2c_read(uint8_t reg, uint8_t *data);
+HAL_StatusTypeDef i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size);
 HAL_StatusTypeDef set_gyro_fsr(gyro_fsr fsr);
 HAL_StatusTypeDef set_accel_fsr(accel_fsr fsr);
 HAL_StatusTypeDef set_lpf(lpf_bandwidth lpf);
+HAL_StatusTypeDef set_sample_rate(uint16_t rate);
+HAL_StatusTypeDef set_interrupt(bool enable);
+HAL_StatusTypeDef reset_fifo();
+HAL_StatusTypeDef load_DMP_firmware();
+
+struct raw_data {
+	short x, y, z;
+};
 
 public:
 	struct Sensor_Data {
@@ -77,9 +113,14 @@ public:
 
 	static MPU6050* Instance();
 
-	// TODO as of board 2.0 use special SPI bus for IMU
-	HAL_StatusTypeDef Init(I2C_HandleTypeDef *hi2c, bool use_DMP);
+	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
+
+	HAL_StatusTypeDef Init(bool use_DMP);
+	HAL_StatusTypeDef Read_FIFO();
+	HAL_StatusTypeDef Parse_FIFO();
 	HAL_StatusTypeDef Calibrate();
+	bool FIFO_Overflow();
+	HAL_StatusTypeDef Read_Raw_Accel(Sensor_Data *accel);
 };
 
 } /* namespace The_Eye */
