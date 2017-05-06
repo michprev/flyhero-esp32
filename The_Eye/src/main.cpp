@@ -41,6 +41,7 @@ uint16_t rollKp, pitchKp, yawKp;
 bool connected = false;
 bool start = false;
 bool data_received = false;
+bool inverse_yaw = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
 
@@ -176,7 +177,7 @@ int main(void)
 			data[2] = euler_data.z;
 
 
-			/*uint8_t logData[16];
+			uint8_t logData[16];
 			int32_t tdata[3];
 			tdata[0] = data[0] * 65536.f;
 			tdata[1] = data[1] * 65536.f;
@@ -202,7 +203,7 @@ int main(void)
 			esp->Get_Connection('4')->Connection_Send_Begin(logData, 16);
 			while (esp->Get_Connection('4')->Get_State() != CONNECTION_READY && esp->Get_Connection('4')->Get_State() != CONNECTION_CLOSED) {
 					esp->Get_Connection('4')->Connection_Send_Continue();
-			}*/
+			}
 		}
 
 		if (status == 1 && throttle >= 1050) {
@@ -211,10 +212,18 @@ int main(void)
 			yawCorrection = PID_Yaw.get_pid(data[2], 1);
 
 			// not sure about yaw signs
-			FL = throttle + rollCorrection + pitchCorrection /*+ yawCorrection*/; // PB2
-			BL = throttle + rollCorrection - pitchCorrection /*- yawCorrection*/; // PA15
-			FR = throttle - rollCorrection + pitchCorrection /*- yawCorrection*/; // PB10
-			BR = throttle - rollCorrection - pitchCorrection /*+ yawCorrection*/; // PA1
+			if (!inverse_yaw) {
+				FL = throttle + rollCorrection + pitchCorrection + yawCorrection; // PB2
+				BL = throttle + rollCorrection - pitchCorrection - yawCorrection; // PA15
+				FR = throttle - rollCorrection + pitchCorrection - yawCorrection; // PB10
+				BR = throttle - rollCorrection - pitchCorrection + yawCorrection; // PA1
+			}
+			else {
+				FL = throttle + rollCorrection + pitchCorrection - yawCorrection; // PB2
+				BL = throttle + rollCorrection - pitchCorrection + yawCorrection; // PA15
+				FR = throttle - rollCorrection + pitchCorrection + yawCorrection; // PB10
+				BR = throttle - rollCorrection - pitchCorrection - yawCorrection; // PA1
+			}
 
 			if (FL > 2000)
 				FL = 2000;
@@ -258,7 +267,7 @@ int main(void)
 void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 	switch (length) {
 	case 10:
-		if (data[0] == 0x5D && data[9] == 0x5D) {
+		if (data[0] == 0x5D) {
 			data_received = true;
 
 			throttle = data[1] << 8;
@@ -278,6 +287,8 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			PID_Yaw.kP(yawKp / 100.0);
 
 			throttle += 1000;
+
+			inverse_yaw = (data[9] == 0x01);
 		}
 		break;
 	case 8:
