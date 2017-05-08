@@ -74,8 +74,7 @@ int main(void)
 	http_parser_init(&parser, HTTP_BOTH);
 	settings.on_url = on_url_callback;
 
-	esp->IPD_Callback = &IPD_Callback;
-	esp->Init();
+	esp->Init(&IPD_Callback);
 
 	HTTP_Server server(esp);
 
