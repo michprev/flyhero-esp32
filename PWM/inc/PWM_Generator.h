@@ -19,7 +19,7 @@ private:
 	PWM_Generator(PWM_Generator const&){};
 	PWM_Generator& operator=(PWM_Generator const&){};
 	static PWM_Generator* pInstance;
-	TIM_HandleTypeDef htim;;
+	TIM_HandleTypeDef htim2;
 public:
 	static PWM_Generator* Instance();
 	void Init();
