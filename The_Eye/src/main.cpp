@@ -9,7 +9,6 @@
 */
 
 #include "main.h"
-#include "ESP8266.h"
 #include "Kalman.h"
 #include "math.h"
 
@@ -87,6 +86,9 @@ int main(void)
 	esp->Init(&IPD_Callback);
 
 	timestamp = HAL_GetTick();
+	// not yet implemented
+	//Timer::Start_Task([]{ LEDs::Toggle(LEDs::Green); }, 750);
+
 	while (!connected) {
 		if (HAL_GetTick() - timestamp >= 750) {
 			LEDs::Toggle(LEDs::Green);
@@ -116,7 +118,7 @@ int main(void)
 	pwm->SetPulse(1100, 3);
 	pwm->SetPulse(1100, 4);
 
-	HAL_Delay(250);
+	Timer::Delay_ms(250);
 
 	pwm->SetPulse(940, 4);
 	pwm->SetPulse(940, 1);
@@ -148,8 +150,6 @@ int main(void)
 
 
 	LEDs::TurnOn(LEDs::Green);
-
-	timestamp = HAL_GetTick();
 
 #ifndef LOG
 	HAL_IWDG_Init(&hiwdg);
