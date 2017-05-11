@@ -178,6 +178,7 @@ uint8_t MPU6050::CheckNewData()
 		unsigned char more;
 		long accel[3], quat[4], temperature;
 
+		// 1 ms
 		int state = dmp_read_fifo(gyro, accel_short, quat, &sensor_timestamp, &sensors, &more);
 
 		// FIFO overflow
@@ -215,6 +216,7 @@ uint8_t MPU6050::CheckNewData()
 	}
 
 	if (new_data) {
+		// 1 ms
 		if (inv_execute_on_data())
 			return 2;
 
