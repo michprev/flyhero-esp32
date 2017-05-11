@@ -118,8 +118,8 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 		return HAL_ERROR;
 	HAL_Delay(100);
 
-	// wake up, set clock source PLL with X gyro axis
-	if (this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x01))
+	// wake up, set clock source PLL with Z gyro axis
+	if (this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x03))
 		return HAL_ERROR;
 
 	HAL_Delay(50);
@@ -156,19 +156,13 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 	if (this->set_accel_fsr(ACCEL_FSR_2))
 		return HAL_ERROR;
 
-	// set low pass filter to 42 Hz
-	if (this->set_lpf(LPF_42HZ))
+	// set low pass filter to 256 Hz
+	if (this->set_lpf(LPF_256HZ))
 		return HAL_ERROR;
 
-	// set sample rate to 200 Hz
-	if (this->set_sample_rate(200))
+	// set sample rate to 1 kHz
+	if (this->set_sample_rate(1000))
 		return HAL_ERROR;
-
-
-	/*inv_enable_quaternion();
-	inv_enable_fast_nomot();
-	inv_enable_gyro_tc();
-	inv_enable_heading_from_gyro();*/
 
 	if (this->reset_fifo())
 		return HAL_ERROR;
