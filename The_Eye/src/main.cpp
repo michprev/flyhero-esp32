@@ -36,7 +36,6 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
 void Calculate();
 
 PID PID_Roll, PID_Pitch, PID_Yaw;
-uint16_t rollKp, pitchKp, yawKp;
 bool connected = false;
 bool start = false;
 bool data_received = false;
@@ -72,6 +71,10 @@ int main(void)
 	long FL, BL, FR, BR;
 	FL = BL = FR = BR = 0;
 	long pitchCorrection, rollCorrection, yawCorrection;
+
+	PID_Roll.imax(50);
+	PID_Pitch.imax(50);
+	PID_Yaw.imax(50);
 
 	LEDs::Init();
 
@@ -177,7 +180,7 @@ int main(void)
 			data[2] = euler_data.z;
 
 
-			uint8_t logData[16];
+			/*uint8_t logData[16];
 			int32_t tdata[3];
 			tdata[0] = data[0] * 65536.f;
 			tdata[1] = data[1] * 65536.f;
@@ -203,7 +206,7 @@ int main(void)
 			esp->Get_Connection('4')->Connection_Send_Begin(logData, 16);
 			while (esp->Get_Connection('4')->Get_State() != CONNECTION_READY && esp->Get_Connection('4')->Get_State() != CONNECTION_CLOSED) {
 					esp->Get_Connection('4')->Connection_Send_Continue();
-			}
+			}*/
 		}
 
 		if (status == 1 && throttle >= 1050) {
@@ -266,52 +269,69 @@ int main(void)
 
 void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 	switch (length) {
-	case 10:
+	case 22:
 		if (data[0] == 0x5D) {
+			uint16_t roll_kP, pitch_kP, yaw_kP;
+			uint16_t roll_kI, pitch_kI, yaw_kI;
+			uint16_t roll_kD, pitch_kD, yaw_kD;
+
 			data_received = true;
 
 			throttle = data[1] << 8;
 			throttle |= data[2];
 
-			rollKp = data[3] << 8;
-			rollKp |= data[4];
+			roll_kP = data[3] << 8;
+			roll_kP |= data[4];
 
-			pitchKp = data[5] << 8;
-			pitchKp |= data[6];
+			roll_kI = data[5] << 8;
+			roll_kI |= data[6];
 
-			yawKp = data[7] << 8;
-			yawKp |= data[8];
+			roll_kD = data[7] << 8;
+			roll_kD |= data[8];
 
-			PID_Roll.kP(rollKp / 100.0);
-			PID_Pitch.kP(pitchKp / 100.0);
-			PID_Yaw.kP(yawKp / 100.0);
+			PID_Roll.kP(roll_kP / 100.0);
+			PID_Roll.kI(roll_kI / 100.0);
+			PID_Roll.kD(roll_kD / 100.0);
+
+
+			pitch_kP = data[9] << 8;
+			pitch_kP |= data[10];
+
+			pitch_kI = data[11] << 8;
+			pitch_kI |= data[12];
+
+			pitch_kD = data[13] << 8;
+			pitch_kD |= data[14];
+
+			PID_Pitch.kP(pitch_kP / 100.0);
+			PID_Pitch.kI(pitch_kI / 100.0);
+			PID_Pitch.kD(pitch_kD / 100.0);
+
+			yaw_kP = data[15] << 8;
+			yaw_kP |= data[16];
+
+			yaw_kI = data[17] << 8;
+			yaw_kI |= data[18];
+
+			yaw_kD = data[19] << 8;
+			yaw_kD |= data[20];
+
+			PID_Yaw.kP(yaw_kP / 100.0);
+			PID_Yaw.kI(yaw_kI / 100.0);
+			PID_Yaw.kD(yaw_kD / 100.0);
+
+
+			inverse_yaw = (data[21] == 0x01);
 
 			throttle += 1000;
-
-			inverse_yaw = (data[9] == 0x01);
-		}
-		break;
-	case 8:
-		if (data[0] == 0x5D && data[7] == 0x5D) {
-			rollKp = data[1] << 8;
-			rollKp |= data[2];
-
-			pitchKp = data[3] << 8;
-			pitchKp |= data[4];
-
-			yawKp = data[5] << 8;
-			yawKp |= data[6];
-
-			PID_Roll.kP(rollKp / 100.0);
-			PID_Pitch.kP(pitchKp / 100.0);
-			PID_Yaw.kP(yawKp / 100.0);
-
-			connected = true;
 		}
 		break;
 	case 3:
 		if (data[0] == 0x3D) {
 			start = true;
+		}
+		if (data[0] == 0x5D) {
+			connected = true;
 		}
 		break;
 	}
