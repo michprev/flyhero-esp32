@@ -71,6 +71,7 @@ int main(void)
 	long FL, BL, FR, BR;
 	FL = BL = FR = BR = 0;
 	long pitchCorrection, rollCorrection, yawCorrection;
+	double reference_yaw;
 
 	PID_Roll.imax(50);
 	PID_Pitch.imax(50);
@@ -115,6 +116,35 @@ int main(void)
 		LEDs::TurnOn(LEDs::Green);
 	else
 		LEDs::TurnOn(LEDs::Yellow);
+
+	LEDs::TurnOff(LEDs::Green);
+
+	mpu->CheckNewData();
+	mpu->ReadEuler(&euler_data);
+
+	double x = euler_data.z;
+	double dx, dt;
+	dx = dt = 1;
+	timestamp = HAL_GetTick();
+
+	// wait until calibration of yaw done
+	do {
+		mpu->CheckNewData();
+
+		if (HAL_GetTick() - timestamp >= 500) {
+			dt = HAL_GetTick() - timestamp;
+			mpu->ReadEuler(&euler_data);
+
+			dx = euler_data.z - x;
+
+			x = euler_data.z;
+			timestamp = HAL_GetTick();
+		}
+
+		esp->Process_Data();
+	} while (fabs(dx / dt) > 0.0001);
+
+	reference_yaw = euler_data.z;
 
 	pwm->SetPulse(1100, 1);
 	pwm->SetPulse(1100, 2);
@@ -212,7 +242,7 @@ int main(void)
 		if (status == 1 && throttle >= 1050) {
 			pitchCorrection = PID_Pitch.get_pid(data[1], 1);
 			rollCorrection = PID_Roll.get_pid(data[0], 1);
-			yawCorrection = PID_Yaw.get_pid(data[2], 1);
+			yawCorrection = PID_Yaw.get_pid(data[2] - reference_yaw, 1);
 
 			// not sure about yaw signs
 			if (!inverse_yaw) {
@@ -261,6 +291,7 @@ int main(void)
 			pwm->SetPulse(940, 1);
 			pwm->SetPulse(940, 3);
 			pwm->SetPulse(940, 2);
+			reference_yaw = euler_data.z;
 		}
 
 		esp->Process_Data();
