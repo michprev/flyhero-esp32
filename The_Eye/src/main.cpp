@@ -37,6 +37,7 @@ void Calculate();
 
 PID PID_Roll, PID_Pitch, PID_Yaw;
 bool connected = false;
+bool log_data = false;
 bool start = false;
 bool data_received = false;
 bool inverse_yaw = false;
@@ -210,33 +211,35 @@ int main(void)
 			data[2] = euler_data.z;
 
 
-			/*uint8_t logData[16];
-			int32_t tdata[3];
-			tdata[0] = data[0] * 65536.f;
-			tdata[1] = data[1] * 65536.f;
-			tdata[2] = data[2] * 65536.f;
+			if (log_data) {
+				uint8_t logData[16];
+				int32_t tdata[3];
+				tdata[0] = data[0] * 65536.f;
+				tdata[1] = data[1] * 65536.f;
+				tdata[2] = data[2] * 65536.f;
 
-			logData[0] = (tdata[0] >> 24) & 0xFF;
-			logData[1] = (tdata[0] >> 16) & 0xFF;
-			logData[2] = (tdata[0] >> 8) & 0xFF;
-			logData[3] = tdata[0] & 0xFF;
-			logData[4] = (tdata[1] >> 24) & 0xFF;
-			logData[5] = (tdata[1] >> 16) & 0xFF;
-			logData[6] = (tdata[1] >> 8) & 0xFF;
-			logData[7] = tdata[1] & 0xFF;
-			logData[8] = (tdata[2] >> 24) & 0xFF;
-			logData[9] = (tdata[2] >> 16) & 0xFF;
-			logData[10] = (tdata[2] >> 8) & 0xFF;
-			logData[11] = tdata[2] & 0xFF;
-			logData[12] = (throttle >> 24) & 0xFF;
-			logData[13] = (throttle >> 16) & 0xFF;
-			logData[14] = (throttle >> 8) & 0xFF;
-			logData[15] = throttle & 0xFF;
+				logData[0] = (tdata[0] >> 24) & 0xFF;
+				logData[1] = (tdata[0] >> 16) & 0xFF;
+				logData[2] = (tdata[0] >> 8) & 0xFF;
+				logData[3] = tdata[0] & 0xFF;
+				logData[4] = (tdata[1] >> 24) & 0xFF;
+				logData[5] = (tdata[1] >> 16) & 0xFF;
+				logData[6] = (tdata[1] >> 8) & 0xFF;
+				logData[7] = tdata[1] & 0xFF;
+				logData[8] = (tdata[2] >> 24) & 0xFF;
+				logData[9] = (tdata[2] >> 16) & 0xFF;
+				logData[10] = (tdata[2] >> 8) & 0xFF;
+				logData[11] = tdata[2] & 0xFF;
+				logData[12] = (throttle >> 24) & 0xFF;
+				logData[13] = (throttle >> 16) & 0xFF;
+				logData[14] = (throttle >> 8) & 0xFF;
+				logData[15] = throttle & 0xFF;
 
-			esp->Get_Connection('4')->Connection_Send_Begin(logData, 16);
-			while (esp->Get_Connection('4')->Get_State() != CONNECTION_READY && esp->Get_Connection('4')->Get_State() != CONNECTION_CLOSED) {
-					esp->Get_Connection('4')->Connection_Send_Continue();
-			}*/
+				esp->Get_Connection('4')->Connection_Send_Begin(logData, 16);
+				while (esp->Get_Connection('4')->Get_State() != CONNECTION_READY && esp->Get_Connection('4')->Get_State() != CONNECTION_CLOSED) {
+						esp->Get_Connection('4')->Connection_Send_Continue();
+				}
+			}
 		}
 
 		if (status == 1 && throttle >= 1050) {
@@ -363,6 +366,7 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 		}
 		if (data[0] == 0x5D) {
 			connected = true;
+			log_data = (data[1] == 0x01 ? true : false);
 		}
 		break;
 	}
