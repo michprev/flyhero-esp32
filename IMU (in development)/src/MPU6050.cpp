@@ -156,16 +156,18 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 	if (this->set_accel_fsr(ACCEL_FSR_2))
 		return HAL_ERROR;
 
-	// set low pass filter to 256 Hz
-	if (this->set_lpf(LPF_256HZ))
+	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
+	if (this->set_lpf(LPF_188HZ))
 		return HAL_ERROR;
 
 	// set sample rate to 1 kHz
 	if (this->set_sample_rate(1000))
 		return HAL_ERROR;
 
-	if (this->reset_fifo())
+	if (this->set_interrupt(true))
 		return HAL_ERROR;
+	//if (this->reset_fifo())
+		//return HAL_ERROR;
 
 	this->ready = true;
 
@@ -347,20 +349,62 @@ HAL_StatusTypeDef MPU6050::Parse_FIFO() {
 	}
 }
 
-HAL_StatusTypeDef MPU6050::Read_Raw_Accel(Sensor_Data *accel) {
-	raw_data raw_accel;
-	uint8_t tmp[6];
+HAL_StatusTypeDef MPU6050::Read_Raw(Sensor_Data *gyro, Sensor_Data *accel) {
+	raw_data raw_accel, raw_gyro;
+	uint8_t tmp[14];
 
-	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 6, this->I2C_TIMEOUT))
+	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 14, this->I2C_TIMEOUT))
 		return HAL_ERROR;
 
 	raw_accel.x = (tmp[0] << 8) | tmp[1];
 	raw_accel.y = (tmp[2] << 8) | tmp[3];
 	raw_accel.z = (tmp[4] << 8) | tmp[5];
 
-	accel->x = raw_accel.x / 8192.0;
-	accel->y = raw_accel.y / 8192.0;
-	accel->z = raw_accel.z / 8192.0;
+	double a_div = pow(2, this->ADC_BITS - 1);
+
+	switch (this->a_fsr) {
+	case ACCEL_FSR_2:
+		a_div /= 2;
+		break;
+	case ACCEL_FSR_4:
+		a_div /= 4;
+		break;
+	case ACCEL_FSR_8:
+		a_div /= 8;
+		break;
+	case ACCEL_FSR_16:
+		a_div /= 16;
+		break;
+	}
+
+	accel->x = raw_accel.x / a_div;
+	accel->y = raw_accel.y / a_div;
+	accel->z = raw_accel.z / a_div;
+
+	raw_gyro.x = (tmp[8] << 8) | tmp[9];
+	raw_gyro.y = (tmp[10] << 8) | tmp[11];
+	raw_gyro.z = (tmp[12] << 8) | tmp[13];
+
+	double g_div = pow(2, this->ADC_BITS - 1);
+
+	switch (this->g_fsr) {
+	case GYRO_FSR_250:
+		g_div /= 250;
+		break;
+	case GYRO_FSR_500:
+		g_div /= 500;
+		break;
+	case GYRO_FSR_1000:
+		g_div /= 1000;
+		break;
+	case GYRO_FSR_2000:
+		g_div /= 2000;
+		break;
+	}
+
+	gyro->x = raw_gyro.x / g_div;
+	gyro->y = raw_gyro.y / g_div;
+	gyro->z = raw_gyro.z / g_div;
 
 	return HAL_OK;
 }

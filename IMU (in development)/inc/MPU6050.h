@@ -9,6 +9,7 @@
 #define MPU6050_H_
 
 #include <stdio.h>
+#include <math.h>
 #include <stm32f4xx_hal.h>
 
 //#include "invensense/library/fast_no_motion.h"
@@ -51,6 +52,7 @@ enum lpf_bandwidth {
 	LPF_NOT_SET = 0xFF
 };
 
+const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
 const uint16_t DMP_START_ADDRESS = 0x0400;
@@ -103,7 +105,7 @@ HAL_StatusTypeDef reset_fifo();
 HAL_StatusTypeDef load_DMP_firmware();
 
 struct raw_data {
-	short x, y, z;
+	int16_t x, y, z;
 };
 
 public:
@@ -120,7 +122,7 @@ public:
 	HAL_StatusTypeDef Parse_FIFO();
 	HAL_StatusTypeDef Calibrate();
 	bool FIFO_Overflow();
-	HAL_StatusTypeDef Read_Raw_Accel(Sensor_Data *accel);
+	HAL_StatusTypeDef Read_Raw(Sensor_Data *gyro, Sensor_Data *accel);
 };
 
 } /* namespace The_Eye */
