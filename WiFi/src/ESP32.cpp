@@ -37,13 +37,14 @@ ESP32::ESP32() {
 
 HAL_StatusTypeDef ESP32::Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) {
 	this->IPD_callback = IPD_callback;
-	if (this->UART_Init(115200) != HAL_OK) {
+	if (this->UART_Init(5000000) != HAL_OK) {
 		//LEDs::TurnOn(LEDs::Green | LEDs::Orange | LEDs::Yellow);
 		while (true);
 	}
 
 	// PB7 RST
-
+	if (__GPIOB_IS_CLK_DISABLED())
+		__GPIOB_CLK_ENABLE();
 	GPIO_InitTypeDef rst;
 	rst.Pin = GPIO_PIN_7;
 	rst.Mode = GPIO_MODE_OUTPUT_PP;
@@ -57,15 +58,6 @@ HAL_StatusTypeDef ESP32::Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data
 
 	HAL_Delay(1000);
 	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
-
-	this->Send("AT+UART_CUR=5000000,8,1,0,0\r\n");
-	HAL_DMA_Abort(&this->hdma_usart3_rx);
-	HAL_DMA_Abort(&this->hdma_usart3_tx);
-	HAL_UART_DeInit(&this->huart);
-	this->UART_Init(5000000);
-	HAL_Delay(1000);
-	HAL_UART_Receive_DMA(&this->huart, this->buffer, this->BUFFER_SIZE);
-
 
 	this->Send("ATE0\r\n");
 	//this->send("AT+SYSRAM?\r\n");

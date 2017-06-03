@@ -26,7 +26,7 @@ protected:
 	static const uint8_t MAX_NULL_BYTES = 5;
 
 	struct ReadPos {
-		uint32_t pos;
+		uint32_t pos = 0;
 
 		uint32_t add(uint16_t c) {
 			return ((this->pos + c) % BUFFER_SIZE);

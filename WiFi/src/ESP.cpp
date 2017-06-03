@@ -9,7 +9,7 @@
 
 namespace flyhero {
 
-//#define LOG
+#define LOG
 
 ESP::ESP() : connections{{this, '0'}, {this, '1'}, {this, '2'}, {this, '3'}, {this, '4'}} {
 
@@ -43,8 +43,24 @@ void ESP::reset() {
 
 HAL_StatusTypeDef ESP::UART_Init(uint32_t baudrate)
 {
-	if (__GPIOB_IS_CLK_DISABLED())
-		__GPIOB_CLK_ENABLE();
+	if (__USART3_IS_CLK_DISABLED())
+		__USART3_CLK_ENABLE();
+	if (__GPIOC_IS_CLK_DISABLED())
+		__GPIOC_CLK_ENABLE();
+	if (__DMA1_IS_CLK_DISABLED())
+		__DMA1_CLK_ENABLE();
+
+	/**USART3 GPIO Configuration
+	PC10     ------> USART3_TX
+	PC11     ------> USART3_RX
+	*/
+	GPIO_InitTypeDef GPIO_InitStruct;
+	GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
 	this->huart.Instance = USART3;
 	this->huart.Init.BaudRate = baudrate;
@@ -57,7 +73,47 @@ HAL_StatusTypeDef ESP::UART_Init(uint32_t baudrate)
 	if (HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
-	this->readPos.pos = 0;
+
+	this->hdma_usart3_rx.Instance = DMA1_Stream1;
+	this->hdma_usart3_rx.Init.Channel = DMA_CHANNEL_4;
+	this->hdma_usart3_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+	this->hdma_usart3_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+	this->hdma_usart3_rx.Init.MemInc = DMA_MINC_ENABLE;
+	this->hdma_usart3_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	this->hdma_usart3_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	this->hdma_usart3_rx.Init.Mode = DMA_CIRCULAR;
+	this->hdma_usart3_rx.Init.Priority = DMA_PRIORITY_LOW;
+	this->hdma_usart3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	if (HAL_DMA_Init(&this->hdma_usart3_rx) != HAL_OK)
+	{
+		return HAL_ERROR;
+	}
+
+	__HAL_LINKDMA(&this->huart, hdmarx, this->hdma_usart3_rx);
+
+	this->hdma_usart3_tx.Instance = DMA1_Stream3;
+	this->hdma_usart3_tx.Init.Channel = DMA_CHANNEL_4;
+	this->hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	this->hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	this->hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
+	this->hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	this->hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	this->hdma_usart3_tx.Init.Mode = DMA_NORMAL;
+	this->hdma_usart3_tx.Init.Priority = DMA_PRIORITY_LOW;
+	this->hdma_usart3_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	if (HAL_DMA_Init(&this->hdma_usart3_tx) != HAL_OK)
+	{
+		return HAL_ERROR;
+	}
+
+	__HAL_LINKDMA(&this->huart, hdmatx, this->hdma_usart3_tx);
+
+	HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+	HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+	HAL_NVIC_SetPriority(USART3_IRQn, 1, 0);
+	HAL_NVIC_EnableIRQ(USART3_IRQn);
 
 	return HAL_OK;
 }
