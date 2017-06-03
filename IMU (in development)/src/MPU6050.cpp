@@ -32,6 +32,10 @@ DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
 	return &this->hdma_i2c_rx;
 }
 
+I2C_HandleTypeDef* MPU6050::Get_I2C_Handle() {
+	return &this->hi2c;
+}
+
 HAL_StatusTypeDef MPU6050::i2c_init() {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
@@ -75,6 +79,9 @@ HAL_StatusTypeDef MPU6050::i2c_init() {
 
 	HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+
+	HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
 }
 
 void MPU6050::int_init() {
@@ -349,18 +356,37 @@ HAL_StatusTypeDef MPU6050::Parse_FIFO() {
 	}
 }
 
-HAL_StatusTypeDef MPU6050::Read_Raw(Sensor_Data *gyro, Sensor_Data *accel) {
-	raw_data raw_accel, raw_gyro;
+HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
+	if (this->hi2c.State == HAL_I2C_STATE_READY) {
+		return HAL_I2C_Mem_Read_IT(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
+	}
+
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
+	accel->x = (this->data_buffer[0] << 8) | this->data_buffer[1];
+	accel->y = (this->data_buffer[2] << 8) | this->data_buffer[3];
+	accel->z = (this->data_buffer[4] << 8) | this->data_buffer[5];
+
+	gyro->x = (this->data_buffer[8] << 8) | this->data_buffer[9];
+	gyro->y = (this->data_buffer[10] << 8) | this->data_buffer[11];
+	gyro->z = (this->data_buffer[12] << 8) | this->data_buffer[13];
+
+	return HAL_OK;
+}
+
+HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
 	uint8_t tmp[14];
 
 	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 14, this->I2C_TIMEOUT))
 		return HAL_ERROR;
 
-	raw_accel.x = (tmp[0] << 8) | tmp[1];
-	raw_accel.y = (tmp[2] << 8) | tmp[3];
-	raw_accel.z = (tmp[4] << 8) | tmp[5];
+	accel->x = (tmp[0] << 8) | tmp[1];
+	accel->y = (tmp[2] << 8) | tmp[3];
+	accel->z = (tmp[4] << 8) | tmp[5];
 
-	double a_div = pow(2, this->ADC_BITS - 1);
+	/*double a_div = pow(2, this->ADC_BITS - 1);
 
 	switch (this->a_fsr) {
 	case ACCEL_FSR_2:
@@ -379,13 +405,13 @@ HAL_StatusTypeDef MPU6050::Read_Raw(Sensor_Data *gyro, Sensor_Data *accel) {
 
 	accel->x = raw_accel.x / a_div;
 	accel->y = raw_accel.y / a_div;
-	accel->z = raw_accel.z / a_div;
+	accel->z = raw_accel.z / a_div;*/
 
-	raw_gyro.x = (tmp[8] << 8) | tmp[9];
-	raw_gyro.y = (tmp[10] << 8) | tmp[11];
-	raw_gyro.z = (tmp[12] << 8) | tmp[13];
+	gyro->x = (tmp[8] << 8) | tmp[9];
+	gyro->y = (tmp[10] << 8) | tmp[11];
+	gyro->z = (tmp[12] << 8) | tmp[13];
 
-	double g_div = pow(2, this->ADC_BITS - 1);
+	/*double g_div = pow(2, this->ADC_BITS - 1);
 
 	switch (this->g_fsr) {
 	case GYRO_FSR_250:
@@ -404,7 +430,7 @@ HAL_StatusTypeDef MPU6050::Read_Raw(Sensor_Data *gyro, Sensor_Data *accel) {
 
 	gyro->x = raw_gyro.x / g_div;
 	gyro->y = raw_gyro.y / g_div;
-	gyro->z = raw_gyro.z / g_div;
+	gyro->z = raw_gyro.z / g_div;*/
 
 	return HAL_OK;
 }

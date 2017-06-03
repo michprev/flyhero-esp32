@@ -33,6 +33,11 @@ extern "C" {
 		HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
 	}
 
+	void I2C1_EV_IRQHandler(void)
+	{
+		HAL_I2C_EV_IRQHandler(mpu->Get_I2C_Handle());
+	}
+
 	void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
 
 	}
@@ -86,7 +91,7 @@ int main(void)
 
 	printf("init complete\n");
 
-	MPU6050::Sensor_Data gyro, accel;
+	MPU6050::Raw_Data gyro, accel;
 
 	uint32_t ppos = 0;
 	double p[100][6];

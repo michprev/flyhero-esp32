@@ -104,25 +104,28 @@ HAL_StatusTypeDef set_interrupt(bool enable);
 HAL_StatusTypeDef reset_fifo();
 HAL_StatusTypeDef load_DMP_firmware();
 
-struct raw_data {
-	int16_t x, y, z;
-};
-
 public:
 	struct Sensor_Data {
 		double x, y, z;
 	};
 
+	struct Raw_Data {
+		int16_t x, y, z;
+	};
+
 	static MPU6050* Instance();
 
 	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
+	I2C_HandleTypeDef* Get_I2C_Handle();
 
 	HAL_StatusTypeDef Init(bool use_DMP);
 	HAL_StatusTypeDef Read_FIFO();
 	HAL_StatusTypeDef Parse_FIFO();
 	HAL_StatusTypeDef Calibrate();
 	bool FIFO_Overflow();
-	HAL_StatusTypeDef Read_Raw(Sensor_Data *gyro, Sensor_Data *accel);
+	HAL_StatusTypeDef Start_Read_Raw();
+	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel);
+	HAL_StatusTypeDef Read_Raw(Raw_Data *gyro, Raw_Data *accel);
 };
 
 } /* namespace The_Eye */
