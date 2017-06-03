@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stm32f4xx_hal.h>
+#include "Timer.h"
 
 //#include "invensense/library/fast_no_motion.h"
 
@@ -81,7 +82,6 @@ const struct {
 } REGISTERS;
 
 bool use_DMP;
-bool ready;
 I2C_HandleTypeDef hi2c;
 DMA_HandleTypeDef hdma_i2c_rx;
 gyro_fsr g_fsr; // TODO better variable/enum name
@@ -89,7 +89,9 @@ accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
 uint16_t data_size;
-uint8_t data_buffer[1024];
+uint8_t data_buffer[14];
+volatile bool data_ready;
+volatile bool data_read;
 
 HAL_StatusTypeDef i2c_init();
 void int_init();
@@ -113,7 +115,24 @@ public:
 		int16_t x, y, z;
 	};
 
+	enum Debug_Enum { DATA_READY_INTERRUPT, DATA_START_READ, DATA_READ_INTERRUPT };
+
+	struct Debug_Data {
+		Debug_Enum state;
+		uint32_t ticks;
+		uint32_t delta;
+	};
+
+	Debug_Data ddata[1000];
+	uint16_t ddata_pos = 0;
+	bool ready;
+
 	static MPU6050* Instance();
+
+	void Data_Ready_Callback();
+	bool Data_Ready();
+	void Data_Read_Callback();
+	bool Data_Read();
 
 	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
 	I2C_HandleTypeDef* Get_I2C_Handle();

@@ -26,6 +26,8 @@ MPU6050::MPU6050() {
 	this->use_DMP = false;
 	this->ready = false;
 	this->data_size = 0;
+	this->data_ready = false;
+	this->data_read = false;
 }
 
 DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
@@ -34,6 +36,45 @@ DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
 
 I2C_HandleTypeDef* MPU6050::Get_I2C_Handle() {
 	return &this->hi2c;
+}
+
+void MPU6050::Data_Ready_Callback() {
+	if (this->ready) {
+		this->data_ready = true;
+		this->ddata[ddata_pos].state = DATA_READY_INTERRUPT;
+		this->ddata[ddata_pos].ticks = Timer::Get_Tick_Count();
+		if (ddata_pos != 0)
+			this->ddata[ddata_pos].delta = this->ddata[ddata_pos].ticks - this->ddata[ddata_pos - 1].ticks;
+
+		ddata_pos++;
+
+		if (ddata_pos == 1000) {
+			printf("a");
+		}
+	}
+}
+
+bool MPU6050::Data_Ready() {
+	return this->data_ready;
+}
+
+void MPU6050::Data_Read_Callback() {
+	this->data_read = true;
+
+	this->ddata[ddata_pos].state = DATA_READ_INTERRUPT;
+	this->ddata[ddata_pos].ticks = Timer::Get_Tick_Count();
+	if (ddata_pos != 0)
+		this->ddata[ddata_pos].delta = this->ddata[ddata_pos].ticks - this->ddata[ddata_pos - 1].ticks;
+
+	ddata_pos++;
+
+	if (ddata_pos == 1000) {
+		printf("a");
+	}
+}
+
+bool MPU6050::Data_Read() {
+	return this->data_read;
 }
 
 HAL_StatusTypeDef MPU6050::i2c_init() {
@@ -176,7 +217,7 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 	//if (this->reset_fifo())
 		//return HAL_ERROR;
 
-	this->ready = true;
+	//this->ready = true;
 
 	return HAL_OK;
 }
@@ -357,14 +398,28 @@ HAL_StatusTypeDef MPU6050::Parse_FIFO() {
 }
 
 HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
+	this->data_ready = false;
+	this->ddata[ddata_pos].state = DATA_START_READ;
+	this->ddata[ddata_pos].ticks = Timer::Get_Tick_Count();
+	if (ddata_pos != 0)
+		this->ddata[ddata_pos].delta = this->ddata[ddata_pos].ticks - this->ddata[ddata_pos - 1].ticks;
+
+	ddata_pos++;
+
+	if (ddata_pos == 1000) {
+		printf("a");
+	}
+
 	if (this->hi2c.State == HAL_I2C_STATE_READY) {
 		return HAL_I2C_Mem_Read_IT(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
 	}
-
+	
 	return HAL_ERROR;
 }
 
 HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
+	this->data_read = false;
+
 	accel->x = (this->data_buffer[0] << 8) | this->data_buffer[1];
 	accel->y = (this->data_buffer[2] << 8) | this->data_buffer[3];
 	accel->z = (this->data_buffer[4] << 8) | this->data_buffer[5];
@@ -377,6 +432,8 @@ HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
 }
 
 HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
+	this->data_ready = false;
+
 	uint8_t tmp[14];
 
 	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 14, this->I2C_TIMEOUT))
