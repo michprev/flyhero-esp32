@@ -62,8 +62,6 @@ HAL_StatusTypeDef Logger::Init() {
 	hdma_uart5_tx.Init.Priority = DMA_PRIORITY_LOW;
 	hdma_uart5_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
 
-	__HAL_DMA_RESET_HANDLE_STATE(&hdma_uart5_tx);
-
 	if (HAL_DMA_Init(&hdma_uart5_tx))
 		return HAL_ERROR;
 
@@ -71,14 +69,14 @@ HAL_StatusTypeDef Logger::Init() {
 
 
 	this->huart.Instance = UART5;
-	this->huart.Init.BaudRate = 115200;
+	this->huart.Init.BaudRate = 1000000;
 	this->huart.Init.WordLength = UART_WORDLENGTH_8B;
 	this->huart.Init.StopBits = UART_STOPBITS_1;
 	this->huart.Init.Parity = UART_PARITY_NONE;
 	this->huart.Init.Mode = UART_MODE_TX_RX;
 	this->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	this->huart.Init.OverSampling = UART_OVERSAMPLING_16;
-	if (HAL_UART_DeInit(&this->huart) || HAL_UART_Init(&this->huart))
+	if (HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
 	HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 0, 0);
@@ -90,27 +88,6 @@ HAL_StatusTypeDef Logger::Init() {
 }
 
 HAL_StatusTypeDef Logger::Print(uint8_t *data, uint16_t len) {
-	if (HAL_DMA_DeInit(&this->hdma_uart5_tx))
-		return HAL_ERROR;
-
-	this->hdma_uart5_tx.Instance = DMA1_Stream7;
-	this->hdma_uart5_tx.Init.Channel = DMA_CHANNEL_4;
-	this->hdma_uart5_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-	this->hdma_uart5_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-	this->hdma_uart5_tx.Init.MemInc = DMA_MINC_ENABLE;
-	this->hdma_uart5_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-	this->hdma_uart5_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-	this->hdma_uart5_tx.Init.Mode = DMA_NORMAL;
-	this->hdma_uart5_tx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-	this->hdma_uart5_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-
-	__HAL_DMA_RESET_HANDLE_STATE(&this->hdma_uart5_tx);
-
-	if (HAL_DMA_Init(&this->hdma_uart5_tx))
-		return HAL_ERROR;
-
-	__HAL_LINKDMA(&this->huart, hdmatx, this->hdma_uart5_tx);
-
 	return HAL_UART_Transmit_DMA(&this->huart, data, len);
 }
 
