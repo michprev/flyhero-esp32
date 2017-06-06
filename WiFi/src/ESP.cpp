@@ -9,7 +9,7 @@
 
 namespace flyhero {
 
-#define LOG
+//#define LOG
 
 ESP::ESP() : connections{{this, '0'}, {this, '1'}, {this, '2'}, {this, '3'}, {this, '4'}} {
 
@@ -128,7 +128,7 @@ uint32_t ESP::bytes_available() {
 }
 
 void ESP::Process_Data() {
-	while (this->bytes_available() > 0) {
+	if (this->bytes_available() > 0) {
 
 		if (this->inIPD && this->IPD_received < this->IPD_size) {
 			char c = this->buffer[this->readPos.pos];
@@ -165,8 +165,6 @@ void ESP::Process_Data() {
 				this->processedLength = 0;
 			}
 			else if (c == '>') {
-				if (this->processedLength > 1)
-					printf("WTF\n");
 
 #ifdef LOG
 				printf("[%d]>\n", HAL_GetTick() - this->timestamp);
