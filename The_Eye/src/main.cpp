@@ -164,7 +164,7 @@ int main(void)
 	LEDs::TurnOn(LEDs::Green);
 
 #ifndef LOG
-	//HAL_IWDG_Init(&hiwdg);
+	HAL_IWDG_Init(&hiwdg);
 #endif
 
 	throttle = 0;
@@ -172,13 +172,14 @@ int main(void)
 
 	while (true) {
 		if (mpu->Data_Ready()) {
-			mpu->Start_Read_Raw();
-			//mpu->Read_Raw(&gyroData, &accelData);
+			if (mpu->Start_Read_Raw() != HAL_OK) {
+				LEDs::TurnOn(LEDs::Orange);
+			}
 		}
 
 		if (mpu->Data_Read()) {
-			//if (data_received)
-			//	HAL_IWDG_Refresh(&hiwdg);
+			if (data_received)
+				HAL_IWDG_Refresh(&hiwdg);
 			data_received = false;
 
 			mpu->Complete_Read_Raw(&gyroData, &accelData);
@@ -203,7 +204,6 @@ int main(void)
 			for (uint8_t i = 0; i <= 13; i++)
 				tmp[14] ^= tmp[i];
 
-			test = Timer::Get_Tick_Count();
 			logger->Print(tmp, 15);*/
 
 
@@ -271,6 +271,7 @@ int main(void)
 void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 	switch (length) {
 	case 22:
+		// around 100 us
 		if (data[0] == 0x5D) {
 			uint16_t roll_kP, pitch_kP, yaw_kP;
 			uint16_t roll_kI, pitch_kI, yaw_kI;
@@ -278,9 +279,11 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 
 			data_received = true;
 
+			// 3 us
 			throttle = data[1] << 8;
 			throttle |= data[2];
 
+			// 3 us
 			roll_kP = data[3] << 8;
 			roll_kP |= data[4];
 
@@ -290,10 +293,10 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			roll_kD = data[7] << 8;
 			roll_kD |= data[8];
 
-			PID_Roll.kP(roll_kP / 100.0);
-			PID_Roll.kI(roll_kI / 100.0);
-			PID_Roll.kD(roll_kD / 100.0);
-
+			// 29 us
+			PID_Roll.kP(roll_kP * 0.01);
+			PID_Roll.kI(roll_kI * 0.01);
+			PID_Roll.kD(roll_kD * 0.01);
 
 			pitch_kP = data[9] << 8;
 			pitch_kP |= data[10];
@@ -304,9 +307,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			pitch_kD = data[13] << 8;
 			pitch_kD |= data[14];
 
-			PID_Pitch.kP(pitch_kP / 100.0);
-			PID_Pitch.kI(pitch_kI / 100.0);
-			PID_Pitch.kD(pitch_kD / 100.0);
+			PID_Pitch.kP(pitch_kP * 0.01);
+			PID_Pitch.kI(pitch_kI * 0.01);
+			PID_Pitch.kD(pitch_kD * 0.01);
 
 			yaw_kP = data[15] << 8;
 			yaw_kP |= data[16];
