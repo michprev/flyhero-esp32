@@ -20,7 +20,6 @@ using namespace flyhero;
 extern "C" void initialise_monitor_handles(void);
 
 MPU6050 *mpu = MPU6050::Instance();
-volatile bool data_ready = false;
 
 extern "C" {
 	void DMA1_Stream5_IRQHandler(void)
@@ -39,11 +38,11 @@ extern "C" {
 	}
 
 	void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-
+		mpu->Data_Read_Callback();
 	}
 
 	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-		data_ready = true;
+		mpu->Data_Ready_Callback();
 	}
 
 	void TIM5_IRQHandler(void)
@@ -80,10 +79,8 @@ int main(void)
 	HAL_Delay(1000);
 
 	if (mpu->Init(false)) {
-		LEDs::TurnOn(LEDs::Orange);
-
 		while (true) {
-			LEDs::Toggle(LEDs::Orange | LEDs::Yellow);
+			LEDs::Toggle(LEDs::Green);
 			HAL_Delay(500);
 		}
 	}
@@ -96,22 +93,16 @@ int main(void)
 	uint32_t ppos = 0;
 	double p[100][6];
 
+	mpu->ready = true;
+
 	while (true) {
-		if (data_ready) {
-			data_ready = false;
-			mpu->Read_Raw(&gyro, &accel);
-			p[ppos][0] = gyro.x;
-			p[ppos][1] = gyro.y;
-			p[ppos][2] = gyro.z;
-			p[ppos][3] = accel.x;
-			p[ppos][4] = accel.y;
-			p[ppos][5] = accel.z;
-
-			ppos++;
-
-			if (ppos == 100) {
+		if (mpu->Data_Ready()) {
+			if (mpu->Start_Read_Raw() != HAL_OK) {
 				printf("a");
 			}
+		}
+		if (mpu->Data_Read()) {
+			mpu->Complete_Read_Raw(&gyro, &accel);
 		}
 	}
 }
