@@ -320,9 +320,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			yaw_kD = data[19] << 8;
 			yaw_kD |= data[20];
 
-			PID_Yaw.kP(yaw_kP / 100.0);
-			PID_Yaw.kI(yaw_kI / 100.0);
-			PID_Yaw.kD(yaw_kD / 100.0);
+			PID_Yaw.kP(yaw_kP * 0.01);
+			PID_Yaw.kI(yaw_kI * 0.01);
+			PID_Yaw.kD(yaw_kD * 0.01);
 
 
 			inverse_yaw = (data[21] == 0x01);
