@@ -78,7 +78,7 @@ int main(void)
 
 	HAL_Delay(1000);
 
-	if (mpu->Init(false)) {
+	if (mpu->Init(false) || mpu->Calibrate()) {
 		while (true) {
 			LEDs::Toggle(LEDs::Green);
 			HAL_Delay(500);
@@ -95,14 +95,22 @@ int main(void)
 
 	mpu->ready = true;
 
+	uint32_t ticks = Timer::Get_Tick_Count();
+	double roll, pitch, yaw;
+
 	while (true) {
-		if (mpu->Data_Ready()) {
+		if (mpu->Data_Ready() && Timer::Get_Tick_Count() - ticks >= 1000000) {
 			if (mpu->Start_Read_Raw() != HAL_OK) {
 				printf("a");
 			}
+			ticks = Timer::Get_Tick_Count();
 		}
 		if (mpu->Data_Read()) {
-			mpu->Complete_Read_Raw(&gyro, &accel);
+			//mpu->Complete_Read_Raw(&gyro, &accel);
+			//printf("%d %d %d %d %d %d\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
+			mpu->Get_Euler(&roll, &pitch, &yaw);
+
+			printf("%f %f %f\n", roll, pitch, yaw);
 		}
 	}
 }

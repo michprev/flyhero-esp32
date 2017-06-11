@@ -53,6 +53,7 @@ enum lpf_bandwidth {
 	LPF_NOT_SET = 0xFF
 };
 
+const double PI = 3.14159265358979323846;
 const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
@@ -61,6 +62,8 @@ static const uint16_t DMP_FIRMWARE_SIZE = 3062;
 static const uint8_t DMP_FIRMWARE[DMP_FIRMWARE_SIZE];
 
 const struct {
+	uint8_t ACCEL_X_OFFSET = 0x06;
+	uint8_t GYRO_X_OFFSET = 0x13;
 	uint8_t SMPRT_DIV = 0x19;
 	uint8_t CONFIG = 0x1A;
 	uint8_t GYRO_CONFIG = 0x1B;
@@ -81,10 +84,14 @@ const struct {
 	uint8_t WHO_AM_I = 0x75;
 } REGISTERS;
 
+uint32_t start_ticks;
+double roll, pitch, yaw;
 bool use_DMP;
 I2C_HandleTypeDef hi2c;
 DMA_HandleTypeDef hdma_i2c_rx;
 gyro_fsr g_fsr; // TODO better variable/enum name
+double g_div;
+double a_div;
 accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
@@ -92,10 +99,13 @@ uint16_t data_size;
 uint8_t data_buffer[14];
 volatile bool data_ready;
 volatile bool data_read;
+volatile uint32_t data_ready_ticks;
+volatile double deltaT;
 
 HAL_StatusTypeDef i2c_init();
 void int_init();
 HAL_StatusTypeDef i2c_write(uint8_t reg, uint8_t data);
+HAL_StatusTypeDef i2c_write(uint8_t reg, uint8_t *data, uint8_t data_size);
 HAL_StatusTypeDef i2c_read(uint8_t reg, uint8_t *data);
 HAL_StatusTypeDef i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size);
 HAL_StatusTypeDef set_gyro_fsr(gyro_fsr fsr);
@@ -142,6 +152,7 @@ public:
 	HAL_StatusTypeDef Parse_FIFO();
 	HAL_StatusTypeDef Calibrate();
 	bool FIFO_Overflow();
+	HAL_StatusTypeDef Get_Euler(double *roll, double *pitch, double *yaw);
 	HAL_StatusTypeDef Start_Read_Raw();
 	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel);
 	HAL_StatusTypeDef Read_Raw(Raw_Data *gyro, Raw_Data *accel);
