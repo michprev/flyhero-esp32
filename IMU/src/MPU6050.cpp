@@ -20,8 +20,8 @@ MPU6050* MPU6050::Instance() {
 
 MPU6050::MPU6050() {
 	this->g_fsr = GYRO_FSR_NOT_SET;
-	this->g_div = 0;
-	this->a_div = 0;
+	this->g_mult = 0;
+	this->a_mult = 0;
 	this->a_fsr = ACCEL_FSR_NOT_SET;
 	this->lpf = LPF_NOT_SET;
 	this->sample_rate = -1;
@@ -223,22 +223,22 @@ HAL_StatusTypeDef MPU6050::set_gyro_fsr(gyro_fsr fsr) {
 	if (this->i2c_write(this->REGISTERS.GYRO_CONFIG, fsr) == HAL_OK) {
 		this->g_fsr = fsr;
 
-		this->g_div = pow(2, this->ADC_BITS - 1);
-
 		switch (this->g_fsr) {
 		case GYRO_FSR_250:
-			this->g_div /= 250;
+			this->g_mult = 250;
 			break;
 		case GYRO_FSR_500:
-			this->g_div /= 500;
+			this->g_mult = 500;
 			break;
 		case GYRO_FSR_1000:
-			this->g_div /= 1000;
+			this->g_mult = 1000;
 			break;
 		case GYRO_FSR_2000:
-			this->g_div /= 2000;
+			this->g_mult = 2000;
 			break;
 		}
+
+		this->g_mult /= pow(2, this->ADC_BITS - 1);
 
 		return HAL_OK;
 	}
@@ -253,22 +253,22 @@ HAL_StatusTypeDef MPU6050::set_accel_fsr(accel_fsr fsr) {
 	if (this->i2c_write(this->REGISTERS.ACCEL_CONFIG, fsr) == HAL_OK) {
 		this->a_fsr = fsr;
 
-		this->a_div = pow(2, this->ADC_BITS - 1);
-
 		switch (this->a_fsr) {
 		case ACCEL_FSR_2:
-			this->a_div /= 2;
+			this->a_mult = 2;
 			break;
 		case ACCEL_FSR_4:
-			this->a_div /= 4;
+			this->a_mult = 4;
 			break;
 		case ACCEL_FSR_8:
-			this->a_div /= 8;
+			this->a_mult = 8;
 			break;
 		case ACCEL_FSR_16:
-			this->a_div /= 16;
+			this->a_mult = 16;
 			break;
 		}
+
+		this->a_mult /= pow(2, this->ADC_BITS - 1);
 
 		return HAL_OK;
 	}
@@ -589,15 +589,50 @@ HAL_StatusTypeDef MPU6050::Get_Euler(double *roll, double *pitch, double *yaw) {
 	gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
 	gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
 
-	this->roll = atan2(accel.y, accel.z) / this->PI * 180;
-	this->pitch = atan(-accel.x / sqrt(accel.y * accel.y + accel.z * accel.z)) / this->PI * 180;
-	this->yaw += gyro.z / this->g_div * this->deltaT;
+	// 144 us
+	this->roll = this->atan2(accel.y, accel.z);
+
+	// 160 us
+	this->pitch = this->atan(-accel.x / sqrt(accel.y * accel.y + accel.z * accel.z));
+
+	// 20 us
+	this->yaw += gyro.z * this->g_mult * this->deltaT;
 
 	*roll = this->roll;
 	*pitch = this->pitch;
 	*yaw = this->yaw;
 
 	return HAL_OK;
+}
+
+double MPU6050::atan2(double y, double x) {
+	if (x == 0 && y > 0)
+		return 90;
+	else if (x == 0 && y < 0)
+		return -90;
+
+	double z = this->atan(y / x);
+
+	if (x < 0)
+		z += 180;
+	if (x > 0 && y < 0)
+		z += 360;
+
+	if (z > 180)
+		z -= 360;
+
+	return z;
+}
+
+// approx. using http://nghiaho.com/?p=997
+inline double MPU6050::atan(double z) {
+	if (z < 0)
+		return -this->atan(-z);
+
+	if (z > 1)
+		return 90 - this->atan(1 / z);
+
+	return z * (45 - (z - 1) * (14 + 3.83 * z));
 }
 
 } /* namespace The_Eye */

@@ -9,7 +9,7 @@
 #define MPU6050_H_
 
 #include <stdio.h>
-#include <math.h>
+#include <cmath>
 #include <stm32f4xx_hal.h>
 #include "Timer.h"
 
@@ -54,6 +54,7 @@ enum lpf_bandwidth {
 };
 
 const double PI = 3.14159265358979323846;
+const double RAD_TO_DEG = 180 / this->PI;
 const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
@@ -90,8 +91,8 @@ bool use_DMP;
 I2C_HandleTypeDef hi2c;
 DMA_HandleTypeDef hdma_i2c_rx;
 gyro_fsr g_fsr; // TODO better variable/enum name
-double g_div;
-double a_div;
+double g_mult;
+double a_mult;
 accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
@@ -101,6 +102,9 @@ volatile bool data_ready;
 volatile bool data_read;
 volatile uint32_t data_ready_ticks;
 volatile double deltaT;
+
+double atan2(double y, double x);
+inline double atan(double z);
 
 HAL_StatusTypeDef i2c_init();
 void int_init();
