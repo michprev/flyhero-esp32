@@ -78,7 +78,7 @@ int main(void)
 
 	HAL_Delay(1000);
 
-	if (mpu->Init(false) || mpu->Calibrate()) {
+	if (mpu->Init() || mpu->Calibrate()) {
 		while (true) {
 			LEDs::Toggle(LEDs::Green);
 			HAL_Delay(500);

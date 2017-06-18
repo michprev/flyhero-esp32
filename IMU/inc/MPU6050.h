@@ -13,8 +13,6 @@
 #include <stm32f4xx_hal.h>
 #include "Timer.h"
 
-//#include "invensense/library/fast_no_motion.h"
-
 namespace flyhero {
 
 class MPU6050 {
@@ -59,9 +57,6 @@ const float RAD_TO_DEG = 180 / this->PI;
 const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
-const uint16_t DMP_START_ADDRESS = 0x0400;
-static const uint16_t DMP_FIRMWARE_SIZE = 3062;
-static const uint8_t DMP_FIRMWARE[DMP_FIRMWARE_SIZE];
 
 const struct {
 	uint8_t ACCEL_X_OFFSET = 0x06;
@@ -79,7 +74,6 @@ const struct {
 	uint8_t USER_CTRL = 0x6A;
 	uint8_t PWR_MGMT_1 = 0x6B;
 	uint8_t PWR_MGMT_2 = 0x6C;
-	uint8_t BANK_SEL = 0x6D;
 	uint8_t FIFO_COUNT_H = 0x72;
 	uint8_t FIFO_COUNT_L = 0x73;
 	uint8_t FIFO_R_W = 0x74;
@@ -88,7 +82,6 @@ const struct {
 
 uint32_t start_ticks;
 float roll, pitch, yaw;
-bool use_DMP;
 I2C_HandleTypeDef hi2c;
 DMA_HandleTypeDef hdma_i2c_rx;
 gyro_fsr g_fsr; // TODO better variable/enum name
@@ -97,12 +90,11 @@ float a_mult;
 accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
-uint16_t data_size;
 uint8_t data_buffer[14];
 volatile bool data_ready;
 volatile bool data_read;
 volatile uint32_t data_ready_ticks;
-volatile float deltaT;
+volatile float delta_t;
 
 float atan2(float y, float x);
 inline double atan(double z);
@@ -118,8 +110,6 @@ HAL_StatusTypeDef set_accel_fsr(accel_fsr fsr);
 HAL_StatusTypeDef set_lpf(lpf_bandwidth lpf);
 HAL_StatusTypeDef set_sample_rate(uint16_t rate);
 HAL_StatusTypeDef set_interrupt(bool enable);
-HAL_StatusTypeDef reset_fifo();
-HAL_StatusTypeDef load_DMP_firmware();
 
 public:
 	struct Sensor_Data {
@@ -152,11 +142,8 @@ public:
 	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
 	I2C_HandleTypeDef* Get_I2C_Handle();
 
-	HAL_StatusTypeDef Init(bool use_DMP);
-	HAL_StatusTypeDef Read_FIFO();
-	HAL_StatusTypeDef Parse_FIFO();
+	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Calibrate();
-	bool FIFO_Overflow();
 	HAL_StatusTypeDef Get_Euler(float *roll, float *pitch, float *yaw);
 	HAL_StatusTypeDef Start_Read_Raw();
 	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel);

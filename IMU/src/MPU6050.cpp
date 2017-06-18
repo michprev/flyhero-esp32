@@ -25,9 +25,7 @@ MPU6050::MPU6050() {
 	this->a_fsr = ACCEL_FSR_NOT_SET;
 	this->lpf = LPF_NOT_SET;
 	this->sample_rate = -1;
-	this->use_DMP = false;
 	this->ready = false;
-	this->data_size = 0;
 	this->data_ready = false;
 	this->data_read = false;
 	this->roll = 0;
@@ -35,7 +33,7 @@ MPU6050::MPU6050() {
 	this->yaw = 0;
 	this->start_ticks = 0;
 	this->data_ready_ticks = 0;
-	this->deltaT = 0;
+	this->delta_t = 0;
 }
 
 DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
@@ -49,7 +47,7 @@ I2C_HandleTypeDef* MPU6050::Get_I2C_Handle() {
 void MPU6050::Data_Ready_Callback() {
 	if (this->ready) {
 		if (this->data_ready_ticks != 0)
-			this->deltaT = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
+			this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
 		this->data_ready_ticks = Timer::Get_Tick_Count();
 
 		this->data_ready = true;
@@ -134,8 +132,7 @@ void MPU6050::int_init() {
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
 
-HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
-	this->use_DMP = use_dmp;
+HAL_StatusTypeDef MPU6050::Init() {
 	uint8_t tmp;
 
 	// init I2C bus including DMA peripheral
@@ -207,10 +204,7 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 
 	if (this->set_interrupt(true))
 		return HAL_ERROR;
-	//if (this->reset_fifo())
-		//return HAL_ERROR;
 
-	//this->ready = true;
 	this->start_ticks = Timer::Get_Tick_Count();
 
 	return HAL_OK;
@@ -303,65 +297,7 @@ HAL_StatusTypeDef MPU6050::set_sample_rate(uint16_t rate) {
 }
 
 HAL_StatusTypeDef MPU6050::set_interrupt(bool enable) {
-	if (enable) {
-		if (this->use_DMP)
-			return this->i2c_write(this->REGISTERS.INT_ENABLE, 0x02);
-		else
-			return this->i2c_write(this->REGISTERS.INT_ENABLE, 0x01);
-	}
-	else {
-		return this->i2c_write(this->REGISTERS.INT_ENABLE, 0x00);
-	}
-}
-
-HAL_StatusTypeDef MPU6050::reset_fifo() {
-	// disable interrupt
-	this->set_interrupt(false);
-
-	// disable sending gyro & accel data into FIFO
-	this->i2c_write(this->REGISTERS.FIFO_EN, 0x00);
-
-	// disable reading FIFO / writing into FIFO
-	this->i2c_write(this->REGISTERS.USER_CTRL, 0x00);
-
-	if (this->use_DMP) {
-		// reset FIFO and DMP
-		this->i2c_write(this->REGISTERS.USER_CTRL, 0x0C);
-
-		// wait until reset done
-		uint8_t tmp;
-		do {
-			this->i2c_read(this->REGISTERS.USER_CTRL, &tmp);
-		} while (tmp & 0x0C);
-
-		// enable FIFO and DMP
-		this->i2c_write(this->REGISTERS.USER_CTRL, 0xC0);
-
-		// enable DMP data ready interrupt
-		this->set_interrupt(true);
-
-		// push (0xF8 with temperature) gyro & accel data into FIFO
-		this->i2c_write(this->REGISTERS.FIFO_EN, 0x78/*0xF8*/);
-	}
-	else {
-		// reset FIFO
-		this->i2c_write(this->REGISTERS.USER_CTRL, 0x04);
-
-		// wait until reset done
-		uint8_t tmp;
-		do {
-			this->i2c_read(this->REGISTERS.USER_CTRL, &tmp);
-		} while (tmp & 0x04);
-
-		// enable FIFO
-		this->i2c_write(this->REGISTERS.USER_CTRL, 0x40);
-
-		// enable data ready interrupt
-		this->set_interrupt(true);
-
-		// push (0xF8 with temperature) gyro & accel data into FIFO
-		this->i2c_write(this->REGISTERS.FIFO_EN, 0x78/*0xF8*/);
-	}
+	return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
 }
 
 HAL_StatusTypeDef MPU6050::i2c_write(uint8_t reg, uint8_t data) {
@@ -378,57 +314,6 @@ HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data) {
 
 HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size) {
 	return HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, data, data_size, this->I2C_TIMEOUT);
-}
-
-HAL_StatusTypeDef MPU6050::Read_FIFO() {
-	if (this->ready && this->hdma_i2c_rx.State == HAL_DMA_STATE_READY) {
-		uint16_t fifo_size;
-		uint8_t tmp[2];
-
-		this->i2c_read(this->REGISTERS.FIFO_COUNT_H, tmp, 2);
-		fifo_size = (tmp[0] << 8) | tmp[1];
-
-		//for (uint16_t i = 0; i < fifo_size; i++)
-			//HAL_I2C_Mem_Read(&this->hi2c, this->ADDRESS, this->REGISTERS.FIFO_R_W, I2C_MEMADD_SIZE_8BIT, buffer + i, 1, this->I2C_TIMEOUT);
-
-		this->data_size = fifo_size;
-
-		HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.FIFO_R_W, I2C_MEMADD_SIZE_8BIT, this->data_buffer, fifo_size);
-
-		//printf("fifo size: %d\n", fifo_size);
-
-		/*int index = 0;
-
-		while (fifo_size >= 12) {
-			raw_data raw_accel, raw_gyro;
-			raw_accel.x = (buffer[index] << 8) | buffer[index + 1];
-			raw_accel.y = (buffer[index + 2] << 8) | buffer[index + 3];
-			raw_accel.z = (buffer[index + 4] << 8) | buffer[index + 5];
-
-			raw_gyro.x = (buffer[index + 6] << 8) | buffer[index + 7];
-			raw_gyro.y = (buffer[index + 8] << 8) | buffer[index + 9];
-			raw_gyro.z = (buffer[index + 10] << 8) | buffer[index + 11];
-
-			Sensor_Data accel;
-			accel.x = raw_accel.x / 8192.0;
-			accel.y = raw_accel.y / 8192.0;
-			accel.z = raw_accel.z / 8192.0;
-
-			//printf("%f %f %f\n", accel.x, accel.y, accel.z);
-
-			index += 12;
-			fifo_size -= 12;
-		}*/
-	}
-}
-
-HAL_StatusTypeDef MPU6050::Parse_FIFO() {
-	if (this->use_DMP) {
-
-	}
-	else {
-
-	}
 }
 
 HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
@@ -476,14 +361,6 @@ HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
 	gyro->z = raw_gyro.z / this->g_div;*/
 
 	return HAL_OK;
-}
-
-bool MPU6050::FIFO_Overflow() {
-	uint8_t tmp;
-
-	this->i2c_read(this->REGISTERS.INT_STATUS, &tmp);
-
-	return tmp & 0x10;
 }
 
 HAL_StatusTypeDef MPU6050::Calibrate() {
@@ -596,13 +473,13 @@ HAL_StatusTypeDef MPU6050::Get_Euler(float *roll, float *pitch, float *yaw) {
 	float accel_pitch = this->atan2(-accel.x, std::sqrt((float)(accel.y * accel.y + accel.z * accel.z)));
 
 	// 13 us
-	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + gyro.y * this->g_mult * this->deltaT) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
+	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + gyro.y * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
 
 	// 13 us
-	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + gyro.x * this->g_mult * this->deltaT) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
+	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + gyro.x * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
 
 	// 4 us
-	this->yaw += gyro.z * this->g_mult * this->deltaT;
+	this->yaw += gyro.z * this->g_mult * this->delta_t;
 
 	*roll = this->roll;
 	*pitch = this->pitch;
