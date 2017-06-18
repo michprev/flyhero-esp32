@@ -197,12 +197,12 @@ HAL_StatusTypeDef MPU6050::Init(bool use_dmp) {
 	if (this->set_accel_fsr(ACCEL_FSR_2))
 		return HAL_ERROR;
 
-	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
-	if (this->set_lpf(LPF_188HZ))
+	// set low pass filter to 256 Hz (acc sample at 1 kHz and gyro at max 8 kHz)
+	if (this->set_lpf(LPF_256HZ))
 		return HAL_ERROR;
 
-	// set sample rate to 1 kHz
-	if (this->set_sample_rate(1000))
+	// set sample rate to 4 kHz
+	if (this->set_sample_rate(4000))
 		return HAL_ERROR;
 
 	if (this->set_interrupt(true))
@@ -576,7 +576,7 @@ HAL_StatusTypeDef MPU6050::Calibrate() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef MPU6050::Get_Euler(double *roll, double *pitch, double *yaw) {
+HAL_StatusTypeDef MPU6050::Get_Euler(float *roll, float *pitch, float *yaw) {
 	Raw_Data gyro, accel;
 
 	this->data_read = false;
@@ -589,13 +589,19 @@ HAL_StatusTypeDef MPU6050::Get_Euler(double *roll, double *pitch, double *yaw) {
 	gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
 	gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
 
-	// 144 us
-	this->roll = this->atan2(accel.y, accel.z);
+	// 70 us
+	float accel_roll = this->atan2(accel.y, accel.z);
 
-	// 160 us
-	this->pitch = this->atan(-accel.x / sqrt(accel.y * accel.y + accel.z * accel.z));
+	// 70 us
+	float accel_pitch = this->atan2(-accel.x, std::sqrt((float)(accel.y * accel.y + accel.z * accel.z)));
 
-	// 20 us
+	// 13 us
+	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + gyro.y * this->g_mult * this->deltaT) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
+
+	// 13 us
+	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + gyro.x * this->g_mult * this->deltaT) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
+
+	// 4 us
 	this->yaw += gyro.z * this->g_mult * this->deltaT;
 
 	*roll = this->roll;
@@ -605,23 +611,39 @@ HAL_StatusTypeDef MPU6050::Get_Euler(double *roll, double *pitch, double *yaw) {
 	return HAL_OK;
 }
 
-double MPU6050::atan2(double y, double x) {
-	if (x == 0 && y > 0)
-		return 90;
-	else if (x == 0 && y < 0)
-		return -90;
 
-	double z = this->atan(y / x);
+// use Betaflight atan2 approx: https://github.com/betaflight/betaflight/blob/master/src/main/common/maths.c
+float MPU6050::atan2(float y, float x) {
+	const float atanPolyCoef1 = 3.14551665884836e-07f;
+	const float atanPolyCoef2 = 0.99997356613987f;
+	const float atanPolyCoef3 = 0.14744007058297684f;
+	const float atanPolyCoef4 = 0.3099814292351353f;
+	const float atanPolyCoef5 = 0.05030176425872175f;
+	const float atanPolyCoef6 = 0.1471039133652469f;
+	const float atanPolyCoef7 = 0.6444640676891548f;
 
+	float abs_x, abs_y;
+	float result;
+
+	abs_x = std::abs(x);
+	abs_y = std::abs(y);
+
+	result = (abs_x > abs_y ? abs_x : abs_y);
+
+	if (result != 0)
+		result = (abs_x < abs_y ? abs_x : abs_y) / result;
+
+	result = -((((atanPolyCoef5 * result - atanPolyCoef4) * result - atanPolyCoef3) * result - atanPolyCoef2) * result - atanPolyCoef1) / ((atanPolyCoef7 * result + atanPolyCoef6) * result + 1.0);
+	result *= this->RAD_TO_DEG;
+
+	if (abs_y > abs_x)
+		result = 90 - result;
 	if (x < 0)
-		z += 180;
-	if (x > 0 && y < 0)
-		z += 360;
+		result = 180 - result;
+	if (y < 0)
+		result = -result;
 
-	if (z > 180)
-		z -= 360;
-
-	return z;
+	return result;
 }
 
 // approx. using http://nghiaho.com/?p=997

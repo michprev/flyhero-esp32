@@ -96,7 +96,7 @@ int main(void)
 	mpu->ready = true;
 
 	uint32_t ticks = Timer::Get_Tick_Count();
-	double roll, pitch, yaw;
+	float roll, pitch, yaw;
 
 	while (true) {
 		if (mpu->Data_Ready() && Timer::Get_Tick_Count() - ticks >= 1000000) {

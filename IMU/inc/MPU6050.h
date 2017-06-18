@@ -53,8 +53,9 @@ enum lpf_bandwidth {
 	LPF_NOT_SET = 0xFF
 };
 
+const float COMPLEMENTARY_COEFFICIENT = 0.93f;
 const double PI = 3.14159265358979323846;
-const double RAD_TO_DEG = 180 / this->PI;
+const float RAD_TO_DEG = 180 / this->PI;
 const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
@@ -86,13 +87,13 @@ const struct {
 } REGISTERS;
 
 uint32_t start_ticks;
-double roll, pitch, yaw;
+float roll, pitch, yaw;
 bool use_DMP;
 I2C_HandleTypeDef hi2c;
 DMA_HandleTypeDef hdma_i2c_rx;
 gyro_fsr g_fsr; // TODO better variable/enum name
-double g_mult;
-double a_mult;
+float g_mult;
+float a_mult;
 accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
@@ -101,9 +102,9 @@ uint8_t data_buffer[14];
 volatile bool data_ready;
 volatile bool data_read;
 volatile uint32_t data_ready_ticks;
-volatile double deltaT;
+volatile float deltaT;
 
-double atan2(double y, double x);
+float atan2(float y, float x);
 inline double atan(double z);
 
 HAL_StatusTypeDef i2c_init();
@@ -122,7 +123,7 @@ HAL_StatusTypeDef load_DMP_firmware();
 
 public:
 	struct Sensor_Data {
-		double x, y, z;
+		float x, y, z;
 	};
 
 	struct Raw_Data {
@@ -156,7 +157,7 @@ public:
 	HAL_StatusTypeDef Parse_FIFO();
 	HAL_StatusTypeDef Calibrate();
 	bool FIFO_Overflow();
-	HAL_StatusTypeDef Get_Euler(double *roll, double *pitch, double *yaw);
+	HAL_StatusTypeDef Get_Euler(float *roll, float *pitch, float *yaw);
 	HAL_StatusTypeDef Start_Read_Raw();
 	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel);
 	HAL_StatusTypeDef Read_Raw(Raw_Data *gyro, Raw_Data *accel);
