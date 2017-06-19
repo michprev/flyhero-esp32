@@ -194,12 +194,12 @@ HAL_StatusTypeDef MPU6050::Init() {
 	if (this->set_accel_fsr(ACCEL_FSR_2))
 		return HAL_ERROR;
 
-	// set low pass filter to 256 Hz (acc sample at 1 kHz and gyro at max 8 kHz)
-	if (this->set_lpf(LPF_256HZ))
+	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
+	if (this->set_lpf(LPF_188HZ))
 		return HAL_ERROR;
 
-	// set sample rate to 4 kHz
-	if (this->set_sample_rate(4000))
+	// set sample rate to 1 kHz
+	if (this->set_sample_rate(1000))
 		return HAL_ERROR;
 
 	if (this->set_interrupt(true))
