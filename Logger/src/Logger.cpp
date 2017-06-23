@@ -69,13 +69,13 @@ HAL_StatusTypeDef Logger::Init() {
 
 
 	this->huart.Instance = UART5;
-	this->huart.Init.BaudRate = 1000000;
+	this->huart.Init.BaudRate = 1500000;
 	this->huart.Init.WordLength = UART_WORDLENGTH_8B;
 	this->huart.Init.StopBits = UART_STOPBITS_1;
 	this->huart.Init.Parity = UART_PARITY_NONE;
 	this->huart.Init.Mode = UART_MODE_TX_RX;
 	this->huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-	this->huart.Init.OverSampling = UART_OVERSAMPLING_16;
+	this->huart.Init.OverSampling = UART_OVERSAMPLING_8;
 	if (HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
