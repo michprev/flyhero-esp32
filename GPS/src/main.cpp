@@ -22,10 +22,6 @@ NEO_M8N *neo = NEO_M8N::Instance();
 extern "C" void DMA2_Stream2_IRQHandler(void)
 {
 	HAL_DMA_IRQHandler(&neo->hdma_usart1_rx);
-
-	/*if (neo->hdma_usart1_rx.ErrorCode != 0) {
-		printf("e");
-	}*/
 }
 
 extern "C" void HardFault_Handler(void)

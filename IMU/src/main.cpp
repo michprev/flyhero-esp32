@@ -23,63 +23,6 @@ extern "C" void initialise_monitor_handles(void);
 MPU6050 *mpu = MPU6050::Instance();
 Logger *logger = Logger::Instance();
 
-extern "C" {
-	void DMA1_Stream5_IRQHandler(void)
-	{
-		HAL_DMA_IRQHandler(mpu->Get_DMA_Rx_Handle());
-	}
-
-	void EXTI1_IRQHandler(void)
-	{
-		HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
-	}
-
-	void I2C1_EV_IRQHandler(void)
-	{
-		HAL_I2C_EV_IRQHandler(mpu->Get_I2C_Handle());
-	}
-
-	void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-		mpu->Data_Read_Callback();
-	}
-
-	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-		mpu->Data_Ready_Callback();
-	}
-
-	void TIM5_IRQHandler(void)
-		{
-			TIM_HandleTypeDef *htim5 = Timer::Get_Handle();
-
-			// Channel 2 for HAL 1 ms tick
-			if (__HAL_TIM_GET_ITSTATUS(htim5, TIM_IT_CC2) == SET) {
-				__HAL_TIM_CLEAR_IT(htim5, TIM_IT_CC2);
-				uint32_t val = __HAL_TIM_GetCounter(htim5);
-				//if ((val - prev) >= 1000) {
-					HAL_IncTick();
-					// Prepare next interrupt
-					__HAL_TIM_SetCompare(htim5, TIM_CHANNEL_2, val + 1000);
-					//prev = val;
-				//}
-				//else {
-				//	printf("should not happen\n");
-				//}
-			}
-			//HAL_TIM_IRQHandler(Timer::Get_Handle());
-		}
-
-	extern "C" void DMA1_Stream7_IRQHandler(void)
-	{
-		HAL_DMA_IRQHandler(&logger->hdma_uart5_tx);
-	}
-
-	extern "C" void UART5_IRQHandler(void)
-	{
-		HAL_UART_IRQHandler(&logger->huart);
-	}
-
-}
-
 int main(void)
 {
 	HAL_Init();
@@ -141,9 +84,10 @@ int main(void)
 			for (uint8_t i = 0; i <= 13; i++)
 				tmp[14] ^= tmp[i];
 
-			logger->Print(tmp, 15);
+			//logger->Print((uint8_t*)"abcd\n", 5);
+			//logger->Print(tmp, 15);
 
-			//printf("%d %d %d %d %d %d\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
+			printf("%d %d %d %d %d %d\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
 			//mpu->Get_Euler(&roll, &pitch, &yaw);
 
 			//printf("%f %f %f\n", roll, pitch, yaw);

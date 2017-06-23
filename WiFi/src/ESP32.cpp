@@ -9,7 +9,7 @@
 
 namespace flyhero {
 
-ESP32* ESP32::pInstance = NULL;
+ESP* ESP32::pInstance = NULL;
 
 ESP* ESP32::Instance() {
 	if (ESP32::pInstance == NULL)

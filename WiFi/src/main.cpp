@@ -9,7 +9,6 @@
 */
 
 
-#include "main.h"
 #include <stm32f4xx.h>
 #include <string.h>
 #include "smoothie.h"
@@ -21,7 +20,7 @@ using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 
-ESP *esp = ESP8266::Instance();
+ESP *esp = ESP::Create_Instance(ESP8266);
 uint8_t *IPD_data;
 uint8_t IPD_link_ID;
 uint16_t IPD_length;

@@ -19,22 +19,6 @@ extern "C" void initialise_monitor_handles(void);
 
 Logger *logger = Logger::Instance();
 
-extern "C" void HardFault_Handler(void)
-{
-	printf("hard fault\n");
-}
-
-extern "C" void DMA1_Stream7_IRQHandler(void)
-{
-	HAL_DMA_IRQHandler(&logger->hdma_uart5_tx);
-}
-
-extern "C" void UART5_IRQHandler(void)
-{
-	HAL_UART_IRQHandler(&logger->huart);
-}
-
-
 int main(void)
 {
 	HAL_Init();

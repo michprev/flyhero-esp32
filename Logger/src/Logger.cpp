@@ -9,6 +9,18 @@
 
 namespace flyhero {
 
+extern "C" {
+	void DMA1_Stream7_IRQHandler(void)
+	{
+		HAL_DMA_IRQHandler(&Logger::Instance()->hdma_uart5_tx);
+	}
+
+	void UART5_IRQHandler(void)
+	{
+		HAL_UART_IRQHandler(&Logger::Instance()->huart);
+	}
+}
+
 Logger* Logger::pInstance = NULL;
 
 Logger* Logger::Instance() {
