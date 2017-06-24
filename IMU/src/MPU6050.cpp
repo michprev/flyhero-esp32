@@ -81,6 +81,86 @@ bool MPU6050::Data_Read() {
 	return this->data_read;
 }
 
+// Bug solved here: https://electronics.stackexchange.com/questions/267972/i2c-busy-flag-strange-behaviour
+// STMicroelectronics errata: http://www.st.com/content/ccc/resource/technical/document/errata_sheet/7f/05/b0/bc/34/2f/4c/21/CD00288116.pdf/files/CD00288116.pdf/jcr:content/translations/en.CD00288116.pdf
+
+void MPU6050::i2c_reset_bus() {
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	// 1. Disable the I2C peripheral by clearing the PE bit in I2Cx_CR1 register
+	I2C1->CR1 &= ~(0x0001);
+
+	// 2. Configure the SCL and SDA I/Os as General Purpose Output Open-Drain, High level (Write 1 to GPIOx_ODR)
+	GPIO_InitStructure.Mode         = GPIO_MODE_OUTPUT_OD;
+	GPIO_InitStructure.Pull         = GPIO_PULLUP;
+	GPIO_InitStructure.Speed        = GPIO_SPEED_FREQ_HIGH;
+
+	GPIO_InitStructure.Pin			= GPIO_PIN_8;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+
+	GPIO_InitStructure.Pin			= GPIO_PIN_9;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+
+	// 3. Check SCL and SDA High level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) != GPIO_PIN_SET &&
+			HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) != GPIO_PIN_SET) {
+	}
+
+	// 4. Configure the SDA I/O as General Purpose Output Open-Drain, Low level (Write 0 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	// 5. Check SDA Low level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) != GPIO_PIN_RESET) {
+	}
+
+	// 6. Configure the SCL I/O as General Purpose Output Open-Drain, Low level (Write 0 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+
+	// 7. Check SCL Low level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) != GPIO_PIN_RESET) {
+	}
+
+	// 8. Configure the SCL I/O as General Purpose Output Open-Drain, High level (Write 1 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+
+	// 9. Check SCL High level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) != GPIO_PIN_SET) {
+	}
+
+	// 10. Configure the SDA I/O as General Purpose Output Open-Drain , High level (Write 1 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+
+	// 11. Check SDA High level in GPIOx_IDR
+	// this one never worked so just skip it
+	/*while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) != GPIO_PIN_SET) {
+	}*/
+
+	// 12. Configure the SCL and SDA I/Os as Alternate function Open-Drain
+	GPIO_InitStructure.Mode         = GPIO_MODE_AF_OD;
+	GPIO_InitStructure.Alternate    = GPIO_AF4_I2C1;
+
+	GPIO_InitStructure.Pin          = GPIO_PIN_8;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	GPIO_InitStructure.Pin          = GPIO_PIN_9;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	// 13. Set SWRST bit in I2Cx_CR1 register
+	I2C1->CR1 |= 0x8000;
+
+	asm("nop");
+
+	// 14. Clear SWRST bit in I2Cx_CR1 register
+	I2C1->CR1 &= ~(0x8000);
+
+	// 15. Enable the I2C peripheral by setting the PE bit in I2Cx_CR1 register
+	I2C1->CR1 |= 0x0001;
+
+
+}
+
 HAL_StatusTypeDef MPU6050::i2c_init() {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
@@ -89,13 +169,7 @@ HAL_StatusTypeDef MPU6050::i2c_init() {
 	if (__DMA1_IS_CLK_DISABLED())
 		__DMA1_CLK_ENABLE();
 
-	GPIO_InitTypeDef GPIO_InitStruct;
-	GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	this->i2c_reset_bus();
 
 	this->hi2c.Instance = I2C1;
 	this->hi2c.Init.ClockSpeed = 400000;

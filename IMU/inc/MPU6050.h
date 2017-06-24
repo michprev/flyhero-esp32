@@ -109,6 +109,7 @@ volatile float delta_t;
 float atan2(float y, float x);
 inline double atan(double z);
 
+void i2c_reset_bus();
 HAL_StatusTypeDef i2c_init();
 void int_init();
 HAL_StatusTypeDef i2c_write(uint8_t reg, uint8_t data);
