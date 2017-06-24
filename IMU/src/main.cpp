@@ -55,12 +55,6 @@ int main(void)
 	float roll, pitch, yaw;
 
 	while (true) {
-		if (mpu.Data_Ready() && Timer::Get_Tick_Count() - ticks >= 1000000) {
-			if (mpu.Start_Read_Raw() != HAL_OK) {
-				printf("a");
-			}
-			ticks = Timer::Get_Tick_Count();
-		}
 		if (mpu.Data_Read()) {
 			mpu.Complete_Read_Raw(&gyro, &accel);
 
