@@ -9,7 +9,7 @@
 */
 
 #include "PWM_Generator.h"
-#include "ESP8266.h"
+#include "ESP.h"
 #include "MS5611.h"
 #include "MPU6050.h"
 #include "LEDs.h"
@@ -24,7 +24,7 @@ using namespace flyhero;
 extern "C" void initialise_monitor_handles(void);
 #endif
 
-ESP& esp = ESP8266::Instance();
+ESP& esp = ESP::Create_Instance(ESP8266);
 PWM_Generator& pwm = PWM_Generator::Instance();
 MPU6050& mpu = MPU6050::Instance();
 MS5611& ms5611 = MS5611::Instance();
