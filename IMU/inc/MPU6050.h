@@ -12,6 +12,7 @@
 #include <cmath>
 #include <stm32f4xx_hal.h>
 #include "Timer.h"
+#include "Biquad_Filter.h"
 
 namespace flyhero {
 
@@ -19,7 +20,14 @@ class MPU6050 {
 private:
 	/* Singleton begin */
 	MPU6050();
-	MPU6050(MPU6050 const&){};
+	MPU6050(MPU6050 const&)
+	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	{};
 	MPU6050& operator=(MPU6050 const&){};
 	/*Singleton end */
 
@@ -50,7 +58,7 @@ enum lpf_bandwidth {
 	LPF_NOT_SET = 0xFF
 };
 
-const float COMPLEMENTARY_COEFFICIENT = 0.93f;
+const float COMPLEMENTARY_COEFFICIENT = 0.995f;
 const double PI = 3.14159265358979323846;
 const float RAD_TO_DEG = 180 / this->PI;
 const uint8_t ADC_BITS = 16;
@@ -78,6 +86,9 @@ const struct {
 	uint8_t FIFO_R_W = 0x74;
 	uint8_t WHO_AM_I = 0x75;
 } REGISTERS;
+
+Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
+Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
 
 uint32_t start_ticks;
 float roll, pitch, yaw;

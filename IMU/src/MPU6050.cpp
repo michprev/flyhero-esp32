@@ -40,7 +40,14 @@ MPU6050& MPU6050::Instance() {
 	return instance;
 }
 
-MPU6050::MPU6050() {
+MPU6050::MPU6050()
+	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+{
 	this->g_fsr = GYRO_FSR_NOT_SET;
 	this->g_mult = 0;
 	this->a_mult = 0;
@@ -476,17 +483,26 @@ HAL_StatusTypeDef MPU6050::Calibrate() {
 }
 
 HAL_StatusTypeDef MPU6050::Get_Euler(float *roll, float *pitch, float *yaw) {
-	Raw_Data gyro, accel;
+	Sensor_Data gyro, accel;
+	Raw_Data raw_gyro, raw_accel;
 
 	this->data_read = false;
 
-	accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
-	accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
-	accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];
+	raw_accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
+	raw_accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
+	raw_accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];
 
-	gyro.x = (this->data_buffer[8] << 8) | this->data_buffer[9];
-	gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
-	gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
+	raw_gyro.x = (this->data_buffer[8] << 8) | this->data_buffer[9];
+	raw_gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
+	raw_gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
+
+	accel.x = this->accel_x_filter.Apply_Filter(raw_accel.x);
+	accel.y = this->accel_y_filter.Apply_Filter(raw_accel.y);
+	accel.z = this->accel_z_filter.Apply_Filter(raw_accel.z);
+
+	gyro.x = this->gyro_x_filter.Apply_Filter(raw_gyro.x);
+	gyro.y = this->gyro_y_filter.Apply_Filter(raw_gyro.y);
+	gyro.z = this->gyro_z_filter.Apply_Filter(raw_gyro.z);
 
 	// 70 us
 	float accel_roll = this->atan2(accel.y, accel.z);
