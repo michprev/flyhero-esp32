@@ -30,7 +30,8 @@ extern "C" {
 	}
 
 	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-		MPU6050::Instance().Data_Ready_Callback();
+		if (MPU6050::Instance().Start_Read_Raw() != HAL_OK)
+			LEDs::TurnOn(LEDs::Orange);
 	}
 }
 
@@ -55,7 +56,6 @@ MPU6050::MPU6050()
 	this->lpf = LPF_NOT_SET;
 	this->sample_rate = -1;
 	this->ready = false;
-	this->data_ready = false;
 	this->data_read = false;
 	this->roll = 0;
 	this->pitch = 0;
@@ -71,20 +71,6 @@ DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
 
 I2C_HandleTypeDef* MPU6050::Get_I2C_Handle() {
 	return &this->hi2c;
-}
-
-void MPU6050::Data_Ready_Callback() {
-	if (this->ready) {
-		if (this->data_ready_ticks != 0)
-			this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
-		this->data_ready_ticks = Timer::Get_Tick_Count();
-
-		this->data_ready = true;
-	}
-}
-
-bool MPU6050::Data_Ready() {
-	return this->data_ready;
 }
 
 void MPU6050::Data_Read_Callback() {
@@ -346,9 +332,15 @@ HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_siz
 }
 
 HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
-	this->data_ready = false;
+	if (this->ready) {
+		if (this->data_ready_ticks != 0)
+			this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
+		this->data_ready_ticks = Timer::Get_Tick_Count();
+
+		return HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
+	}
 	
-	return HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
+	return HAL_OK;
 }
 
 HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
@@ -366,8 +358,6 @@ HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
 }
 
 HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
-	this->data_ready = false;
-
 	uint8_t tmp[14];
 
 	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 14, this->I2C_TIMEOUT))

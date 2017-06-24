@@ -132,13 +132,6 @@ int main(void)
 	mpu.ready = true;
 
 	while (true) {
-		if (mpu.Data_Ready()) {
-
-			if (mpu.Start_Read_Raw() != HAL_OK) {
-				LEDs::TurnOn(LEDs::Orange);
-			}
-		}
-
 		if (mpu.Data_Read()) {
 			if (data_received)
 				HAL_IWDG_Refresh(&hiwdg);

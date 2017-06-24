@@ -13,6 +13,7 @@
 #include <stm32f4xx_hal.h>
 #include "Timer.h"
 #include "Biquad_Filter.h"
+#include "LEDs.h"
 
 namespace flyhero {
 
@@ -101,7 +102,6 @@ accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
 uint8_t data_buffer[14];
-volatile bool data_ready;
 volatile bool data_read;
 volatile uint32_t data_ready_ticks;
 volatile float delta_t;
@@ -144,8 +144,6 @@ public:
 
 	static MPU6050& Instance();
 
-	void Data_Ready_Callback();
-	bool Data_Ready();
 	void Data_Read_Callback();
 	bool Data_Read();
 
