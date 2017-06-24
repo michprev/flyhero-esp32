@@ -17,6 +17,7 @@
 #include "PID.h"
 #include "Logger.h"
 #include "Timer.h"
+#include "ESP_Connection.h"
 
 using namespace flyhero;
 
@@ -44,6 +45,8 @@ uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
 
 MPU6050::Raw_Data gyroData, accelData;
+uint8_t log_buffer[16];
+uint8_t log_counter = 0;
 
 int main(void)
 {
@@ -137,7 +140,8 @@ int main(void)
 				HAL_IWDG_Refresh(&hiwdg);
 			data_received = false;
 
-			if (log_data) {
+			/* Log over USB-UART
+			 * if (log_data) {
 				mpu.Complete_Read_Raw(&gyroData, &accelData);
 
 				uint8_t tmp[15];
@@ -161,11 +165,48 @@ int main(void)
 					tmp[14] ^= tmp[i];
 
 				logger.Print(tmp, 15);
-			}
-			else {
-				// 157 us
+			}*/
+			//else {
+				// 200 us
 				mpu.Get_Euler(data, data + 1, data + 2);
-			}
+
+				if (log_data) {
+					if (log_counter != 4)
+						log_counter++;
+					else {
+						log_counter = 0;
+
+						int32_t tmp_data[3];
+						tmp_data[0] = data[0] * 65536;
+						tmp_data[1] = data[1] * 65536;
+						tmp_data[2] = data[2] * 65536;
+
+						log_buffer[0] = (tmp_data[0] >> 24) & 0xFF;
+						log_buffer[1] = (tmp_data[0] >> 16) & 0xFF;
+						log_buffer[2] = (tmp_data[0] >> 8) & 0xFF;
+						log_buffer[3] = tmp_data[0] & 0xFF;
+						log_buffer[4] = (tmp_data[1] >> 24) & 0xFF;
+						log_buffer[5] = (tmp_data[1] >> 16) & 0xFF;
+						log_buffer[6] = (tmp_data[1] >> 8) & 0xFF;
+						log_buffer[7] = tmp_data[1] & 0xFF;
+						log_buffer[8] = (tmp_data[2] >> 24) & 0xFF;
+						log_buffer[9] = (tmp_data[2] >> 16) & 0xFF;
+						log_buffer[10] = (tmp_data[2] >> 8) & 0xFF;
+						log_buffer[11] = tmp_data[2] & 0xFF;
+						log_buffer[12] = (throttle >> 24) & 0xFF;
+						log_buffer[13] = (throttle >> 16) & 0xFF;
+						log_buffer[14] = (throttle >> 8) & 0xFF;
+						log_buffer[15] = throttle & 0xFF;
+
+						esp.Get_Connection('4')->Connection_Send_Begin(log_buffer, 16);
+					}
+				}
+				/*
+
+				while (esp.Get_Connection('4')->Get_State() != CONNECTION_READY && esp.Get_Connection('4')->Get_State() != CONNECTION_READY) {
+					esp.Get_Connection('4')->Connection_Send_Continue();
+				}*/
+			//}
 
 			// 73 us
 			if (throttle >= 1050) {
@@ -224,7 +265,7 @@ int main(void)
 			continue;
 		}
 
-		esp.Process_Data();
+		esp.Get_Connection('4')->Connection_Send_Continue();
 	}
 }
 
