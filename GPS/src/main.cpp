@@ -17,11 +17,11 @@ using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 
-NEO_M8N *neo = NEO_M8N::Instance();
+NEO_M8N& neo = NEO_M8N::Instance();
 
 extern "C" void DMA2_Stream2_IRQHandler(void)
 {
-	HAL_DMA_IRQHandler(&neo->hdma_usart1_rx);
+	HAL_DMA_IRQHandler(&neo.hdma_usart1_rx);
 }
 
 extern "C" void HardFault_Handler(void)
@@ -34,11 +34,11 @@ int main(void)
 	HAL_Init();
 	initialise_monitor_handles();
 
-	neo->Init();
+	neo.Init();
 
 	printf("GPS initialized\n");
 
 	while (true) {
-		neo->ParseData();
+		neo.ParseData();
 	}
 }

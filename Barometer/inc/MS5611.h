@@ -16,7 +16,7 @@ namespace flyhero {
 class MS5611
 {
 public:
-	static MS5611* Instance();
+	static MS5611& Instance();
 	HAL_StatusTypeDef Reset();
 	HAL_StatusTypeDef Init(I2C_HandleTypeDef *hi2c);
 	HAL_StatusTypeDef GetData(int32_t *temperature, int32_t *pressure);
@@ -28,7 +28,6 @@ private:
 	MS5611();
 	MS5611(MS5611 const&){};
 	MS5611& operator=(MS5611 const&){};
-	static MS5611* pInstance;
 
 	const uint8_t ADDRESS = 0xEE;
 	uint32_t D1_Timestamp;

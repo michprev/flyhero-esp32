@@ -2,13 +2,10 @@
 
 namespace flyhero {
 
-MS5611* MS5611::pInstance = NULL;
+MS5611& MS5611::Instance() {
+	static MS5611 instance;
 
-MS5611* MS5611::Instance() {
-	if (MS5611::pInstance == NULL)
-		pInstance = new MS5611();
-
-	return pInstance;
+	return instance;
 }
 
 MS5611::MS5611() {

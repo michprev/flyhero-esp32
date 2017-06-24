@@ -12,7 +12,7 @@ namespace flyhero {
 extern "C" {
 	void DMA1_Stream5_IRQHandler(void)
 	{
-		HAL_DMA_IRQHandler(MPU6050::Instance()->Get_DMA_Rx_Handle());
+		HAL_DMA_IRQHandler(MPU6050::Instance().Get_DMA_Rx_Handle());
 	}
 
 	void EXTI1_IRQHandler(void)
@@ -22,25 +22,22 @@ extern "C" {
 
 	void I2C1_EV_IRQHandler(void)
 	{
-		HAL_I2C_EV_IRQHandler(MPU6050::Instance()->Get_I2C_Handle());
+		HAL_I2C_EV_IRQHandler(MPU6050::Instance().Get_I2C_Handle());
 	}
 
 	void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-		MPU6050::Instance()->Data_Read_Callback();
+		MPU6050::Instance().Data_Read_Callback();
 	}
 
 	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-		MPU6050::Instance()->Data_Ready_Callback();
+		MPU6050::Instance().Data_Ready_Callback();
 	}
 }
 
-MPU6050* MPU6050::pInstance = NULL;
+MPU6050& MPU6050::Instance() {
+	static MPU6050 instance;
 
-MPU6050* MPU6050::Instance() {
-	if (MPU6050::pInstance == NULL)
-		pInstance = new MPU6050();
-
-	return pInstance;
+	return instance;
 }
 
 MPU6050::MPU6050() {

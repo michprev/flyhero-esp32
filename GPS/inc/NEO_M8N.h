@@ -27,7 +27,6 @@ private:
 	NEO_M8N();
 	NEO_M8N(NEO_M8N const&){};
 	NEO_M8N& operator=(NEO_M8N const&){};
-	static NEO_M8N* pInstance;
 
 	UART_HandleTypeDef huart;
 	uint32_t writePos;
@@ -46,7 +45,7 @@ public:
 	GPS_Data Data;
 	double UTC_Time = 0;
 
-	static NEO_M8N* Instance();
+	static NEO_M8N& Instance();
 	void Init();
 	void ParseData();
 };

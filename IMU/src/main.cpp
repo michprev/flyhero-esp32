@@ -20,8 +20,8 @@ using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 
-MPU6050 *mpu = MPU6050::Instance();
-Logger *logger = Logger::Instance();
+MPU6050& mpu = MPU6050::Instance();
+Logger& logger = Logger::Instance();
 
 int main(void)
 {
@@ -30,11 +30,11 @@ int main(void)
 	initialise_monitor_handles();
 
 	LEDs::Init();
-	logger->Init();
+	logger.Init();
 
 	HAL_Delay(1000);
 
-	if (mpu->Init() || mpu->Calibrate()) {
+	if (mpu.Init() || mpu.Calibrate()) {
 		while (true) {
 			LEDs::Toggle(LEDs::Green);
 			HAL_Delay(500);
@@ -49,20 +49,20 @@ int main(void)
 	uint32_t ppos = 0;
 	double p[100][6];
 
-	mpu->ready = true;
+	mpu.ready = true;
 
 	uint32_t ticks = Timer::Get_Tick_Count();
 	float roll, pitch, yaw;
 
 	while (true) {
-		if (mpu->Data_Ready() && Timer::Get_Tick_Count() - ticks >= 1000000) {
-			if (mpu->Start_Read_Raw() != HAL_OK) {
+		if (mpu.Data_Ready() && Timer::Get_Tick_Count() - ticks >= 1000000) {
+			if (mpu.Start_Read_Raw() != HAL_OK) {
 				printf("a");
 			}
 			ticks = Timer::Get_Tick_Count();
 		}
-		if (mpu->Data_Read()) {
-			mpu->Complete_Read_Raw(&gyro, &accel);
+		if (mpu.Data_Read()) {
+			mpu.Complete_Read_Raw(&gyro, &accel);
 
 			uint8_t tmp[15];
 			tmp[0] = accel.x & 0xFF;
@@ -84,11 +84,11 @@ int main(void)
 			for (uint8_t i = 0; i <= 13; i++)
 				tmp[14] ^= tmp[i];
 
-			//logger->Print((uint8_t*)"abcd\n", 5);
-			//logger->Print(tmp, 15);
+			//logger.Print((uint8_t*)"abcd\n", 5);
+			//logger.Print(tmp, 15);
 
 			printf("%d %d %d %d %d %d\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
-			//mpu->Get_Euler(&roll, &pitch, &yaw);
+			//mpu.Get_Euler(&roll, &pitch, &yaw);
 
 			//printf("%f %f %f\n", roll, pitch, yaw);
 		}

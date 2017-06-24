@@ -20,7 +20,7 @@ using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 
-ESP *esp = ESP::Create_Instance(ESP8266);
+ESP& esp = ESP::Create_Instance(ESP8266);
 uint8_t *IPD_data;
 uint8_t IPD_link_ID;
 uint16_t IPD_length;
@@ -73,13 +73,13 @@ int main(void)
 	http_parser_init(&parser, HTTP_BOTH);
 	settings.on_url = on_url_callback;
 
-	esp->Init(&IPD_Callback);
+	esp.Init(&IPD_Callback);
 
-	HTTP_Server server(esp);
+	HTTP_Server server(&esp);
 
 	while (true) {
 		if (server.Get_State() == HTTP_READY)
-			esp->Process_Data();
+			esp.Process_Data();
 		else
 			server.HTTP_Send_Continue();
 

@@ -9,13 +9,10 @@
 
 namespace flyhero {
 
-ESP* ESP8266::pInstance = NULL;
+ESP& ESP8266::Instance() {
+	static ESP8266 instance;
 
-ESP* ESP8266::Instance() {
-	if (ESP8266::pInstance == NULL)
-		pInstance = new ESP8266();
-
-	return pInstance;
+	return instance;
 }
 
 ESP8266::ESP8266() {

@@ -9,13 +9,10 @@
 
 namespace flyhero {
 
-ArduCAM* ArduCAM::pInstance = NULL;
+ArduCAM& ArduCAM::Instance() {
+	static ArduCAM instance;
 
-ArduCAM* ArduCAM::Instance() {
-	if (ArduCAM::pInstance == NULL)
-		pInstance = new ArduCAM();
-
-	return pInstance;
+	return instance;
 }
 
 void ArduCAM::DMA_init() {

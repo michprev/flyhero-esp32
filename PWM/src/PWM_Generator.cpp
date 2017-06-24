@@ -9,13 +9,10 @@
 
 namespace flyhero {
 
-PWM_Generator* PWM_Generator::pInstance = NULL;
+PWM_Generator& PWM_Generator::Instance() {
+	static PWM_Generator instance;
 
-PWM_Generator* PWM_Generator::Instance() {
-	if (PWM_Generator::pInstance == NULL)
-		pInstance = new PWM_Generator();
-
-	return pInstance;
+	return instance;
 }
 
 void PWM_Generator::Init()

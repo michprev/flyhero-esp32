@@ -21,7 +21,6 @@ private:
 	MPU6050();
 	MPU6050(MPU6050 const&){};
 	MPU6050& operator=(MPU6050 const&){};
-	static MPU6050* pInstance;
 	/*Singleton end */
 
 enum gyro_fsr {
@@ -132,7 +131,7 @@ public:
 	uint16_t ddata_pos = 0;
 	bool ready;
 
-	static MPU6050* Instance();
+	static MPU6050& Instance();
 
 	void Data_Ready_Callback();
 	bool Data_Ready();

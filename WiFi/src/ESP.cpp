@@ -16,23 +16,23 @@ namespace flyhero {
 extern "C" {
 	void DMA1_Stream1_IRQHandler(void)
 	{
-		HAL_DMA_IRQHandler(ESP::Instance()->Get_DMA_Rx_Handle());
+		HAL_DMA_IRQHandler(ESP::Instance().Get_DMA_Rx_Handle());
 	}
 
 	void DMA1_Stream3_IRQHandler(void)
 	{
-		HAL_DMA_IRQHandler(ESP::Instance()->Get_DMA_Tx_Handle());
+		HAL_DMA_IRQHandler(ESP::Instance().Get_DMA_Tx_Handle());
 	}
 
 	void USART3_IRQHandler(void)
 	{
-		HAL_UART_IRQHandler(ESP::Instance()->Get_UART_Handle());
+		HAL_UART_IRQHandler(ESP::Instance().Get_UART_Handle());
 	}
 }
 
 ESP_Device ESP::device = NONE;
 
-ESP* ESP::Create_Instance(ESP_Device dev) {
+ESP& ESP::Create_Instance(ESP_Device dev) {
 	switch (dev) {
 	case ESP8266:
 		ESP::device = ESP8266;
@@ -43,7 +43,7 @@ ESP* ESP::Create_Instance(ESP_Device dev) {
 	}
 }
 
-ESP* ESP::Instance() {
+ESP& ESP::Instance() {
 	switch (ESP::device) {
 	case ESP8266:
 		return ESP8266::Instance();

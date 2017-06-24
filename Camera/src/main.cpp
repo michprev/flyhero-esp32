@@ -12,13 +12,13 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
 #include "stm32f4xx_hal.h"
-#include "ArduCAM_OV5642.h".h"
+#include "ArduCAM_OV5642.h"
 
 using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 
-ArduCAM_OV5642 *camera = ArduCAM_OV5642::Instance();
+ArduCAM_OV5642& camera = ArduCAM_OV5642::Instance();
 
 extern "C" {
 	void DMA2_Stream0_IRQHandler(void)
@@ -26,7 +26,7 @@ extern "C" {
 	  /* USER CODE BEGIN DMA2_Stream0_IRQn 0 */
 
 	  /* USER CODE END DMA2_Stream0_IRQn 0 */
-	  HAL_DMA_IRQHandler(&camera->hdma_spi1_rx);
+	  HAL_DMA_IRQHandler(&camera.hdma_spi1_rx);
 	  /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */
 
 	  /* USER CODE END DMA2_Stream0_IRQn 1 */
@@ -40,7 +40,7 @@ extern "C" {
 	  /* USER CODE BEGIN DMA2_Stream3_IRQn 0 */
 
 	  /* USER CODE END DMA2_Stream3_IRQn 0 */
-	  HAL_DMA_IRQHandler(&camera->hdma_spi1_tx);
+	  HAL_DMA_IRQHandler(&camera.hdma_spi1_tx);
 	  /* USER CODE BEGIN DMA2_Stream3_IRQn 1 */
 
 	  /* USER CODE END DMA2_Stream3_IRQn 1 */
@@ -51,7 +51,7 @@ extern "C" {
 	  /* USER CODE BEGIN SPI1_IRQn 0 */
 
 	  /* USER CODE END SPI1_IRQn 0 */
-	  HAL_SPI_IRQHandler(&camera->hspi);
+	  HAL_SPI_IRQHandler(&camera.hspi);
 	  /* USER CODE BEGIN SPI1_IRQn 1 */
 
 	  /* USER CODE END SPI1_IRQn 1 */
@@ -78,7 +78,7 @@ int main(void)
 
 	//ArduCAM_OV5642 *camera = ArduCAM_OV5642::Instance();
 
-	camera->Init();
+	camera.Init();
 
 	HAL_Delay(1000);
 
@@ -91,7 +91,7 @@ int main(void)
 	while (true) {
 		start = HAL_GetTick();
 
-		camera->Capture();
+		camera.Capture();
 
 		//printf("%d\n", HAL_GetTick() - start);
 	}

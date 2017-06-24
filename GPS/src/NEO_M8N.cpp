@@ -9,13 +9,10 @@
 
 namespace flyhero {
 
-NEO_M8N* NEO_M8N::pInstance = NULL;
+NEO_M8N& NEO_M8N::Instance() {
+	static NEO_M8N instance;
 
-NEO_M8N* NEO_M8N::Instance() {
-	if (NEO_M8N::pInstance == NULL)
-		pInstance = new NEO_M8N();
-
-	return pInstance;
+	return instance;
 }
 
 HAL_StatusTypeDef NEO_M8N::UART_Init()

@@ -72,8 +72,8 @@ protected:
 public:
 	virtual HAL_StatusTypeDef Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) = 0;
 
-	static ESP* Create_Instance(ESP_Device dev);
-	static ESP* Instance();
+	static ESP& Create_Instance(ESP_Device dev);
+	static ESP& Instance();
 	ESP_State Get_State();
 	ESP_Connection* Get_Connection(uint8_t link_ID);
 	DMA_HandleTypeDef* Get_DMA_Tx_Handle();

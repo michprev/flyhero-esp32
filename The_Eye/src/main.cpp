@@ -24,12 +24,12 @@ using namespace flyhero;
 extern "C" void initialise_monitor_handles(void);
 #endif
 
-ESP *esp = ESP8266::Instance();
-PWM_Generator *pwm = PWM_Generator::Instance();
-MPU6050 *mpu = MPU6050::Instance();
-MS5611 *ms5611 = MS5611::Instance();
-NEO_M8N *neo = NEO_M8N::Instance();
-Logger *logger = Logger::Instance();
+ESP& esp = ESP8266::Instance();
+PWM_Generator& pwm = PWM_Generator::Instance();
+MPU6050& mpu = MPU6050::Instance();
+MS5611& ms5611 = MS5611::Instance();
+NEO_M8N& neo = NEO_M8N::Instance();
+Logger& logger = Logger::Instance();
 
 void Arm_Callback();
 void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
@@ -71,13 +71,13 @@ int main(void)
 	// timeout after 2 s
 
 	// reset gyro
-	if (mpu->Init()) {
+	if (mpu.Init()) {
 		LEDs::TurnOn(LEDs::Yellow);
 		while (true);
 	}
 
-	logger->Init();
-	esp->Init(&IPD_Callback);
+	logger.Init();
+	esp.Init(&IPD_Callback);
 
 	timestamp = HAL_GetTick();
 	// not yet implemented
@@ -89,29 +89,29 @@ int main(void)
 
 			timestamp = HAL_GetTick();
 		}
-		esp->Process_Data();
+		esp.Process_Data();
 	}
 	LEDs::TurnOff(LEDs::Green);
 
-	pwm->Init();
-	pwm->Arm(&Arm_Callback);
+	pwm.Init();
+	pwm.Arm(&Arm_Callback);
 
-	if (mpu->Calibrate() != HAL_OK) {
+	if (mpu.Calibrate() != HAL_OK) {
 		LEDs::TurnOn(LEDs::Yellow);
 		while (true);
 	}
 
-	pwm->SetPulse(1100, 1);
-	pwm->SetPulse(1100, 2);
-	pwm->SetPulse(1100, 3);
-	pwm->SetPulse(1100, 4);
+	pwm.SetPulse(1100, 1);
+	pwm.SetPulse(1100, 2);
+	pwm.SetPulse(1100, 3);
+	pwm.SetPulse(1100, 4);
 
 	Timer::Delay_ms(250);
 
-	pwm->SetPulse(940, 4);
-	pwm->SetPulse(940, 1);
-	pwm->SetPulse(940, 3);
-	pwm->SetPulse(940, 2);
+	pwm.SetPulse(940, 4);
+	pwm.SetPulse(940, 1);
+	pwm.SetPulse(940, 3);
+	pwm.SetPulse(940, 2);
 
 	while (!start) {
 		if (HAL_GetTick() - timestamp >= 750) {
@@ -119,7 +119,7 @@ int main(void)
 
 			timestamp = HAL_GetTick();
 		}
-		esp->Process_Data();
+		esp.Process_Data();
 	}
 
 	LEDs::TurnOn(LEDs::Green);
@@ -129,23 +129,23 @@ int main(void)
 #endif
 
 	throttle = 0;
-	mpu->ready = true;
+	mpu.ready = true;
 
 	while (true) {
-		if (mpu->Data_Ready()) {
+		if (mpu.Data_Ready()) {
 
-			if (mpu->Start_Read_Raw() != HAL_OK) {
+			if (mpu.Start_Read_Raw() != HAL_OK) {
 				LEDs::TurnOn(LEDs::Orange);
 			}
 		}
 
-		if (mpu->Data_Read()) {
+		if (mpu.Data_Read()) {
 			if (data_received)
 				HAL_IWDG_Refresh(&hiwdg);
 			data_received = false;
 
 			if (log_data) {
-				mpu->Complete_Read_Raw(&gyroData, &accelData);
+				mpu.Complete_Read_Raw(&gyroData, &accelData);
 
 				uint8_t tmp[15];
 				tmp[0] = accelData.x & 0xFF;
@@ -167,11 +167,11 @@ int main(void)
 				for (uint8_t i = 0; i <= 13; i++)
 					tmp[14] ^= tmp[i];
 
-				logger->Print(tmp, 15);
+				logger.Print(tmp, 15);
 			}
 			else {
 				// 157 us
-				mpu->Get_Euler(data, data + 1, data + 2);
+				mpu.Get_Euler(data, data + 1, data + 2);
 			}
 
 			// 73 us
@@ -216,22 +216,22 @@ int main(void)
 					BR = 940;
 
 				// 17 us
-				pwm->SetPulse(FL, 3);
-				pwm->SetPulse(BL, 2);
-				pwm->SetPulse(FR, 4);
-				pwm->SetPulse(BR, 1);
+				pwm.SetPulse(FL, 3);
+				pwm.SetPulse(BL, 2);
+				pwm.SetPulse(FR, 4);
+				pwm.SetPulse(BR, 1);
 			}
 			else {
-				pwm->SetPulse(940, 4);
-				pwm->SetPulse(940, 1);
-				pwm->SetPulse(940, 3);
-				pwm->SetPulse(940, 2);
+				pwm.SetPulse(940, 4);
+				pwm.SetPulse(940, 1);
+				pwm.SetPulse(940, 3);
+				pwm.SetPulse(940, 2);
 			}
 
 			continue;
 		}
 
-		esp->Process_Data();
+		esp.Process_Data();
 	}
 }
 
@@ -310,6 +310,6 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 }
 
 void Arm_Callback() {
-	esp->Process_Data();
+	esp.Process_Data();
 	//HAL_IWDG_Refresh(&hiwdg);
 }

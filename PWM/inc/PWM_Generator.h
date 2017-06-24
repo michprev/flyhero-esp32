@@ -18,10 +18,10 @@ private:
 	PWM_Generator(){};
 	PWM_Generator(PWM_Generator const&){};
 	PWM_Generator& operator=(PWM_Generator const&){};
-	static PWM_Generator* pInstance;
+
 	TIM_HandleTypeDef htim2;
 public:
-	static PWM_Generator* Instance();
+	static PWM_Generator& Instance();
 	void Init();
 	void SetPulse(uint16_t us, uint8_t index);
 	void Arm(void(*Arm_Callback)());
