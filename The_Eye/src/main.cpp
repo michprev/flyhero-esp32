@@ -37,16 +37,17 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
 
 PID PID_Roll, PID_Pitch, PID_Yaw;
 bool connected = false;
-bool log_data = false;
+uint16_t log_options = 0;
 bool start = false;
 bool data_received = false;
 bool inverse_yaw = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
 
-MPU6050::Raw_Data gyroData, accelData;
-uint8_t log_buffer[16];
+MPU6050::Raw_Data gyro_data, accel_data;
+uint8_t log_buffer[29];
 uint8_t log_counter = 0;
+uint8_t log_length = 0;
 
 int main(void)
 {
@@ -55,7 +56,6 @@ int main(void)
 	initialise_monitor_handles();
 #endif
 
-	uint8_t status;
 	uint32_t timestamp;
 	float data[3];
 	long FL, BL, FR, BR;
@@ -166,47 +166,122 @@ int main(void)
 
 				logger.Print(tmp, 15);
 			}*/
-			//else {
-				// 200 us
-				mpu.Get_Euler(data, data + 1, data + 2);
 
-				if (log_data) {
-					if (log_counter != 4)
-						log_counter++;
-					else {
-						log_counter = 0;
+			// 200 us
+			mpu.Get_Euler(data, data + 1, data + 2);
 
-						int32_t tmp_data[3];
-						tmp_data[0] = data[0] * 65536;
-						tmp_data[1] = data[1] * 65536;
-						tmp_data[2] = data[2] * 65536;
+			if (log_length > 0) {
+				if (log_counter != 4)
+					log_counter++;
+				else {
+					log_counter = 0;
 
-						log_buffer[0] = (tmp_data[0] >> 24) & 0xFF;
-						log_buffer[1] = (tmp_data[0] >> 16) & 0xFF;
-						log_buffer[2] = (tmp_data[0] >> 8) & 0xFF;
-						log_buffer[3] = tmp_data[0] & 0xFF;
-						log_buffer[4] = (tmp_data[1] >> 24) & 0xFF;
-						log_buffer[5] = (tmp_data[1] >> 16) & 0xFF;
-						log_buffer[6] = (tmp_data[1] >> 8) & 0xFF;
-						log_buffer[7] = tmp_data[1] & 0xFF;
-						log_buffer[8] = (tmp_data[2] >> 24) & 0xFF;
-						log_buffer[9] = (tmp_data[2] >> 16) & 0xFF;
-						log_buffer[10] = (tmp_data[2] >> 8) & 0xFF;
-						log_buffer[11] = tmp_data[2] & 0xFF;
-						log_buffer[12] = (throttle >> 24) & 0xFF;
-						log_buffer[13] = (throttle >> 16) & 0xFF;
-						log_buffer[14] = (throttle >> 8) & 0xFF;
-						log_buffer[15] = throttle & 0xFF;
+					uint8_t log_pos = 0;
 
-						esp.Get_Connection('4')->Connection_Send_Begin(log_buffer, 16);
+					int16_t temp;
+					mpu.Complete_Read_Raw(&gyro_data, &accel_data, &temp);
+
+					// use little endian
+
+					// accel_x
+					if (log_options & 0x400) {
+						log_buffer[log_pos] = accel_data.x & 0xFF;
+						log_buffer[log_pos + 1] = accel_data.x >> 8;
+
+						log_pos += 2;
 					}
-				}
-				/*
+					// accel_y
+					if (log_options & 0x200) {
+						log_buffer[log_pos] = accel_data.y & 0xFF;
+						log_buffer[log_pos + 1] = accel_data.y >> 8;
 
-				while (esp.Get_Connection('4')->Get_State() != CONNECTION_READY && esp.Get_Connection('4')->Get_State() != CONNECTION_READY) {
-					esp.Get_Connection('4')->Connection_Send_Continue();
-				}*/
-			//}
+						log_pos += 2;
+					}
+					// accel_z
+					if (log_options & 0x100) {
+						log_buffer[log_pos] = accel_data.z & 0xFF;
+						log_buffer[log_pos + 1] = accel_data.z >> 8;
+
+						log_pos += 2;
+					}
+					// gyro_x
+					if (log_options & 0x80) {
+						log_buffer[log_pos] = gyro_data.x & 0xFF;
+						log_buffer[log_pos + 1] = gyro_data.x >> 8;
+
+						log_pos += 2;
+					}
+					// gyro_y
+					if (log_options & 0x40) {
+						log_buffer[log_pos] = gyro_data.y & 0xFF;
+						log_buffer[log_pos + 1] = gyro_data.y >> 8;
+
+						log_pos += 2;
+					}
+					// gyro_z
+					if (log_options & 0x20) {
+						log_buffer[log_pos] = gyro_data.z & 0xFF;
+						log_buffer[log_pos + 1] = gyro_data.z >> 8;
+
+						log_pos += 2;
+					}
+					// temp
+					if (log_options & 0x10) {
+						log_buffer[log_pos] = temp & 0xFF;
+						log_buffer[log_pos + 1] = temp >> 8;
+
+						log_pos += 2;
+					}
+					// roll
+					if (log_options & 0x8) {
+						int32_t roll = data[0] * 65536;
+
+						log_buffer[log_pos] = roll & 0xFF;
+						log_buffer[log_pos + 1] = (roll >> 8) & 0xFF;
+						log_buffer[log_pos + 2] = (roll >> 16) & 0xFF;
+						log_buffer[log_pos + 3] = roll >> 24;
+
+						log_pos += 4;
+					}
+					// pitch
+					if (log_options & 0x4) {
+						int32_t pitch = data[1] * 65536;
+
+						log_buffer[log_pos] = pitch & 0xFF;
+						log_buffer[log_pos + 1] = (pitch >> 8) & 0xFF;
+						log_buffer[log_pos + 2] = (pitch >> 16) & 0xFF;
+						log_buffer[log_pos + 3] = pitch >> 24;
+
+						log_pos += 4;
+					}
+					// yaw
+					if (log_options & 0x2) {
+						int32_t yaw = data[2] * 65536;
+
+						log_buffer[log_pos] = yaw & 0xFF;
+						log_buffer[log_pos + 1] = (yaw >> 8) & 0xFF;
+						log_buffer[log_pos + 2] = (yaw >> 16) & 0xFF;
+						log_buffer[log_pos + 3] = yaw >> 24;
+
+						log_pos += 4;
+					}
+					// throttle
+					if (log_options & 0x1) {
+						log_buffer[log_pos] = throttle & 0xFF;
+						log_buffer[log_pos + 1] = throttle >> 8;
+
+						log_pos += 2;
+					}
+
+					log_buffer[log_length] = 0;
+
+					// CRC
+					for (uint8_t i = 0; i < log_length; i++)
+						log_buffer[log_length] ^= log_buffer[i];
+
+					esp.Get_Connection('4')->Connection_Send_Begin(log_buffer, log_length + 1);
+				}
+			}
 
 			// 73 us
 			if (throttle >= 1050) {
@@ -256,6 +331,8 @@ int main(void)
 				pwm.SetPulse(BR, 1);
 			}
 			else {
+				mpu.Reset_Integrators();
+
 				pwm.SetPulse(940, 4);
 				pwm.SetPulse(940, 1);
 				pwm.SetPulse(940, 3);
@@ -337,7 +414,41 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 		}
 		if (data[0] == 0x5D) {
 			connected = true;
-			log_data = (data[1] == 0x01 ? true : false);
+			log_options = (data[1] << 8) | data[2];
+
+			// accel_x
+			if (log_options & 0x400)
+				log_length += 2;
+			// accel_y
+			if (log_options & 0x200)
+				log_length += 2;
+			// accel_z
+			if (log_options & 0x100)
+				log_length += 2;
+			// gyro_x
+			if (log_options & 0x80)
+				log_length += 2;
+			// gyro_y
+			if (log_options & 0x40)
+				log_length += 2;
+			// gyro_z
+			if (log_options & 0x20)
+				log_length += 2;
+			// temp
+			if (log_options & 0x10)
+				log_length += 2;
+			// roll
+			if (log_options & 0x8)
+				log_length += 4;
+			// pitch
+			if (log_options & 0x4)
+				log_length += 4;
+			// yaw
+			if (log_options & 0x2)
+				log_length += 4;
+			// throttle
+			if (log_options & 0x1)
+				log_length += 2;
 		}
 		break;
 	}
