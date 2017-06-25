@@ -151,11 +151,12 @@ public:
 	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
 	I2C_HandleTypeDef* Get_I2C_Handle();
 
+	void Reset_Integrators();
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Calibrate();
 	HAL_StatusTypeDef Get_Euler(float *roll, float *pitch, float *yaw);
 	HAL_StatusTypeDef Start_Read_Raw();
-	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel);
+	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel, int16_t *temp);
 	HAL_StatusTypeDef Read_Raw(Raw_Data *gyro, Raw_Data *accel);
 };
 

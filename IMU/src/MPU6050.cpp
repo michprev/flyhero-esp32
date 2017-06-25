@@ -417,12 +417,14 @@ HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
+HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel, int16_t *temp) {
 	this->data_read = false;
 
 	accel->x = (this->data_buffer[0] << 8) | this->data_buffer[1];
 	accel->y = (this->data_buffer[2] << 8) | this->data_buffer[3];
 	accel->z = (this->data_buffer[4] << 8) | this->data_buffer[5];
+
+	*temp = (this->data_buffer[6] << 8) | this->data_buffer[7];
 
 	gyro->x = (this->data_buffer[8] << 8) | this->data_buffer[9];
 	gyro->y = (this->data_buffer[10] << 8) | this->data_buffer[11];
@@ -623,6 +625,12 @@ float MPU6050::atan2(float y, float x) {
 		result = -result;
 
 	return result;
+}
+
+void MPU6050::Reset_Integrators() {
+	this->roll = 0;
+	this->pitch = 0;
+	this->yaw = 0;
 }
 
 // approx. using http://nghiaho.com/?p=997
