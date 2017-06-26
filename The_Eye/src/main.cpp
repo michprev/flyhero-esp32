@@ -21,6 +21,8 @@
 
 using namespace flyhero;
 
+#define UART_LOG
+
 #ifdef LOG
 extern "C" void initialise_monitor_handles(void);
 #endif
@@ -279,7 +281,11 @@ int main(void)
 					for (uint8_t i = 0; i < log_length; i++)
 						log_buffer[log_length] ^= log_buffer[i];
 
+#ifdef UART_LOG
+					logger.Print(log_buffer, log_length + 1);
+#else
 					esp.Get_Connection('4')->Connection_Send_Begin(log_buffer, log_length + 1);
+#endif
 				}
 			}
 
@@ -415,6 +421,10 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 		if (data[0] == 0x5D) {
 			connected = true;
 			log_options = (data[1] << 8) | data[2];
+
+#ifdef UART_LOG
+			logger.Print(data + 1, 2);
+#endif
 
 			// accel_x
 			if (log_options & 0x400)
