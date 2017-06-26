@@ -19,13 +19,16 @@ private:
 	Logger(Logger const&){};
 	Logger& operator=(Logger const&){};
 
-public:
 	UART_HandleTypeDef huart;
-	DMA_HandleTypeDef hdma_uart5_tx;
+	DMA_HandleTypeDef hdma_usart2_tx;
 
+public:
 	static Logger& Instance();
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Print(uint8_t *data, uint16_t len);
+
+	DMA_HandleTypeDef* Get_DMA_Tx_Handle();
+	UART_HandleTypeDef* Get_UART_Handle();
 };
 
 }
