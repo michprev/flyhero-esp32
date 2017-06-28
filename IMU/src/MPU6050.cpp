@@ -42,12 +42,12 @@ MPU6050& MPU6050::Instance() {
 }
 
 MPU6050::MPU6050()
-	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
+	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
 {
 	this->g_fsr = GYRO_FSR_NOT_SET;
 	this->g_mult = 0;
@@ -157,8 +157,6 @@ void MPU6050::i2c_reset_bus() {
 
 	// 15. Enable the I2C peripheral by setting the PE bit in I2Cx_CR1 register
 	I2C1->CR1 |= 0x0001;
-
-
 }
 
 HAL_StatusTypeDef MPU6050::i2c_init() {
@@ -280,10 +278,10 @@ HAL_StatusTypeDef MPU6050::Init() {
 		return HAL_ERROR;
 
 	// set accel full scale range
-	if (this->set_accel_fsr(ACCEL_FSR_2))
+	if (this->set_accel_fsr(ACCEL_FSR_16))
 		return HAL_ERROR;
 
-	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
+	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz) TODO
 	if (this->set_lpf(LPF_188HZ))
 		return HAL_ERROR;
 
