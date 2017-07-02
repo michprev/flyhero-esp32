@@ -39,30 +39,30 @@ void LEDs::Init() {
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
 }
 
-void LEDs::TurnOff(uint8_t color) {
-	if (color & LEDs::Green)
+void LEDs::TurnOff(Color color) {
+	if (color & Green)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-	if (color & LEDs::Orange)
+	if (color & Orange)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
-	if (color & LEDs::Yellow)
+	if (color & Yellow)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
 }
 
-void LEDs::TurnOn(uint8_t color) {
-	if (color & LEDs::Green)
+void LEDs::TurnOn(Color color) {
+	if (color & Green)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	if (color & LEDs::Orange)
+	if (color & Orange)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-	if (color & LEDs::Yellow)
+	if (color & Yellow)
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
 }
 
-void LEDs::Toggle(uint8_t color) {
-	if (color & LEDs::Green)
+void LEDs::Toggle(Color color) {
+	if (color & Green)
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-	if (color & LEDs::Orange)
+	if (color & Orange)
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
-	if (color & LEDs::Yellow)
+	if (color & Yellow)
 		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
 }
 
