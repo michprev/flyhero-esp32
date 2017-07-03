@@ -130,17 +130,6 @@ public:
 	struct Raw_Data {
 		int16_t x, y, z;
 	};
-
-	enum Debug_Enum { DATA_READY_INTERRUPT, DATA_START_READ, DATA_READ_INTERRUPT };
-
-	struct Debug_Data {
-		Debug_Enum state;
-		uint32_t ticks;
-		uint32_t delta;
-	};
-
-	Debug_Data ddata[1000];
-	uint16_t ddata_pos = 0;
 	bool ready;
 
 	static MPU6050& Instance();
