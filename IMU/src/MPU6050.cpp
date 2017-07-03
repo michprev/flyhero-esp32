@@ -30,7 +30,7 @@ extern "C" {
 	}
 
 	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-		if (MPU6050::Instance().Start_Read_Raw() != HAL_OK)
+		if (MPU6050::Instance().Start_Read() != HAL_OK)
 			LEDs::TurnOn(LEDs::Orange);
 	}
 }
@@ -403,7 +403,7 @@ HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_siz
 	return HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, data, data_size, this->I2C_TIMEOUT);
 }
 
-HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
+HAL_StatusTypeDef MPU6050::Start_Read() {
 	if (this->ready) {
 		if (this->data_ready_ticks != 0)
 			this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
@@ -415,43 +415,61 @@ HAL_StatusTypeDef MPU6050::Start_Read_Raw() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef MPU6050::Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel, int16_t *temp) {
+void MPU6050::Complete_Read() {
 	this->data_read = false;
 
-	accel->x = (this->data_buffer[0] << 8) | this->data_buffer[1];
-	accel->y = (this->data_buffer[2] << 8) | this->data_buffer[3];
-	accel->z = (this->data_buffer[4] << 8) | this->data_buffer[5];
+	this->raw_accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
+	this->raw_accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
+	this->raw_accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];
 
-	*temp = (this->data_buffer[6] << 8) | this->data_buffer[7];
+	this->raw_temp = (this->data_buffer[6] << 8) | this->data_buffer[7];
 
-	gyro->x = (this->data_buffer[8] << 8) | this->data_buffer[9];
-	gyro->y = (this->data_buffer[10] << 8) | this->data_buffer[11];
-	gyro->z = (this->data_buffer[12] << 8) | this->data_buffer[13];
+	this->raw_gyro.x = (this->data_buffer[8] << 8) | this->data_buffer[9];
+	this->raw_gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
+	this->raw_gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
 
-	return HAL_OK;
+	this->accel.x = this->accel_x_filter.Apply_Filter(this->raw_accel.x * this->a_mult);
+	this->accel.y = this->accel_y_filter.Apply_Filter(this->raw_accel.y * this->a_mult);
+	this->accel.z = this->accel_z_filter.Apply_Filter(this->raw_accel.z * this->a_mult);
+
+	this->gyro.x = this->gyro_x_filter.Apply_Filter(this->raw_gyro.x * this->g_mult);
+	this->gyro.y = this->gyro_y_filter.Apply_Filter(this->raw_gyro.y * this->g_mult);
+	this->gyro.z = this->gyro_z_filter.Apply_Filter(this->raw_gyro.z * this->g_mult);
 }
 
-HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data *gyro, Raw_Data *accel) {
+void MPU6050::Get_Raw_Accel(Raw_Data& raw_accel) {
+	raw_accel = this->raw_accel;
+}
+
+void MPU6050::Get_Raw_Gyro(Raw_Data& raw_gyro) {
+	raw_gyro = this->raw_gyro;
+}
+
+void MPU6050::Get_Raw_Temp(int16_t& raw_temp) {
+	raw_temp = this->raw_temp;
+}
+
+void MPU6050::Get_Accel(Sensor_Data& accel) {
+	accel = this->accel;
+}
+
+void MPU6050::Get_Gyro(Sensor_Data& gyro) {
+	gyro = this->gyro;
+}
+
+HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
 	uint8_t tmp[14];
 
 	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 14, this->I2C_TIMEOUT))
 		return HAL_ERROR;
 
-	accel->x = (tmp[0] << 8) | tmp[1];
-	accel->y = (tmp[2] << 8) | tmp[3];
-	accel->z = (tmp[4] << 8) | tmp[5];
+	accel.x = (tmp[0] << 8) | tmp[1];
+	accel.y = (tmp[2] << 8) | tmp[3];
+	accel.z = (tmp[4] << 8) | tmp[5];
 
-	/*accel->x = raw_accel.x / this->a_div;
-	accel->y = raw_accel.y / this->a_div;
-	accel->z = raw_accel.z / this->a_div;*/
-
-	gyro->x = (tmp[8] << 8) | tmp[9];
-	gyro->y = (tmp[10] << 8) | tmp[11];
-	gyro->z = (tmp[12] << 8) | tmp[13];
-
-	/*gyro->x = raw_gyro.x / this->g_div;
-	gyro->y = raw_gyro.y / this->g_div;
-	gyro->z = raw_gyro.z / this->g_div;*/
+	gyro.x = (tmp[8] << 8) | tmp[9];
+	gyro.y = (tmp[10] << 8) | tmp[11];
+	gyro.z = (tmp[12] << 8) | tmp[13];
 
 	return HAL_OK;
 }
@@ -484,7 +502,7 @@ HAL_StatusTypeDef MPU6050::Calibrate() {
 	// we want accel Z to be 2048 (+ 1g)
 
 	for (uint16_t i = 0; i < 500; i++) {
-		this->Read_Raw(&gyro, &accel);
+		this->Read_Raw(accel, gyro);
 
 		offsets[0] += accel.x;
 		offsets[1] += accel.y;
@@ -546,48 +564,27 @@ HAL_StatusTypeDef MPU6050::Calibrate() {
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef MPU6050::Get_Euler(float *roll, float *pitch, float *yaw) {
-	Sensor_Data gyro, accel;
-	Raw_Data raw_gyro, raw_accel;
-
+void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
 	this->data_read = false;
 
-	raw_accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
-	raw_accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
-	raw_accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];
-
-	raw_gyro.x = (this->data_buffer[8] << 8) | this->data_buffer[9];
-	raw_gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
-	raw_gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
-
-	accel.x = this->accel_x_filter.Apply_Filter(raw_accel.x);
-	accel.y = this->accel_y_filter.Apply_Filter(raw_accel.y);
-	accel.z = this->accel_z_filter.Apply_Filter(raw_accel.z);
-
-	gyro.x = this->gyro_x_filter.Apply_Filter(raw_gyro.x);
-	gyro.y = this->gyro_y_filter.Apply_Filter(raw_gyro.y);
-	gyro.z = this->gyro_z_filter.Apply_Filter(raw_gyro.z);
+	// 70 us
+	float accel_roll = this->atan2(this->accel.y, this->accel.z);
 
 	// 70 us
-	float accel_roll = this->atan2(accel.y, accel.z);
-
-	// 70 us
-	float accel_pitch = this->atan2(-accel.x, std::sqrt((float)(accel.y * accel.y + accel.z * accel.z)));
+	float accel_pitch = this->atan2(-this->accel.x, std::sqrt((float)(this->accel.y * this->accel.y + this->accel.z * this->accel.z)));
 
 	// 13 us
-	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + gyro.y * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
+	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + this->gyro.y * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
 
 	// 13 us
-	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + gyro.x * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
+	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + this->gyro.x * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
 
 	// 4 us
-	this->yaw += gyro.z * this->g_mult * this->delta_t;
+	this->yaw += this->gyro.z * this->g_mult * this->delta_t;
 
-	*roll = this->roll;
-	*pitch = this->pitch;
-	*yaw = this->yaw;
-
-	return HAL_OK;
+	roll = this->roll;
+	pitch = this->pitch;
+	yaw = this->yaw;
 }
 
 

@@ -18,6 +18,15 @@
 namespace flyhero {
 
 class MPU6050 {
+public:
+	struct Sensor_Data {
+		float x, y, z;
+	};
+
+	struct Raw_Data {
+		int16_t x, y, z;
+	};
+
 private:
 	/* Singleton begin */
 	MPU6050();
@@ -91,6 +100,9 @@ const struct {
 Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
 Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
 
+Sensor_Data accel, gyro;
+int16_t raw_temp;
+Raw_Data raw_accel, raw_gyro;
 uint32_t start_ticks;
 float roll, pitch, yaw;
 I2C_HandleTypeDef hi2c;
@@ -123,13 +135,6 @@ HAL_StatusTypeDef set_sample_rate(uint16_t rate);
 HAL_StatusTypeDef set_interrupt(bool enable);
 
 public:
-	struct Sensor_Data {
-		float x, y, z;
-	};
-
-	struct Raw_Data {
-		int16_t x, y, z;
-	};
 	bool ready;
 
 	static MPU6050& Instance();
@@ -143,10 +148,15 @@ public:
 	void Reset_Integrators();
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Calibrate();
-	HAL_StatusTypeDef Get_Euler(float *roll, float *pitch, float *yaw);
-	HAL_StatusTypeDef Start_Read_Raw();
-	HAL_StatusTypeDef Complete_Read_Raw(Raw_Data *gyro, Raw_Data *accel, int16_t *temp);
-	HAL_StatusTypeDef Read_Raw(Raw_Data *gyro, Raw_Data *accel);
+	void Get_Euler(float& roll, float& pitch, float& yaw);
+	void Get_Raw_Accel(Raw_Data& raw_accel);
+	void Get_Raw_Gyro(Raw_Data& raw_gyro);
+	void Get_Raw_Temp(int16_t& raw_temp);
+	void Get_Accel(Sensor_Data& accel);
+	void Get_Gyro(Sensor_Data& gyro);
+	HAL_StatusTypeDef Read_Raw(Raw_Data& accel, Raw_Data& gyro);
+	HAL_StatusTypeDef Start_Read();
+	void Complete_Read();
 };
 
 } /* namespace The_Eye */

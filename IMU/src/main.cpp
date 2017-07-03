@@ -32,12 +32,12 @@ int main(void)
 	LEDs::Init();
 	logger.Init();
 
-	HAL_Delay(1000);
+	Timer::Delay_ms(1000);
 
 	if (mpu.Init() || mpu.Calibrate()) {
 		while (true) {
 			LEDs::Toggle(LEDs::Green);
-			HAL_Delay(500);
+			Timer::Delay_ms(500);
 		}
 	}
 
@@ -45,47 +45,13 @@ int main(void)
 	printf("init complete\n");
 
 	MPU6050::Raw_Data gyro, accel;
-
-	uint32_t ppos = 0;
-	double p[100][6];
+	int16_t temp;
 
 	mpu.ready = true;
 
-	uint32_t ticks = Timer::Get_Tick_Count();
-	float roll, pitch, yaw;
-	int16_t temp;
-
 	while (true) {
 		if (mpu.Data_Read()) {
-			mpu.Complete_Read_Raw(&gyro, &accel, &temp);
-
-			uint8_t tmp[15];
-			tmp[0] = accel.x & 0xFF;
-			tmp[1] = accel.x >> 8;
-			tmp[2] = accel.y & 0xFF;
-			tmp[3] = accel.y >> 8;
-			tmp[4] = accel.z & 0xFF;
-			tmp[5] = accel.z >> 8;
-			tmp[6] = gyro.x & 0xFF;
-			tmp[7] = gyro.x >> 8;
-			tmp[8] = gyro.y & 0xFF;
-			tmp[9] = gyro.y >> 8;
-			tmp[10] = gyro.z & 0xFF;
-			tmp[11] = gyro.z >> 8;
-			tmp[12] = temp & 0xFF;
-			tmp[13] = temp >> 8;
-			tmp[14] = 0;
-
-			for (uint8_t i = 0; i <= 13; i++)
-				tmp[14] ^= tmp[i];
-
-			//logger.Print((uint8_t*)"abcd\n", 5);
-			logger.Print(tmp, 15);
-
-			//printf("%d %d %d %d %d %d\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
-			//mpu.Get_Euler(&roll, &pitch, &yaw);
-
-			//printf("%f %f %f\n", roll, pitch, yaw);
+			mpu.Complete_Read();
 		}
 	}
 }
