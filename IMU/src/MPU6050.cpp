@@ -598,13 +598,13 @@ void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
 	float accel_pitch = this->atan2(-this->accel.x, std::sqrt((float)(this->accel.y * this->accel.y + this->accel.z * this->accel.z)));
 
 	// 13 us
-	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + this->gyro.y * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
+	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + this->gyro.y * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
 
 	// 13 us
-	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + this->gyro.x * this->g_mult * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
+	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + this->gyro.x * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
 
 	// 4 us
-	this->yaw += this->gyro.z * this->g_mult * this->delta_t;
+	this->yaw += this->gyro.z * this->delta_t;
 
 	roll = this->roll;
 	pitch = this->pitch;
