@@ -428,13 +428,13 @@ void MPU6050::Complete_Read() {
 	this->raw_gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
 	this->raw_gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
 
-	this->accel.x = this->accel_x_filter.Apply_Filter(this->raw_accel.x * this->a_mult);
-	this->accel.y = this->accel_y_filter.Apply_Filter(this->raw_accel.y * this->a_mult);
-	this->accel.z = this->accel_z_filter.Apply_Filter(this->raw_accel.z * this->a_mult);
+	this->accel.x = this->accel_x_filter.Apply_Filter((this->raw_accel.x + this->accel_offsets[0]) * this->a_mult);
+	this->accel.y = this->accel_y_filter.Apply_Filter((this->raw_accel.y + this->accel_offsets[1]) * this->a_mult);
+	this->accel.z = this->accel_z_filter.Apply_Filter((this->raw_accel.z + this->accel_offsets[2]) * this->a_mult);
 
-	this->gyro.x = this->gyro_x_filter.Apply_Filter(this->raw_gyro.x * this->g_mult);
-	this->gyro.y = this->gyro_y_filter.Apply_Filter(this->raw_gyro.y * this->g_mult);
-	this->gyro.z = this->gyro_z_filter.Apply_Filter(this->raw_gyro.z * this->g_mult);
+	this->gyro.x = this->gyro_x_filter.Apply_Filter((this->raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
+	this->gyro.y = this->gyro_y_filter.Apply_Filter((this->raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
+	this->gyro.z = this->gyro_z_filter.Apply_Filter((this->raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
 }
 
 void MPU6050::Get_Raw_Accel(Raw_Data& raw_accel) {
@@ -560,6 +560,30 @@ HAL_StatusTypeDef MPU6050::Calibrate() {
 	// set gyro & accel FSR to its original value
 	this->set_gyro_fsr(prev_g_fsr);
 	this->set_accel_fsr(prev_a_fsr);
+
+	Timer::Delay_ms(5000);
+
+	// lets measure offsets again to be applied on STM
+	this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
+	this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
+
+	for (uint16_t i = 0; i < 500; i++) {
+		this->Read_Raw(accel, gyro);
+
+		this->accel_offsets[0] += accel.x;
+		this->accel_offsets[1] += accel.y;
+		this->accel_offsets[2] += accel.z - 2048;
+		this->gyro_offsets[0] += gyro.x;
+		this->gyro_offsets[1] += gyro.y;
+		this->gyro_offsets[2] += gyro.z;
+	}
+
+	this->accel_offsets[0] /= -500;
+	this->accel_offsets[1] /= -500;
+	this->accel_offsets[2] /= -500;
+	this->gyro_offsets[0] /= -500;
+	this->gyro_offsets[1] /= -500;
+	this->gyro_offsets[2] /= -500;
 
 	return HAL_OK;
 }

@@ -114,6 +114,8 @@ accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
 uint8_t data_buffer[14];
+float accel_offsets[3];
+float gyro_offsets[3];
 volatile bool data_read;
 volatile uint32_t data_ready_ticks;
 volatile float delta_t;
