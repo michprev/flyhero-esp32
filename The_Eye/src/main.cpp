@@ -39,17 +39,11 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
 
 PID PID_Roll, PID_Pitch, PID_Yaw;
 bool connected = false;
-uint16_t log_options = 0;
 bool start = false;
 bool data_received = false;
 bool inverse_yaw = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
-
-MPU6050::Raw_Data gyro_data, accel_data;
-uint8_t log_buffer[29];
-uint8_t log_counter = 0;
-uint8_t log_length = 0;
 
 int main(void)
 {
@@ -142,152 +136,11 @@ int main(void)
 				HAL_IWDG_Refresh(&hiwdg);
 			data_received = false;
 
-			/* Log over USB-UART
-			 * if (log_data) {
-				mpu.Complete_Read_Raw(&gyroData, &accelData);
-
-				uint8_t tmp[15];
-				tmp[0] = accelData.x & 0xFF;
-				tmp[1] = accelData.x >> 8;
-				tmp[2] = accelData.y & 0xFF;
-				tmp[3] = accelData.y >> 8;
-				tmp[4] = accelData.z & 0xFF;
-				tmp[5] = accelData.z >> 8;
-				tmp[6] = gyroData.x & 0xFF;
-				tmp[7] = gyroData.x >> 8;
-				tmp[8] = gyroData.y & 0xFF;
-				tmp[9] = gyroData.y >> 8;
-				tmp[10] = gyroData.z & 0xFF;
-				tmp[11] = gyroData.z >> 8;
-				tmp[12] = throttle & 0xFF;
-				tmp[13] = throttle >> 8;
-				tmp[14] = 0;
-
-				for (uint8_t i = 0; i <= 13; i++)
-					tmp[14] ^= tmp[i];
-
-				logger.Print(tmp, 15);
-			}*/
-
+			mpu.Complete_Read();
 			// 200 us
-			mpu.Get_Euler(data, data + 1, data + 2);
+			mpu.Get_Euler(*data, *(data + 1), *(data + 2));
 
-			if (log_length > 0) {
-				if (log_counter != 4)
-					log_counter++;
-				else {
-					log_counter = 0;
-
-					uint8_t log_pos = 0;
-
-					int16_t temp;
-					mpu.Complete_Read_Raw(&gyro_data, &accel_data, &temp);
-
-					// use little endian
-
-					// accel_x
-					if (log_options & 0x400) {
-						log_buffer[log_pos] = accel_data.x & 0xFF;
-						log_buffer[log_pos + 1] = accel_data.x >> 8;
-
-						log_pos += 2;
-					}
-					// accel_y
-					if (log_options & 0x200) {
-						log_buffer[log_pos] = accel_data.y & 0xFF;
-						log_buffer[log_pos + 1] = accel_data.y >> 8;
-
-						log_pos += 2;
-					}
-					// accel_z
-					if (log_options & 0x100) {
-						log_buffer[log_pos] = accel_data.z & 0xFF;
-						log_buffer[log_pos + 1] = accel_data.z >> 8;
-
-						log_pos += 2;
-					}
-					// gyro_x
-					if (log_options & 0x80) {
-						log_buffer[log_pos] = gyro_data.x & 0xFF;
-						log_buffer[log_pos + 1] = gyro_data.x >> 8;
-
-						log_pos += 2;
-					}
-					// gyro_y
-					if (log_options & 0x40) {
-						log_buffer[log_pos] = gyro_data.y & 0xFF;
-						log_buffer[log_pos + 1] = gyro_data.y >> 8;
-
-						log_pos += 2;
-					}
-					// gyro_z
-					if (log_options & 0x20) {
-						log_buffer[log_pos] = gyro_data.z & 0xFF;
-						log_buffer[log_pos + 1] = gyro_data.z >> 8;
-
-						log_pos += 2;
-					}
-					// temp
-					if (log_options & 0x10) {
-						log_buffer[log_pos] = temp & 0xFF;
-						log_buffer[log_pos + 1] = temp >> 8;
-
-						log_pos += 2;
-					}
-					// roll
-					if (log_options & 0x8) {
-						int32_t roll = data[0] * 65536;
-
-						log_buffer[log_pos] = roll & 0xFF;
-						log_buffer[log_pos + 1] = (roll >> 8) & 0xFF;
-						log_buffer[log_pos + 2] = (roll >> 16) & 0xFF;
-						log_buffer[log_pos + 3] = roll >> 24;
-
-						log_pos += 4;
-					}
-					// pitch
-					if (log_options & 0x4) {
-						int32_t pitch = data[1] * 65536;
-
-						log_buffer[log_pos] = pitch & 0xFF;
-						log_buffer[log_pos + 1] = (pitch >> 8) & 0xFF;
-						log_buffer[log_pos + 2] = (pitch >> 16) & 0xFF;
-						log_buffer[log_pos + 3] = pitch >> 24;
-
-						log_pos += 4;
-					}
-					// yaw
-					if (log_options & 0x2) {
-						int32_t yaw = data[2] * 65536;
-
-						log_buffer[log_pos] = yaw & 0xFF;
-						log_buffer[log_pos + 1] = (yaw >> 8) & 0xFF;
-						log_buffer[log_pos + 2] = (yaw >> 16) & 0xFF;
-						log_buffer[log_pos + 3] = yaw >> 24;
-
-						log_pos += 4;
-					}
-					// throttle
-					if (log_options & 0x1) {
-						log_buffer[log_pos] = throttle & 0xFF;
-						log_buffer[log_pos + 1] = throttle >> 8;
-
-						log_pos += 2;
-					}
-
-					log_buffer[log_length] = 0;
-
-					// CRC
-					for (uint8_t i = 0; i < log_length; i++)
-						log_buffer[log_length] ^= log_buffer[i];
-
-#ifdef UART_LOG
-					logger.Print(log_buffer, log_length + 1);
-#else
-					esp.Get_Connection('4')->Connection_Send_Begin(log_buffer, log_length + 1);
-#endif
-				}
-			}
+			logger.Send_Data();
 
 			// 73 us
 			if (throttle >= 1050) {
@@ -420,45 +273,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 		}
 		if (data[0] == 0x5D) {
 			connected = true;
-			log_options = (data[1] << 8) | data[2];
+			uint16_t log_options = (data[1] << 8) | data[2];
 
-#ifdef UART_LOG
-			logger.Print(data + 1, 2);
-#endif
-
-			// accel_x
-			if (log_options & 0x400)
-				log_length += 2;
-			// accel_y
-			if (log_options & 0x200)
-				log_length += 2;
-			// accel_z
-			if (log_options & 0x100)
-				log_length += 2;
-			// gyro_x
-			if (log_options & 0x80)
-				log_length += 2;
-			// gyro_y
-			if (log_options & 0x40)
-				log_length += 2;
-			// gyro_z
-			if (log_options & 0x20)
-				log_length += 2;
-			// temp
-			if (log_options & 0x10)
-				log_length += 2;
-			// roll
-			if (log_options & 0x8)
-				log_length += 4;
-			// pitch
-			if (log_options & 0x4)
-				log_length += 4;
-			// yaw
-			if (log_options & 0x2)
-				log_length += 4;
-			// throttle
-			if (log_options & 0x1)
-				log_length += 2;
+			logger.Set_Data_Type(Logger::UART, (Logger::Data_Type)log_options);
 		}
 		break;
 	}

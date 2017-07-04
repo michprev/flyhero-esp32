@@ -47,11 +47,14 @@ int main(void)
 	MPU6050::Raw_Data gyro, accel;
 	int16_t temp;
 
+	logger.Set_Data_Type(Logger::UART, Logger::Accel_All | Logger::Gyro_All | Logger::Euler_All);
+
 	mpu.ready = true;
 
 	while (true) {
 		if (mpu.Data_Read()) {
 			mpu.Complete_Read();
+			logger.Send_Data();
 		}
 	}
 }
