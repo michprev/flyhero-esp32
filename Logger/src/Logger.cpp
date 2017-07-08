@@ -98,6 +98,10 @@ UART_HandleTypeDef* Logger::Get_UART_Handle() {
 HAL_StatusTypeDef Logger::Set_Data_Type(Log_Type log_type, Data_Type data_type) {
 	this->log_type = log_type;
 	this->data_type = data_type;
+	this->log = (data_type != 0);
+
+	if (!this->log)
+		return HAL_OK;
 
 	if (this->log_type == UART) {
 		uint16_t header = 0;
@@ -139,111 +143,125 @@ HAL_StatusTypeDef Logger::Set_Data_Type(Log_Type log_type, Data_Type data_type) 
 }
 
 HAL_StatusTypeDef Logger::Send_Data() {
-	uint8_t buffer_pos = 0;
-	MPU6050::Raw_Data raw_accel, raw_gyro;
-	float roll, pitch, yaw;
-	int16_t raw_temp;
+	if (this->log) {
+		uint8_t buffer_pos = 0;
+		MPU6050::Raw_Data raw_accel, raw_gyro;
+		float roll, pitch, yaw;
+		int16_t raw_temp;
 
-	if ((this->data_type & Accel_All) != 0)
-		MPU6050::Instance().Get_Raw_Accel(raw_accel);
-	if ((this->data_type & Gyro_All) != 0)
-		MPU6050::Instance().Get_Raw_Gyro(raw_gyro);
-	if ((this->data_type & Temperature) != 0)
-		MPU6050::Instance().Get_Raw_Temp(raw_temp);
-	if ((this->data_type & Euler_All) != 0)
-		MPU6050::Instance().Get_Euler(roll, pitch, yaw);
+		if (this->log_type == WiFi) {
+			static uint8_t counter = 0;
+			counter++;
 
-	this->data_buffer[0] = 0x33;
-	buffer_pos++;
+			if (counter != 5)
+				return HAL_OK;
 
-	if (this->data_type & Accel_X) {
-		this->data_buffer[buffer_pos] = raw_accel.x >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_accel.x & 0xFF;
+			counter = 0;
+		}
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Accel_Y) {
-		this->data_buffer[buffer_pos] = raw_accel.y >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_accel.y & 0xFF;
+		if ((this->data_type & Accel_All) != 0)
+			MPU6050::Instance().Get_Raw_Accel(raw_accel);
+		if ((this->data_type & Gyro_All) != 0)
+			MPU6050::Instance().Get_Raw_Gyro(raw_gyro);
+		if ((this->data_type & Temperature) != 0)
+			MPU6050::Instance().Get_Raw_Temp(raw_temp);
+		if ((this->data_type & Euler_All) != 0)
+			MPU6050::Instance().Get_Euler(roll, pitch, yaw);
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Accel_Z) {
-		this->data_buffer[buffer_pos] = raw_accel.z >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_accel.z & 0xFF;
+		this->data_buffer[0] = 0x33;
+		buffer_pos++;
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Gyro_X) {
-		this->data_buffer[buffer_pos] = raw_gyro.x >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_gyro.x & 0xFF;
+		if (this->data_type & Accel_X) {
+			this->data_buffer[buffer_pos] = raw_accel.x >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_accel.x & 0xFF;
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Gyro_Y) {
-		this->data_buffer[buffer_pos] = raw_gyro.y >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_gyro.y & 0xFF;
+			buffer_pos += 2;
+		}
+		if (this->data_type & Accel_Y) {
+			this->data_buffer[buffer_pos] = raw_accel.y >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_accel.y & 0xFF;
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Gyro_Z) {
-		this->data_buffer[buffer_pos] = raw_gyro.z >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_gyro.z & 0xFF;
+			buffer_pos += 2;
+		}
+		if (this->data_type & Accel_Z) {
+			this->data_buffer[buffer_pos] = raw_accel.z >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_accel.z & 0xFF;
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Temperature) {
-		this->data_buffer[buffer_pos] = raw_temp >> 8;
-		this->data_buffer[buffer_pos + 1] = raw_temp & 0xFF;
+			buffer_pos += 2;
+		}
+		if (this->data_type & Gyro_X) {
+			this->data_buffer[buffer_pos] = raw_gyro.x >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_gyro.x & 0xFF;
 
-		buffer_pos += 2;
-	}
-	if (this->data_type & Roll) {
-		uint8_t *tmp = (uint8_t*)&roll;
-		this->data_buffer[buffer_pos] = tmp[3];
-		this->data_buffer[buffer_pos + 1] = tmp[2];
-		this->data_buffer[buffer_pos + 2] = tmp[1];
-		this->data_buffer[buffer_pos + 3] = tmp[0];
+			buffer_pos += 2;
+		}
+		if (this->data_type & Gyro_Y) {
+			this->data_buffer[buffer_pos] = raw_gyro.y >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_gyro.y & 0xFF;
 
-		buffer_pos += 4;
-	}
-	if (this->data_type & Pitch) {
-		uint8_t *tmp = (uint8_t*)&pitch;
-		this->data_buffer[buffer_pos] = tmp[3];
-		this->data_buffer[buffer_pos + 1] = tmp[2];
-		this->data_buffer[buffer_pos + 2] = tmp[1];
-		this->data_buffer[buffer_pos + 3] = tmp[0];
+			buffer_pos += 2;
+		}
+		if (this->data_type & Gyro_Z) {
+			this->data_buffer[buffer_pos] = raw_gyro.z >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_gyro.z & 0xFF;
 
-		buffer_pos += 4;
-	}
-	if (this->data_type & Yaw) {
-		uint8_t *tmp = (uint8_t*)&yaw;
-		this->data_buffer[buffer_pos] = tmp[3];
-		this->data_buffer[buffer_pos + 1] = tmp[2];
-		this->data_buffer[buffer_pos + 2] = tmp[1];
-		this->data_buffer[buffer_pos + 3] = tmp[0];
+			buffer_pos += 2;
+		}
+		if (this->data_type & Temperature) {
+			this->data_buffer[buffer_pos] = raw_temp >> 8;
+			this->data_buffer[buffer_pos + 1] = raw_temp & 0xFF;
 
-		buffer_pos += 4;
-	}
-	if (this->data_type & Throttle) {
+			buffer_pos += 2;
+		}
+		if (this->data_type & Roll) {
+			uint8_t *tmp = (uint8_t*)&roll;
+			this->data_buffer[buffer_pos] = tmp[3];
+			this->data_buffer[buffer_pos + 1] = tmp[2];
+			this->data_buffer[buffer_pos + 2] = tmp[1];
+			this->data_buffer[buffer_pos + 3] = tmp[0];
+
+			buffer_pos += 4;
+		}
+		if (this->data_type & Pitch) {
+			uint8_t *tmp = (uint8_t*)&pitch;
+			this->data_buffer[buffer_pos] = tmp[3];
+			this->data_buffer[buffer_pos + 1] = tmp[2];
+			this->data_buffer[buffer_pos + 2] = tmp[1];
+			this->data_buffer[buffer_pos + 3] = tmp[0];
+
+			buffer_pos += 4;
+		}
+		if (this->data_type & Yaw) {
+			uint8_t *tmp = (uint8_t*)&yaw;
+			this->data_buffer[buffer_pos] = tmp[3];
+			this->data_buffer[buffer_pos + 1] = tmp[2];
+			this->data_buffer[buffer_pos + 2] = tmp[1];
+			this->data_buffer[buffer_pos + 3] = tmp[0];
+
+			buffer_pos += 4;
+		}
+		if (this->data_type & Throttle) {
+			this->data_buffer[buffer_pos] = 0;
+			this->data_buffer[buffer_pos + 1] = 0;
+
+			buffer_pos += 2;
+			// TODO: implement throttle logging
+		}
+
 		this->data_buffer[buffer_pos] = 0;
-		this->data_buffer[buffer_pos + 1] = 0;
 
-		buffer_pos += 2;
-		// TODO: implement throttle logging
+		for (uint8_t i = 1; i < buffer_pos; i++)
+			this->data_buffer[buffer_pos] ^= this->data_buffer[i];
+
+		if (this->log_type == UART)
+			return this->Print(this->data_buffer, buffer_pos + 1);
+		else if (this->log_type == WiFi)
+			return ESP::Instance().Get_Connection('4')->Connection_Send_Begin(this->data_buffer, buffer_pos + 1);
+
+		return HAL_ERROR;
 	}
-
-	this->data_buffer[buffer_pos] = 0;
-
-	for (uint8_t i = 1; i < buffer_pos; i++)
-		this->data_buffer[buffer_pos] ^= this->data_buffer[i];
-
-	if (this->log_type == UART)
-		return this->Print(this->data_buffer, buffer_pos + 1);
-	else if (this->log_type == WiFi)
-		return ESP::Instance().Get_Connection('4')->Connection_Send_Begin(this->data_buffer, buffer_pos + 1);
-
-	return HAL_ERROR;
+	else
+		return HAL_OK;
 }
 
 }

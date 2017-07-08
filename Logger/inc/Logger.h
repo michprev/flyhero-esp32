@@ -36,6 +36,7 @@ private:
 	Data_Type data_type;
 	Log_Type log_type;
 	uint8_t data_buffer[30];
+	bool log;
 
 public:
 	static Logger& Instance();
