@@ -588,9 +588,7 @@ HAL_StatusTypeDef MPU6050::Calibrate() {
 	return HAL_OK;
 }
 
-void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
-	this->data_read = false;
-
+void MPU6050::Compute_Euler() {
 	// 70 us
 	float accel_roll = this->atan2(this->accel.y, this->accel.z);
 
@@ -605,7 +603,9 @@ void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
 
 	// 4 us
 	this->yaw += this->gyro.z * this->delta_t;
+}
 
+void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
 	roll = this->roll;
 	pitch = this->pitch;
 	yaw = this->yaw;

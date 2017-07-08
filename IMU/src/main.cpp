@@ -54,6 +54,7 @@ int main(void)
 	while (true) {
 		if (mpu.Data_Read()) {
 			mpu.Complete_Read();
+			mpu.Compute_Euler();
 			logger.Send_Data();
 		}
 	}

@@ -138,6 +138,7 @@ int main(void)
 
 			mpu.Complete_Read();
 			// 200 us
+			mpu.Compute_Euler();
 			mpu.Get_Euler(*data, *(data + 1), *(data + 2));
 
 			logger.Send_Data();

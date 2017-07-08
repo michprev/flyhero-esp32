@@ -150,6 +150,7 @@ public:
 	void Reset_Integrators();
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Calibrate();
+	void Compute_Euler();
 	void Get_Euler(float& roll, float& pitch, float& yaw);
 	void Get_Raw_Accel(Raw_Data& raw_accel);
 	void Get_Raw_Gyro(Raw_Data& raw_gyro);
