@@ -152,16 +152,16 @@ int main(void)
 
 				// not sure about yaw signs
 				if (!inverse_yaw) {
-					FL = throttle + rollCorrection + pitchCorrection + yawCorrection; // PB2
-					BL = throttle + rollCorrection - pitchCorrection - yawCorrection; // PA15
-					FR = throttle - rollCorrection + pitchCorrection - yawCorrection; // PB10
-					BR = throttle - rollCorrection - pitchCorrection + yawCorrection; // PA1
+					FL = throttle + rollCorrection + yawCorrection; // PB2
+					BL = throttle - pitchCorrection - yawCorrection; // PA15
+					FR = throttle + pitchCorrection - yawCorrection; // PB10
+					BR = throttle - rollCorrection + yawCorrection; // PA1
 				}
 				else {
-					FL = throttle + rollCorrection + pitchCorrection - yawCorrection; // PB2
-					BL = throttle + rollCorrection - pitchCorrection + yawCorrection; // PA15
-					FR = throttle - rollCorrection + pitchCorrection + yawCorrection; // PB10
-					BR = throttle - rollCorrection - pitchCorrection - yawCorrection; // PA1
+					FL = throttle + rollCorrection - yawCorrection; // PB2
+					BL = throttle - pitchCorrection + yawCorrection; // PA15
+					FR = throttle + pitchCorrection + yawCorrection; // PB10
+					BR = throttle - rollCorrection - yawCorrection; // PA1
 				}
 
 				if (FL > 2000)
@@ -276,7 +276,7 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			connected = true;
 			uint16_t log_options = (data[1] << 8) | data[2];
 
-			logger.Set_Data_Type(Logger::UART, (Logger::Data_Type)log_options);
+			logger.Set_Data_Type(Logger::WiFi, (Logger::Data_Type)log_options);
 		}
 		break;
 	}
