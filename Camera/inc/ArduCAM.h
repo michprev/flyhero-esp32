@@ -18,9 +18,8 @@ private:
 	ArduCAM(){};
 	ArduCAM(ArduCAM const&){};
 	ArduCAM& operator=(ArduCAM const&){};
-	static ArduCAM* pInstance;
-	I2C_HandleTypeDef hi2c;
 
+	I2C_HandleTypeDef hi2c;
 
 	static const uint8_t I2C_ADDRESS = 0x78;
 	static const uint16_t I2C_TIMEOUT = 1000;
@@ -45,7 +44,7 @@ public:
 	uint8_t buffer[20000] = { '\0' };
 	uint32_t image_size = 0;
 
-	static ArduCAM* Instance();
+	static ArduCAM& Instance();
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Capture();
 };

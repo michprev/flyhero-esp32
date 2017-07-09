@@ -14,15 +14,17 @@ namespace flyhero {
 
 class LEDs {
 public:
-	static const uint8_t Green = 1 << 0;
-	static const uint8_t Orange = 1 << 1;
-	static const uint8_t Yellow = 1 << 2;
+	enum Color { Green = 1 << 0, Orange = 1 << 1, Yellow = 1 << 2 };
 
 	static void Init();
-	static void TurnOn(uint8_t color);
-	static void TurnOff(uint8_t color);
-	static void Toggle(uint8_t color);
+	static void TurnOn(Color color);
+	static void TurnOff(Color color);
+	static void Toggle(Color color);
 };
+
+inline LEDs::Color operator|(LEDs::Color a, LEDs::Color b) {
+		return static_cast<LEDs::Color>(static_cast<int>(a) | static_cast<int>(b));
+}
 
 }
 

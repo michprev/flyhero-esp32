@@ -23,15 +23,15 @@ int main(void)
 	HAL_Init();
 	//initialise_monitor_handles();
 
-	PWM_Generator *pwm = PWM_Generator::Instance();
+	PWM_Generator& pwm = PWM_Generator::Instance();
 
-	pwm->Init();
-	pwm->Arm(NULL);
+	pwm.Init();
+	pwm.Arm(NULL);
 
-	pwm->SetPulse(1050, 1);
-	pwm->SetPulse(1050, 2);
-	pwm->SetPulse(1050, 3);
-	pwm->SetPulse(1050, 4);
+	pwm.SetPulse(1050, 1);
+	pwm.SetPulse(1050, 2);
+	pwm.SetPulse(1050, 3);
+	pwm.SetPulse(1050, 4);
 
 	for(;;);
 }

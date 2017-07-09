@@ -51,22 +51,22 @@ int main(void)
 	HAL_I2C_DeInit(&hi2c);
 	HAL_I2C_Init(&hi2c);
 
-	MS5611 *ms5611 = MS5611::Instance();
-	ms5611->Init(&hi2c);
+	MS5611& ms5611 = MS5611::Instance();
+	ms5611.Init(&hi2c);
 
 	int32_t press, temp;
 
-	ms5611->ConvertD1();
+	ms5611.ConvertD1();
 
 	while (true) {
-		if (ms5611->D1_Ready())
-			ms5611->ConvertD2();
-		else if (ms5611->D2_Ready()) {
-			ms5611->GetData(&temp, &press);
+		if (ms5611.D1_Ready())
+			ms5611.ConvertD2();
+		else if (ms5611.D2_Ready()) {
+			ms5611.GetData(&temp, &press);
 			printf("Temp: %d, press: %d\n", temp, press);
 
 			HAL_Delay(100);
-			ms5611->ConvertD1();
+			ms5611.ConvertD1();
 		}
 	}
 }

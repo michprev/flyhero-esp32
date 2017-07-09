@@ -19,10 +19,11 @@ private:
 	ESP8266();
 	ESP8266(ESP8266 const&){};
 	ESP8266& operator=(ESP8266 const&){};
-	static ESP8266* pInstance;
 
 public:
-	static ESP* Instance();
+	// TODO should not be defined public
+	static ESP& Instance();
+
 	HAL_StatusTypeDef Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) override;
 };
 

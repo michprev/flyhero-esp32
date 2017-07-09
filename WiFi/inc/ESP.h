@@ -16,8 +16,11 @@
 namespace flyhero {
 
 enum ESP_State { ESP_SENDING, ESP_READY, ESP_ERROR };
+enum ESP_Device { ESP8266, ESP32, NONE };
 
 class ESP {
+private:
+	static ESP_Device device;
 protected:
 	static const uint32_t BUFFER_SIZE = 8192;
 	static const uint32_t IPD_BUFFER_SIZE = 1024;
@@ -26,7 +29,7 @@ protected:
 	static const uint8_t MAX_NULL_BYTES = 5;
 
 	struct ReadPos {
-		uint32_t pos;
+		uint32_t pos = 0;
 
 		uint32_t add(uint16_t c) {
 			return ((this->pos + c) % BUFFER_SIZE);
@@ -69,6 +72,8 @@ protected:
 public:
 	virtual HAL_StatusTypeDef Init(void (*IPD_callback)(uint8_t linkID, uint8_t *data, uint16_t length)) = 0;
 
+	static ESP& Create_Instance(ESP_Device dev);
+	static ESP& Instance();
 	ESP_State Get_State();
 	ESP_Connection* Get_Connection(uint8_t link_ID);
 	DMA_HandleTypeDef* Get_DMA_Tx_Handle();

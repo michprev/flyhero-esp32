@@ -15,6 +15,11 @@ ESP_Connection::ESP_Connection(ESP *esp, uint8_t link_ID) : LINK_ID(link_ID) {
 	this->closed = false;
 	this->connected = false;
 	this->reset = false;
+	this->state = CONNECTION_READY;
+	this->packet_size = 0;
+	this->data = NULL;
+	this->data_size = 0;
+	this->copied = 0;
 }
 
 void ESP_Connection::Connected() {
@@ -62,6 +67,7 @@ HAL_StatusTypeDef ESP_Connection::Connection_Send_Begin(uint8_t *data, uint16_t 
 HAL_StatusTypeDef ESP_Connection::Connection_Send_Continue() {
 	switch (this->state) {
 	case CONNECTION_READY:
+		this->esp->Process_Data();
 		return HAL_OK;
 	case CONNECTION_COMMAND_SENDING:
 		this->esp->Process_Data();

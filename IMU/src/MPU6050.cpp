@@ -1,24 +1,209 @@
 /*
  * MPU6050.cpp
  *
- *  Created on: 13. 12. 2016
+ *  Created on: 24. 4. 2017
  *      Author: michp
  */
 
-#include "MPU6050.h"
+#include <MPU6050.h>
 
 namespace flyhero {
 
-MPU6050* MPU6050::pInstance = NULL;
+extern "C" {
+	void DMA1_Stream5_IRQHandler(void)
+	{
+		HAL_DMA_IRQHandler(MPU6050::Instance().Get_DMA_Rx_Handle());
+	}
 
-MPU6050* MPU6050::Instance() {
-	if (MPU6050::pInstance == NULL)
-		pInstance = new MPU6050();
+	void EXTI1_IRQHandler(void)
+	{
+		HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+	}
 
-	return pInstance;
+	void I2C1_EV_IRQHandler(void)
+	{
+		HAL_I2C_EV_IRQHandler(MPU6050::Instance().Get_I2C_Handle());
+	}
+
+	void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+		MPU6050::Instance().Data_Read_Callback();
+	}
+
+	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+		if (MPU6050::Instance().Start_Read() != HAL_OK)
+			LEDs::TurnOn(LEDs::Orange);
+	}
 }
 
-void MPU6050::IT_Init() {
+MPU6050& MPU6050::Instance() {
+	static MPU6050 instance;
+
+	return instance;
+}
+
+MPU6050::MPU6050()
+	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+{
+	this->g_fsr = GYRO_FSR_NOT_SET;
+	this->g_mult = 0;
+	this->a_mult = 0;
+	this->a_fsr = ACCEL_FSR_NOT_SET;
+	this->lpf = LPF_NOT_SET;
+	this->sample_rate = -1;
+	this->ready = false;
+	this->data_read = false;
+	this->roll = 0;
+	this->pitch = 0;
+	this->yaw = 0;
+	this->start_ticks = 0;
+	this->data_ready_ticks = 0;
+	this->delta_t = 0;
+}
+
+DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
+	return &this->hdma_i2c_rx;
+}
+
+I2C_HandleTypeDef* MPU6050::Get_I2C_Handle() {
+	return &this->hi2c;
+}
+
+void MPU6050::Data_Read_Callback() {
+	this->data_read = true;
+}
+
+bool MPU6050::Data_Read() {
+	return this->data_read;
+}
+
+// Bug solved here: https://electronics.stackexchange.com/questions/267972/i2c-busy-flag-strange-behaviour
+// STMicroelectronics errata: http://www.st.com/content/ccc/resource/technical/document/errata_sheet/7f/05/b0/bc/34/2f/4c/21/CD00288116.pdf/files/CD00288116.pdf/jcr:content/translations/en.CD00288116.pdf
+
+void MPU6050::i2c_reset_bus() {
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	// 1. Disable the I2C peripheral by clearing the PE bit in I2Cx_CR1 register
+	I2C1->CR1 &= ~(0x0001);
+
+	// 2. Configure the SCL and SDA I/Os as General Purpose Output Open-Drain, High level (Write 1 to GPIOx_ODR)
+	GPIO_InitStructure.Mode         = GPIO_MODE_OUTPUT_OD;
+	GPIO_InitStructure.Pull         = GPIO_PULLUP;
+	GPIO_InitStructure.Speed        = GPIO_SPEED_FREQ_HIGH;
+
+	GPIO_InitStructure.Pin			= GPIO_PIN_8;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+
+	GPIO_InitStructure.Pin			= GPIO_PIN_9;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+
+	// 3. Check SCL and SDA High level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) != GPIO_PIN_SET &&
+			HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) != GPIO_PIN_SET) {
+	}
+
+	// 4. Configure the SDA I/O as General Purpose Output Open-Drain, Low level (Write 0 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	// 5. Check SDA Low level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) != GPIO_PIN_RESET) {
+	}
+
+	// 6. Configure the SCL I/O as General Purpose Output Open-Drain, Low level (Write 0 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+
+	// 7. Check SCL Low level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) != GPIO_PIN_RESET) {
+	}
+
+	// 8. Configure the SCL I/O as General Purpose Output Open-Drain, High level (Write 1 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+
+	// 9. Check SCL High level in GPIOx_IDR
+	while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) != GPIO_PIN_SET) {
+	}
+
+	// 10. Configure the SDA I/O as General Purpose Output Open-Drain , High level (Write 1 to GPIOx_ODR)
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+
+	// 11. Check SDA High level in GPIOx_IDR
+	// this one never worked so just skip it
+	/*while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) != GPIO_PIN_SET) {
+	}*/
+
+	// 12. Configure the SCL and SDA I/Os as Alternate function Open-Drain
+	GPIO_InitStructure.Mode         = GPIO_MODE_AF_OD;
+	GPIO_InitStructure.Alternate    = GPIO_AF4_I2C1;
+
+	GPIO_InitStructure.Pin          = GPIO_PIN_8;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	GPIO_InitStructure.Pin          = GPIO_PIN_9;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	// 13. Set SWRST bit in I2Cx_CR1 register
+	I2C1->CR1 |= 0x8000;
+
+	asm("nop");
+
+	// 14. Clear SWRST bit in I2Cx_CR1 register
+	I2C1->CR1 &= ~(0x8000);
+
+	// 15. Enable the I2C peripheral by setting the PE bit in I2Cx_CR1 register
+	I2C1->CR1 |= 0x0001;
+}
+
+HAL_StatusTypeDef MPU6050::i2c_init() {
+	if (__GPIOB_IS_CLK_DISABLED())
+		__GPIOB_CLK_ENABLE();
+	if (__I2C1_IS_CLK_DISABLED())
+		__I2C1_CLK_ENABLE();
+	if (__DMA1_IS_CLK_DISABLED())
+		__DMA1_CLK_ENABLE();
+
+	this->i2c_reset_bus();
+
+	this->hi2c.Instance = I2C1;
+	this->hi2c.Init.ClockSpeed = 400000;
+	this->hi2c.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	this->hi2c.Init.OwnAddress1 = 0;
+	this->hi2c.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	this->hi2c.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	this->hi2c.Init.OwnAddress2 = 0;
+	this->hi2c.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	this->hi2c.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	HAL_I2C_Init(&this->hi2c);
+
+	this->hdma_i2c_rx.Instance = DMA1_Stream5;
+	this->hdma_i2c_rx.Init.Channel = DMA_CHANNEL_1;
+	this->hdma_i2c_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+	this->hdma_i2c_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+	this->hdma_i2c_rx.Init.MemInc = DMA_MINC_ENABLE;
+	this->hdma_i2c_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	this->hdma_i2c_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	this->hdma_i2c_rx.Init.Mode = DMA_NORMAL;
+	this->hdma_i2c_rx.Init.Priority = DMA_PRIORITY_LOW;
+	this->hdma_i2c_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	HAL_DMA_Init(&this->hdma_i2c_rx);
+
+	__HAL_LINKDMA(&this->hi2c, hdmarx, this->hdma_i2c_rx);
+
+	HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+
+	HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
+
+	return HAL_OK;
+}
+
+void MPU6050::int_init() {
 	if (__GPIOB_IS_CLK_DISABLED())
 		__GPIOB_CLK_ENABLE();
 
@@ -34,249 +219,448 @@ void MPU6050::IT_Init() {
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
 
-uint8_t MPU6050::SelfTest()
-{
-	int result;
-	long gyro[3], accel[3];
+HAL_StatusTypeDef MPU6050::Init() {
+	uint8_t tmp;
 
-	result = mpu_run_self_test(gyro, accel);
+	// init I2C bus including DMA peripheral
+	if (this->i2c_init())
+		return HAL_ERROR;
 
-	if (result == 0x7) {
-		/*printf("Passed!\n");
-		printf("accel: %7.4f %7.4f %7.4f\n",
-			accel[0] / 65536.f,
-			accel[1] / 65536.f,
-			accel[2] / 65536.f);
-		printf("gyro: %7.4f %7.4f %7.4f\n",
-			gyro[0] / 65536.f,
-			gyro[1] / 65536.f,
-			gyro[2] / 65536.f);*/
+	// init INT pin on STM32
+	this->int_init();
 
-		unsigned short accel_sens;
-		float gyro_sens;
+	// reset device
+	if (this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x80))
+		return HAL_ERROR;
 
-		mpu_get_accel_sens(&accel_sens);
-		accel[0] *= accel_sens;
-		accel[1] *= accel_sens;
-		accel[2] *= accel_sens;
-		inv_set_accel_bias(accel, 3);
-		mpu_get_gyro_sens(&gyro_sens);
-		gyro[0] = (long)(gyro[0] * gyro_sens);
-		gyro[1] = (long)(gyro[1] * gyro_sens);
-		gyro[2] = (long)(gyro[2] * gyro_sens);
-		inv_set_gyro_bias(gyro, 3);
-	}
-	else {
-		/*if (!(result & 0x1))
-			printf("Gyro failed.\n");
-		if (!(result & 0x2))
-			printf("Accel failed.\n");
-		if (!(result & 0x4))
-			printf("Compass failed.\n");*/
+	// wait until reset done
+	do {
+		this->i2c_read(this->REGISTERS.PWR_MGMT_1, &tmp);
+	} while (tmp & 0x80);
 
-		return 0;
-	}
+	// reset analog devices - should not be needed
+	if (this->i2c_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07))
+		return HAL_ERROR;
+	HAL_Delay(100);
 
-	inv_accel_was_turned_off();
-	inv_gyro_was_turned_off();
-	inv_compass_was_turned_off();
+	// wake up, set clock source PLL with Z gyro axis
+	if (this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x03))
+		return HAL_ERROR;
 
-	return 1;
+	HAL_Delay(50);
+
+	// do not disable any sensor
+	if (this->i2c_write(this->REGISTERS.PWR_MGMT_2, 0x00))
+		return HAL_ERROR;
+
+	// check I2C connection
+	uint8_t who_am_i;
+	if (this->i2c_read(this->REGISTERS.WHO_AM_I, &who_am_i))
+		return HAL_ERROR;
+
+	if (who_am_i != 0x68)
+		return HAL_ERROR;
+
+	// disable interrupt
+	if (this->set_interrupt(false))
+		return HAL_ERROR;
+
+	// set INT pin active high, push-pull; don't use latched mode, fsync nor I2C master aux
+	if (this->i2c_write(this->REGISTERS.INT_PIN_CFG, 0x00))
+		return HAL_ERROR;
+
+	// disable I2C master aux
+	if (this->i2c_write(this->REGISTERS.USER_CTRL, 0x20))
+		return HAL_ERROR;
+
+	// set gyro full scale range
+	if (this->set_gyro_fsr(GYRO_FSR_2000))
+		return HAL_ERROR;
+
+	// set accel full scale range
+	if (this->set_accel_fsr(ACCEL_FSR_16))
+		return HAL_ERROR;
+
+	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz) TODO
+	if (this->set_lpf(LPF_188HZ))
+		return HAL_ERROR;
+
+	// set sample rate to 1 kHz
+	if (this->set_sample_rate(1000))
+		return HAL_ERROR;
+
+	if (this->set_interrupt(true))
+		return HAL_ERROR;
+
+	this->start_ticks = Timer::Get_Tick_Count();
+
+	return HAL_OK;
 }
 
-uint8_t MPU6050::Init(I2C_HandleTypeDef *hi2c) {
-	I2cMaster_Init(hi2c);
-	IT_Init();
-	struct int_param_s int_param;
-	unsigned char accel_fsr;
-	unsigned short gyro_rate, gyro_fsr;
+HAL_StatusTypeDef MPU6050::set_gyro_fsr(gyro_fsr fsr) {
+	if (this->g_fsr == fsr)
+		return HAL_OK;
 
-	if (mpu_init(&int_param))
-		return 1;
+	if (this->i2c_write(this->REGISTERS.GYRO_CONFIG, fsr) == HAL_OK) {
+		this->g_fsr = fsr;
 
-	if (inv_init_mpl())
-		return 2;
-
-	/* Compute 6-axis and 9-axis quaternions. */
-	if (inv_enable_quaternion())
-		return 3;
-	if (inv_enable_9x_sensor_fusion())
-		return 4;
-
-	/* Update gyro biases when not in motion.
-	* WARNING: These algorithms are mutually exclusive.
-	*/
-	if (inv_enable_fast_nomot())
-		return 5;
-	/* inv_enable_motion_no_motion(); */
-	/* inv_set_no_motion_time(1000); */
-
-	/* Update gyro biases when temperature changes. */
-	if (inv_enable_gyro_tc())
-		return 6;
-
-	if (inv_enable_heading_from_gyro())
-		return 8;
-
-	/* Allows use of the MPL APIs in read_from_mpl. */
-	if (inv_enable_eMPL_outputs())
-		return 9;
-
-	if (inv_start_mpl())
-		return 10;
-
-	if (mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL) || mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL) || mpu_set_sample_rate(this->GYRO_SAMPLE_RATE))
-		return 11;
-	/* Read back configuration in case it was set improperly. */
-	if (mpu_get_sample_rate(&gyro_rate) || mpu_get_gyro_fsr(&gyro_fsr) || mpu_get_accel_fsr(&accel_fsr))
-		return 12;
-
-	/* Sync driver configuration with MPL. */
-	/* Sample rate expected in microseconds. */
-	inv_set_gyro_sample_rate(1000000L / gyro_rate);
-	inv_set_accel_sample_rate(1000000L / gyro_rate);
-
-	/* Set chip-to-body orientation matrix.
-	* Set hardware units to dps/g's/degrees scaling factor.
-	*/
-	inv_set_gyro_orientation_and_scale(
-		inv_orientation_matrix_to_scalar(gyro_pdata.orientation),
-		(long)gyro_fsr << 15);
-	inv_set_accel_orientation_and_scale(
-		inv_orientation_matrix_to_scalar(gyro_pdata.orientation),
-		(long)accel_fsr << 15);
-
-	if (dmp_load_motion_driver_firmware())
-		return 13;
-	if (dmp_set_orientation(inv_orientation_matrix_to_scalar(gyro_pdata.orientation)))
-		return 14;
-
-	if (dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL))
-		return 15;
-	if (dmp_set_fifo_rate(this->GYRO_SAMPLE_RATE))
-		return 16;
-	if (mpu_set_dmp_state(1))
-		return 17;
-
-	return 0;
-}
-
-uint8_t MPU6050::CheckNewData()
-{
-	bool new_data = false;
-	unsigned long sensor_timestamp;
-
-	timestamp = HAL_GetTick();
-
-	if (timestamp > next_temp_ms) {
-		next_temp_ms = timestamp + 500;
-		new_temp = true;
-	}
-
-	if (dataReady) {
-		short gyro[3], accel_short[3], sensors;
-		unsigned char more;
-		long accel[3], quat[4], temperature;
-
-		// 1 ms
-		int state = dmp_read_fifo(gyro, accel_short, quat, &sensor_timestamp, &sensors, &more);
-
-		// FIFO overflow
-		if (state == -2)
-			return 2;
-		// another error, data not ready e. g.
-		else if (state != 0)
-			return 3;
-
-		if (!more)
-			dataReady = false;
-		if (sensors & INV_XYZ_GYRO) {
-			/* Push the new data to the MPL. */
-			inv_build_gyro(gyro, sensor_timestamp);
-			new_data = true;
-			if (new_temp) {
-				new_temp = false;
-				/* Temperature only used for gyro temp comp. */
-				if (mpu_get_temperature(&temperature, &sensor_timestamp))
-					return 2;
-				inv_build_temp(temperature, sensor_timestamp);
-			}
+		switch (this->g_fsr) {
+		case GYRO_FSR_250:
+			this->g_mult = 250;
+			break;
+		case GYRO_FSR_500:
+			this->g_mult = 500;
+			break;
+		case GYRO_FSR_1000:
+			this->g_mult = 1000;
+			break;
+		case GYRO_FSR_2000:
+			this->g_mult = 2000;
+			break;
 		}
-		if (sensors & INV_XYZ_ACCEL) {
-			accel[0] = (long)accel_short[0];
-			accel[1] = (long)accel_short[1];
-			accel[2] = (long)accel_short[2];
-			inv_build_accel(accel, 0, (inv_time_t)sensor_timestamp);
-			new_data = true;
+
+		this->g_mult /= pow(2, this->ADC_BITS - 1);
+
+		return HAL_OK;
+	}
+
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef MPU6050::set_accel_fsr(accel_fsr fsr) {
+	if (this->a_fsr == fsr)
+		return HAL_OK;
+
+	if (this->i2c_write(this->REGISTERS.ACCEL_CONFIG, fsr) == HAL_OK) {
+		this->a_fsr = fsr;
+
+		switch (this->a_fsr) {
+		case ACCEL_FSR_2:
+			this->a_mult = 2;
+			break;
+		case ACCEL_FSR_4:
+			this->a_mult = 4;
+			break;
+		case ACCEL_FSR_8:
+			this->a_mult = 8;
+			break;
+		case ACCEL_FSR_16:
+			this->a_mult = 16;
+			break;
 		}
-		if (sensors & INV_WXYZ_QUAT) {
-			inv_build_quat(quat, 0, sensor_timestamp);
-			new_data = true;
-		}
+
+		this->a_mult /= pow(2, this->ADC_BITS - 1);
+
+		return HAL_OK;
 	}
 
-	if (new_data) {
-		// 1 ms
-		if (inv_execute_on_data())
-			return 2;
+	return HAL_ERROR;
+}
 
-		return 1;
+HAL_StatusTypeDef MPU6050::set_lpf(lpf_bandwidth lpf) {
+	if (this->lpf == lpf)
+		return HAL_OK;
+
+	if (this->i2c_write(this->REGISTERS.CONFIG, lpf) == HAL_OK) {
+		this->lpf = lpf;
+		return HAL_OK;
 	}
 
-	return 0;
+	return HAL_ERROR;
 }
 
-uint8_t MPU6050::ReadGyro(Sensor_Data *data) {
-	long int tmp[3];
-	int8_t accuracy;
-	inv_time_t timestamp;
+HAL_StatusTypeDef MPU6050::set_sample_rate(uint16_t rate) {
+	if (this->sample_rate == rate)
+		return HAL_OK;
 
-	if (inv_get_sensor_type_gyro(tmp, &accuracy, &timestamp)) {
-		data->x = tmp[0] / 65536.0;
-		data->y = tmp[1] / 65536.0;
-		data->z = tmp[2] / 65536.0;
+	uint8_t val = (1000 - rate) / rate;
 
-		return 1;
+	if (this->i2c_write(this->REGISTERS.SMPRT_DIV, val) == HAL_OK) {
+		this->sample_rate = rate;
+		return HAL_OK;
 	}
 
-	return 0;
+	return HAL_ERROR;
 }
 
-uint8_t MPU6050::ReadAccel(Sensor_Data *data) {
-	long int tmp[3];
-	int8_t accuracy;
-	inv_time_t timestamp;
+HAL_StatusTypeDef MPU6050::set_interrupt(bool enable) {
+	return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
+}
 
-	if (inv_get_sensor_type_accel(tmp, &accuracy, &timestamp)) {
-		data->x = tmp[0] / 65536.0;
-		data->y = tmp[1] / 65536.0;
-		data->z = tmp[2] / 65536.0;
+HAL_StatusTypeDef MPU6050::i2c_write(uint8_t reg, uint8_t data) {
+	return HAL_I2C_Mem_Write(&this->hi2c, this->I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, &data, 1, this->I2C_TIMEOUT);
+}
 
-		return 1;
+HAL_StatusTypeDef MPU6050::i2c_write(uint8_t reg, uint8_t *data, uint8_t data_size) {
+	return HAL_I2C_Mem_Write(&this->hi2c, this->I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, data, data_size, this->I2C_TIMEOUT);
+}
+
+HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data) {
+	return HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, data, 1, this->I2C_TIMEOUT);
+}
+
+HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size) {
+	return HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, reg, I2C_MEMADD_SIZE_8BIT, data, data_size, this->I2C_TIMEOUT);
+}
+
+HAL_StatusTypeDef MPU6050::Start_Read() {
+	if (this->ready) {
+		if (this->data_ready_ticks != 0)
+			this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
+		this->data_ready_ticks = Timer::Get_Tick_Count();
+
+		return HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
+	}
+	
+	return HAL_OK;
+}
+
+void MPU6050::Complete_Read() {
+	this->data_read = false;
+
+	this->raw_accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
+	this->raw_accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
+	this->raw_accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];
+
+	this->raw_temp = (this->data_buffer[6] << 8) | this->data_buffer[7];
+
+	this->raw_gyro.x = (this->data_buffer[8] << 8) | this->data_buffer[9];
+	this->raw_gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
+	this->raw_gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
+
+	this->accel.x = this->accel_x_filter.Apply_Filter((this->raw_accel.x + this->accel_offsets[0]) * this->a_mult);
+	this->accel.y = this->accel_y_filter.Apply_Filter((this->raw_accel.y + this->accel_offsets[1]) * this->a_mult);
+	this->accel.z = this->accel_z_filter.Apply_Filter((this->raw_accel.z + this->accel_offsets[2]) * this->a_mult);
+
+	this->gyro.x = this->gyro_x_filter.Apply_Filter((this->raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
+	this->gyro.y = this->gyro_y_filter.Apply_Filter((this->raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
+	this->gyro.z = this->gyro_z_filter.Apply_Filter((this->raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
+}
+
+void MPU6050::Get_Raw_Accel(Raw_Data& raw_accel) {
+	raw_accel = this->raw_accel;
+}
+
+void MPU6050::Get_Raw_Gyro(Raw_Data& raw_gyro) {
+	raw_gyro = this->raw_gyro;
+}
+
+void MPU6050::Get_Raw_Temp(int16_t& raw_temp) {
+	raw_temp = this->raw_temp;
+}
+
+void MPU6050::Get_Accel(Sensor_Data& accel) {
+	accel = this->accel;
+}
+
+void MPU6050::Get_Gyro(Sensor_Data& gyro) {
+	gyro = this->gyro;
+}
+
+HAL_StatusTypeDef MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
+	uint8_t tmp[14];
+
+	if (HAL_I2C_Mem_Read(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, tmp, 14, this->I2C_TIMEOUT))
+		return HAL_ERROR;
+
+	accel.x = (tmp[0] << 8) | tmp[1];
+	accel.y = (tmp[2] << 8) | tmp[3];
+	accel.z = (tmp[4] << 8) | tmp[5];
+
+	gyro.x = (tmp[8] << 8) | tmp[9];
+	gyro.y = (tmp[10] << 8) | tmp[11];
+	gyro.z = (tmp[12] << 8) | tmp[13];
+
+	return HAL_OK;
+}
+
+HAL_StatusTypeDef MPU6050::Calibrate() {
+	gyro_fsr prev_g_fsr = this->g_fsr;
+	accel_fsr prev_a_fsr = this->a_fsr;
+
+	this->set_gyro_fsr(GYRO_FSR_1000);
+	this->set_accel_fsr(ACCEL_FSR_16);
+
+	// wait until internal sensor calibration done
+	//while (Timer::Get_Tick_Count() - this->start_ticks < 40000000);
+
+	uint8_t offset_data[6] = { 0x00 };
+
+	// gyro offsets should be already zeroed
+	// for accel we need to read factory values and preserve bit 0 of LSB for each axis
+	// http://www.digikey.com/en/pdf/i/invensense/mpu-hardware-offset-registers
+	this->i2c_read(this->REGISTERS.ACCEL_X_OFFSET, offset_data, 6);
+
+	int16_t accel_offsets[3];
+	accel_offsets[0] = (offset_data[0] << 8) | offset_data[1];
+	accel_offsets[1] = (offset_data[2] << 8) | offset_data[3];
+	accel_offsets[2] = (offset_data[4] << 8) | offset_data[5];
+
+	int32_t offsets[6] = { 0 };
+	Raw_Data gyro, accel;
+
+	// we want accel Z to be 2048 (+ 1g)
+
+	for (uint16_t i = 0; i < 500; i++) {
+		this->Read_Raw(accel, gyro);
+
+		offsets[0] += accel.x;
+		offsets[1] += accel.y;
+		offsets[2] += accel.z - 2048;
+		offsets[3] += gyro.x;
+		offsets[4] += gyro.y;
+		offsets[5] += gyro.z;
 	}
 
-	return 0;
-}
+	int16_t gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z;
+	accel_x = -offsets[0] / 500;
+	accel_y = -offsets[1] / 500;
+	accel_z = -offsets[2] / 500;
+	gyro_x = -offsets[3] / 500;
+	gyro_y = -offsets[4] / 500;
+	gyro_z = -offsets[5] / 500;
 
-uint8_t MPU6050::ReadEuler(Sensor_Data *data) {
-	long int tmp[3];
-	int8_t accuracy;
-	inv_time_t timestamp;
+	accel_offsets[0] += accel_x;
+	accel_offsets[1] += accel_y;
+	accel_offsets[2] += accel_z;
 
-	if (inv_get_sensor_type_euler(tmp, &accuracy, &timestamp)) {
-		data->x = tmp[0] / 65536.0;
-		data->y = tmp[1] / 65536.0;
-		data->z = tmp[2] / 65536.0;
+	if (offset_data[1] & 0x01)
+		accel_offsets[0] |= 0x01;
+	else
+		accel_offsets[0] &= 0xFFFE;
 
-		return 1;
+	if (offset_data[3] & 0x01)
+		accel_offsets[1] |= 0x01;
+	else
+		accel_offsets[1] &= 0xFFFE;
+
+	if (offset_data[5] & 0x01)
+		accel_offsets[2] |= 0x01;
+	else
+		accel_offsets[2] &= 0xFFFE;
+
+	offset_data[0] = accel_offsets[0] >> 8;
+	offset_data[1] = accel_offsets[0] & 0xFF;
+	offset_data[2] = accel_offsets[1] >> 8;
+	offset_data[3] = accel_offsets[1] & 0xFF;
+	offset_data[4] = accel_offsets[2] >> 8;
+	offset_data[5] = accel_offsets[2] & 0xFF;
+
+	this->i2c_write(this->REGISTERS.ACCEL_X_OFFSET, offset_data, 6);
+
+	offset_data[0] = gyro_x >> 8;
+	offset_data[1] = gyro_x & 0xFF;
+	offset_data[2] = gyro_y >> 8;
+	offset_data[3] = gyro_y & 0xFF;
+	offset_data[4] = gyro_z >> 8;
+	offset_data[5] = gyro_z & 0xFF;
+
+	this->i2c_write(this->REGISTERS.GYRO_X_OFFSET, offset_data, 6);
+
+	// set gyro & accel FSR to its original value
+	this->set_gyro_fsr(prev_g_fsr);
+	this->set_accel_fsr(prev_a_fsr);
+
+	Timer::Delay_ms(5000);
+
+	// lets measure offsets again to be applied on STM
+	this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
+	this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
+
+	for (uint16_t i = 0; i < 500; i++) {
+		this->Read_Raw(accel, gyro);
+
+		this->accel_offsets[0] += accel.x;
+		this->accel_offsets[1] += accel.y;
+		this->accel_offsets[2] += accel.z - 2048;
+		this->gyro_offsets[0] += gyro.x;
+		this->gyro_offsets[1] += gyro.y;
+		this->gyro_offsets[2] += gyro.z;
 	}
 
-	return 0;
+	this->accel_offsets[0] /= -500;
+	this->accel_offsets[1] /= -500;
+	this->accel_offsets[2] /= -500;
+	this->gyro_offsets[0] /= -500;
+	this->gyro_offsets[1] /= -500;
+	this->gyro_offsets[2] /= -500;
+
+	return HAL_OK;
 }
 
+void MPU6050::Compute_Euler() {
+	// 70 us
+	float accel_roll = this->atan2(this->accel.y, this->accel.z);
+
+	// 70 us
+	float accel_pitch = this->atan2(-this->accel.x, std::sqrt((float)(this->accel.y * this->accel.y + this->accel.z * this->accel.z)));
+
+	// 13 us
+	this->roll = this->COMPLEMENTARY_COEFFICIENT * (this->roll + this->gyro.y * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;
+
+	// 13 us
+	this->pitch = this->COMPLEMENTARY_COEFFICIENT * (this->pitch + this->gyro.x * this->delta_t) + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_pitch;
+
+	// 4 us
+	this->yaw += this->gyro.z * this->delta_t;
 }
 
-extern "C" void EXTI1_IRQHandler(void)
-{
-	HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
+	roll = this->roll;
+	pitch = this->pitch;
+	yaw = this->yaw;
 }
+
+
+// use Betaflight atan2 approx: https://github.com/betaflight/betaflight/blob/master/src/main/common/maths.c
+float MPU6050::atan2(float y, float x) {
+	const float atanPolyCoef1 = 3.14551665884836e-07f;
+	const float atanPolyCoef2 = 0.99997356613987f;
+	const float atanPolyCoef3 = 0.14744007058297684f;
+	const float atanPolyCoef4 = 0.3099814292351353f;
+	const float atanPolyCoef5 = 0.05030176425872175f;
+	const float atanPolyCoef6 = 0.1471039133652469f;
+	const float atanPolyCoef7 = 0.6444640676891548f;
+
+	float abs_x, abs_y;
+	float result;
+
+	abs_x = std::abs(x);
+	abs_y = std::abs(y);
+
+	result = (abs_x > abs_y ? abs_x : abs_y);
+
+	if (result != 0)
+		result = (abs_x < abs_y ? abs_x : abs_y) / result;
+
+	result = -((((atanPolyCoef5 * result - atanPolyCoef4) * result - atanPolyCoef3) * result - atanPolyCoef2) * result - atanPolyCoef1) / ((atanPolyCoef7 * result + atanPolyCoef6) * result + 1.0);
+	result *= this->RAD_TO_DEG;
+
+	if (abs_y > abs_x)
+		result = 90 - result;
+	if (x < 0)
+		result = 180 - result;
+	if (y < 0)
+		result = -result;
+
+	return result;
+}
+
+void MPU6050::Reset_Integrators() {
+	this->roll = 0;
+	this->pitch = 0;
+	this->yaw = 0;
+}
+
+// approx. using http://nghiaho.com/?p=997
+inline double MPU6050::atan(double z) {
+	if (z < 0)
+		return -this->atan(-z);
+
+	if (z > 1)
+		return 90 - this->atan(1 / z);
+
+	return z * (45 - (z - 1) * (14 + 3.83 * z));
+}
+
+} /* namespace The_Eye */

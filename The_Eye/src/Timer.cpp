@@ -10,6 +10,34 @@
 namespace flyhero {
 
 extern "C" {
+	void TIM5_IRQHandler(void)
+	{
+		TIM_HandleTypeDef *htim5 = Timer::Get_Handle();
+
+		// Channel 2 for HAL 1 ms tick
+		if (__HAL_TIM_GET_ITSTATUS(htim5, TIM_IT_CC2) == SET) {
+			__HAL_TIM_CLEAR_IT(htim5, TIM_IT_CC2);
+			uint32_t val = __HAL_TIM_GetCounter(htim5);
+			//if ((val - prev) >= 1000) {
+				HAL_IncTick();
+				// Prepare next interrupt
+				__HAL_TIM_SetCompare(htim5, TIM_CHANNEL_2, val + 1000);
+				//prev = val;
+			//}
+			//else {
+			//	printf("should not happen\n");
+			//}
+		}
+		//HAL_TIM_IRQHandler(Timer::Get_Handle());
+	}
+
+	/*void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+	{
+		if (htim->Instance == TIM5) {
+			HAL_IncTick();
+		}
+	}*/
+
 
 	HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 	{
