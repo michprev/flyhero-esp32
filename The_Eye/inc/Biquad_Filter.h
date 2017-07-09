@@ -30,6 +30,7 @@ public:
 };
 
 // 10 us
+// https://en.wikipedia.org/wiki/Digital_biquad_filter - Transposed direct forms
 float Biquad_Filter::Apply_Filter(float value) {
 	float ret = value * this->a0 + this->z1;
 	this->z1 = value * this->a1 + this->z2 - this->b1 * ret;
