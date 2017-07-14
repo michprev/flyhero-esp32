@@ -149,9 +149,9 @@ HAL_StatusTypeDef ESP::UART_Init(uint32_t baudrate)
 
 	__HAL_LINKDMA(&this->huart, hdmatx, this->hdma_usart3_tx);
 
-	HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
-	HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
 	HAL_NVIC_SetPriority(USART3_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(USART3_IRQn);

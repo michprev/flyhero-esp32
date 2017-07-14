@@ -26,12 +26,13 @@ extern "C" {
 	}
 
 	void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-		MPU6050::Instance().Data_Read_Callback();
+		if (MPU6050::Instance().Data_Read_Callback != NULL)
+			MPU6050::Instance().Data_Read_Callback();
 	}
 
 	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-		if (MPU6050::Instance().Start_Read() != HAL_OK)
-			LEDs::TurnOn(LEDs::Orange);
+		if (MPU6050::Instance().Data_Ready_Callback != NULL)
+			MPU6050::Instance().Data_Ready_Callback();
 	}
 }
 
@@ -55,14 +56,14 @@ MPU6050::MPU6050()
 	this->a_fsr = ACCEL_FSR_NOT_SET;
 	this->lpf = LPF_NOT_SET;
 	this->sample_rate = -1;
-	this->ready = false;
-	this->data_read = false;
 	this->roll = 0;
 	this->pitch = 0;
 	this->yaw = 0;
 	this->start_ticks = 0;
 	this->data_ready_ticks = 0;
 	this->delta_t = 0;
+	this->Data_Ready_Callback = NULL;
+	this->Data_Read_Callback = NULL;
 }
 
 DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
@@ -71,14 +72,6 @@ DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
 
 I2C_HandleTypeDef* MPU6050::Get_I2C_Handle() {
 	return &this->hi2c;
-}
-
-void MPU6050::Data_Read_Callback() {
-	this->data_read = true;
-}
-
-bool MPU6050::Data_Read() {
-	return this->data_read;
 }
 
 // Bug solved here: https://electronics.stackexchange.com/questions/267972/i2c-busy-flag-strange-behaviour
@@ -194,10 +187,10 @@ HAL_StatusTypeDef MPU6050::i2c_init() {
 
 	__HAL_LINKDMA(&this->hi2c, hdmarx, this->hdma_i2c_rx);
 
-	HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 2, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
 
-	HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(I2C1_EV_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
 
 	return HAL_OK;
@@ -215,7 +208,7 @@ void MPU6050::int_init() {
 	exti.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(GPIOB, &exti);
 
-	HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(EXTI1_IRQn, 2, 0);
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
 
@@ -404,20 +397,14 @@ HAL_StatusTypeDef MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_siz
 }
 
 HAL_StatusTypeDef MPU6050::Start_Read() {
-	if (this->ready) {
-		if (this->data_ready_ticks != 0)
-			this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
-		this->data_ready_ticks = Timer::Get_Tick_Count();
+	if (this->data_ready_ticks != 0)
+		this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
+	this->data_ready_ticks = Timer::Get_Tick_Count();
 
-		return HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
-	}
-	
-	return HAL_OK;
+	return HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
 }
 
 void MPU6050::Complete_Read() {
-	this->data_read = false;
-
 	this->raw_accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
 	this->raw_accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
 	this->raw_accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];

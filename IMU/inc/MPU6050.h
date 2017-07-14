@@ -116,7 +116,6 @@ int16_t sample_rate;
 uint8_t data_buffer[14];
 float accel_offsets[3];
 float gyro_offsets[3];
-volatile bool data_read;
 volatile uint32_t data_ready_ticks;
 volatile float delta_t;
 
@@ -137,12 +136,10 @@ HAL_StatusTypeDef set_sample_rate(uint16_t rate);
 HAL_StatusTypeDef set_interrupt(bool enable);
 
 public:
-	bool ready;
-
 	static MPU6050& Instance();
 
-	void Data_Read_Callback();
-	bool Data_Read();
+	void (*Data_Ready_Callback)();
+	void (*Data_Read_Callback)();
 
 	DMA_HandleTypeDef* Get_DMA_Rx_Handle();
 	I2C_HandleTypeDef* Get_I2C_Handle();

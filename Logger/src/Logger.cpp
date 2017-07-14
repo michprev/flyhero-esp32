@@ -75,9 +75,9 @@ HAL_StatusTypeDef Logger::Init() {
 	if (HAL_UART_Init(&this->huart))
 		return HAL_ERROR;
 
-	HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
-	HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+	HAL_NVIC_SetPriority(USART2_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(USART2_IRQn);
 
 	return HAL_OK;
