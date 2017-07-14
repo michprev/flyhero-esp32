@@ -1,86 +1,92 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: t -*-
+/*
+ * PID.cpp
+ *
+ *  Created on: 14. 7. 2017
+ *      Author: michp
+ */
 
-/// @file	PID.cpp
-/// @brief	Generic PID algorithm
+#include <PID.h>
 
-#include "PID.h"
+namespace flyhero {
 
-#define PI           3.14159265358979323846
-
-float PID::get_pid(float error, float scaler)
+// assume that PID will be computed at 1 kHz
+PID::PID(float i_max, float Kp, float Ki, float Kd)
+	: d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, 1000, 20)
 {
-    uint32_t tnow = HAL_GetTick();
-    uint32_t dt = tnow - _last_t;
-    float output            = 0;
-    float delta_time;
+	this->last_t = 0;
+	this->integrator = 0;
+	this->Kp = Kp;
+	this->Ki = Ki;
+	this->Kd = Kd;
+	this->i_max = i_max;
+	this->last_d = NAN;
+	this->last_error = NAN;
+}
 
-    if (_last_t == 0 || dt > 1000) {
-        dt = 0;
+float PID::Get_PID(float error) {
+	// ticks in us
+	float dt = (Timer::Get_Tick_Count() - this->last_t) * 0.000001;
+	float output = 0;
 
-		// if this PID hasn't been used for a full second then zero
-		// the intergator term. This prevents I buildup from a
-		// previous fight mode from causing a massive return before
-		// the integrator gets a chance to correct itself
-		reset_I();
-    }
-    _last_t = tnow;
+	if (this->last_t == 0 || dt > 1000) {
+		this->integrator = 0;
+		dt = 0;
+	}
 
-    delta_time = (float)dt / 1000.0f;
+	this->last_t = Timer::Get_Tick_Count();
 
-    // Compute proportional component
-    output += error * _kp;
+	// proportional component
+	output += error * this->Kp;
 
-    // Compute derivative component if time has elapsed
-    if ((fabsf(_kd) > 0) && (dt > 0)) {
-        float derivative;
+	// integral component
+	if (this->Ki != 0 && dt > 0) {
+		this->integrator += error * this->Ki * dt;
 
-		if (isnan(_last_derivative)) {
-			// we've just done a reset, suppress the first derivative
-			// term as we don't want a sudden change in input to cause
-			// a large D output change
+		if (this->integrator < -this->i_max)
+			this->integrator = -this->i_max;
+		if (this->integrator > this->i_max)
+			this->integrator = this->i_max;
+
+		output += this->integrator;
+	}
+
+	// derivative component
+	if (this->Kd != 0 && dt > 0) {
+		float derivative;
+
+		if (std::isnan(this->last_d)) {
 			derivative = 0;
-			_last_derivative = 0;
-		} else {
-			derivative = (error - _last_error) / delta_time;
+			this->last_d = 0;
 		}
+		else
+			derivative = (error - this->last_error) / dt;
 
-        // discrete low pass filter, cuts out the
-        // high frequency noise that can drive the controller crazy
-        float RC = 1/(2*PI*_fCut);
-        derivative = _last_derivative +
-                     ((delta_time / (RC + delta_time)) *
-                      (derivative - _last_derivative));
+		// apply 20 Hz biquad LPF
+		derivative = this->d_term_lpf.Apply_Filter(derivative);
 
-        // update state
-        _last_error             = error;
-        _last_derivative    = derivative;
+		this->last_error = error;
+		this->last_d = derivative;
 
-        // add in derivative component
-        output                          += _kd * derivative;
-    }
+		output += derivative * this->Kd;
+	}
 
-    // scale the P and D components
-    output *= scaler;
-
-    // Compute integral component if time has elapsed
-    if ((fabsf(_ki) > 0) && (dt > 0)) {
-        _integrator             += (error * _ki) * scaler * delta_time;
-        if (_integrator < -_imax) {
-            _integrator = -_imax;
-        } else if (_integrator > _imax) {
-            _integrator = _imax;
-        }
-        output                          += _integrator;
-    }
-
-    return output;
+	return output;
 }
 
-void
-PID::reset_I()
-{
-    _integrator = 0;
-	// we use NAN (Not A Number) to indicate that the last
-	// derivative value is not valid
-    _last_derivative = NAN;
+void PID::Set_Kp(float Kp) {
+	this->Kp = Kp;
 }
+
+void PID::Set_Ki(float Ki) {
+	this->Ki = Ki;
+}
+
+void PID::Set_Kd(float Kd) {
+	this->Kd = Kd;
+}
+
+void PID::Set_I_Max(float i_max) {
+	this->i_max = i_max;
+}
+
+} /* namespace flyhero */

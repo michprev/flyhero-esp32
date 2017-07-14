@@ -37,7 +37,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
 void IMU_Data_Ready_Callback();
 void IMU_Data_Read_Callback();
 
-PID PID_Roll, PID_Pitch, PID_Yaw;
+PID PID_Roll(50);
+PID PID_Pitch(50);
+PID PID_Yaw(50);
 bool connected = false;
 bool start = false;
 bool data_received = false;
@@ -53,10 +55,6 @@ int main(void)
 #endif
 
 	uint32_t timestamp;
-
-	PID_Roll.imax(50);
-	PID_Pitch.imax(50);
-	PID_Yaw.imax(50);
 
 	LEDs::Init();
 
@@ -157,9 +155,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			roll_kD |= data[8];
 
 			// 29 us
-			PID_Roll.kP(roll_kP * 0.01f);
-			PID_Roll.kI(roll_kI * 0.01f);
-			PID_Roll.kD(roll_kD * 0.01f);
+			PID_Roll.Set_Kp(roll_kP * 0.01f);
+			PID_Roll.Set_Ki(roll_kI * 0.01f);
+			PID_Roll.Set_Kd(roll_kD * 0.01f);
 
 			pitch_kP = data[9] << 8;
 			pitch_kP |= data[10];
@@ -170,9 +168,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			pitch_kD = data[13] << 8;
 			pitch_kD |= data[14];
 
-			PID_Pitch.kP(pitch_kP * 0.01f);
-			PID_Pitch.kI(pitch_kI * 0.01f);
-			PID_Pitch.kD(pitch_kD * 0.01f);
+			PID_Pitch.Set_Kp(pitch_kP * 0.01f);
+			PID_Pitch.Set_Ki(pitch_kI * 0.01f);
+			PID_Pitch.Set_Kd(pitch_kD * 0.01f);
 
 			yaw_kP = data[15] << 8;
 			yaw_kP |= data[16];
@@ -183,10 +181,9 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			yaw_kD = data[19] << 8;
 			yaw_kD |= data[20];
 
-			PID_Yaw.kP(yaw_kP * 0.01f);
-			PID_Yaw.kI(yaw_kI * 0.01f);
-			PID_Yaw.kD(yaw_kD * 0.01f);
-
+			PID_Yaw.Set_Kp(yaw_kP * 0.01f);
+			PID_Yaw.Set_Ki(yaw_kI * 0.01f);
+			PID_Yaw.Set_Kd(yaw_kD * 0.01f);
 
 			inverse_yaw = (data[21] == 0x01);
 
@@ -240,9 +237,9 @@ void IMU_Data_Read_Callback() {
 	// 73 us
 	if (throttle >= 1050) {
 		// 50 us
-		roll_correction = PID_Roll.get_pid(euler_data.x, 1);
-		pitch_correction = PID_Pitch.get_pid(euler_data.y, 1);
-		yaw_correction = PID_Yaw.get_pid(euler_data.z, 1);
+		roll_correction = PID_Roll.Get_PID(euler_data.x);
+		pitch_correction = PID_Pitch.Get_PID(euler_data.y);
+		yaw_correction = PID_Yaw.Get_PID(euler_data.z);
 
 		// not sure about yaw signs
 		if (!inverse_yaw) {
