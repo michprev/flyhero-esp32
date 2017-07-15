@@ -20,8 +20,13 @@ using namespace flyhero;
 
 extern "C" void initialise_monitor_handles(void);
 
+void IMU_Data_Ready_Callback();
+void IMU_Data_Read_Callback();
+
 MPU6050& mpu = MPU6050::Instance();
 Logger& logger = Logger::Instance();
+
+volatile bool log_flag = false;
 
 int main(void)
 {
@@ -41,21 +46,33 @@ int main(void)
 		}
 	}
 
-
 	printf("init complete\n");
-
-	MPU6050::Raw_Data gyro, accel;
-	int16_t temp;
 
 	logger.Set_Data_Type(Logger::UART, Logger::Accel_All | Logger::Gyro_All | Logger::Euler_All);
 
-	mpu.ready = true;
+	mpu.Data_Ready_Callback = &IMU_Data_Ready_Callback;
+	mpu.Data_Read_Callback = &IMU_Data_Read_Callback;
 
 	while (true) {
-		if (mpu.Data_Read()) {
-			mpu.Complete_Read();
-			mpu.Compute_Euler();
+		if (log_flag) {
+			log_flag = false;
 			logger.Send_Data();
 		}
 	}
+}
+
+void IMU_Data_Ready_Callback() {
+	// 160 us
+	if (mpu.Start_Read() != HAL_OK)
+		LEDs::TurnOn(LEDs::Orange);
+}
+
+// IMU_Data_Ready_Callback() -> 340 us -> IMU_Data_Read_Callback()
+
+void IMU_Data_Read_Callback() {
+	mpu.Complete_Read();
+	// 200 us
+	mpu.Compute_Euler();
+
+	log_flag = true;
 }
