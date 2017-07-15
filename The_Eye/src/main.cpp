@@ -43,9 +43,9 @@ PID PID_Yaw(50);
 bool connected = false;
 bool start = false;
 bool inverse_yaw = false;
-uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
 
+volatile uint16_t throttle = 0;
 volatile bool data_received = false;
 volatile bool log_flag = false;
 
@@ -121,8 +121,6 @@ int main(void)
 	HAL_IWDG_Init(&hiwdg);
 #endif
 
-	throttle = 0;
-
 	mpu.Data_Ready_Callback = &IMU_Data_Ready_Callback;
 	mpu.Data_Read_Callback = &IMU_Data_Read_Callback;
 
@@ -145,12 +143,13 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			uint16_t roll_kP, pitch_kP, yaw_kP;
 			uint16_t roll_kI, pitch_kI, yaw_kI;
 			uint16_t roll_kD, pitch_kD, yaw_kD;
+			uint16_t tmp_throttle;
 
 			data_received = true;
 
 			// 3 us
-			throttle = data[1] << 8;
-			throttle |= data[2];
+			tmp_throttle = data[1] << 8;
+			tmp_throttle |= data[2];
 
 			// 3 us
 			roll_kP = data[3] << 8;
@@ -195,7 +194,7 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 
 			inverse_yaw = (data[21] == 0x01);
 
-			throttle += 1000;
+			throttle = tmp_throttle + 1000;
 		}
 		break;
 	case 3:
