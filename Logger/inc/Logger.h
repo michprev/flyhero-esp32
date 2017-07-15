@@ -27,7 +27,7 @@ public:
 	enum Log_Type { WiFi, UART };
 
 private:
-	Logger(){};
+	Logger();
 	Logger(Logger const&){};
 	Logger& operator=(Logger const&){};
 
@@ -35,8 +35,9 @@ private:
 	DMA_HandleTypeDef hdma_usart2_tx;
 	Data_Type data_type;
 	Log_Type log_type;
-	uint8_t data_buffer[30];
+	uint8_t data_buffer[32];
 	bool log;
+	uint32_t last_ticks;
 
 public:
 	static Logger& Instance();

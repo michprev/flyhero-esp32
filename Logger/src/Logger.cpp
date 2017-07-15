@@ -27,6 +27,10 @@ Logger& Logger::Instance() {
 	return instance;
 }
 
+Logger::Logger() {
+	this->last_ticks = 0;
+}
+
 HAL_StatusTypeDef Logger::Init() {
 	if (__GPIOA_IS_CLK_DISABLED())
 		__GPIOA_CLK_ENABLE();
@@ -247,6 +251,25 @@ HAL_StatusTypeDef Logger::Send_Data() {
 			buffer_pos += 2;
 			// TODO: implement throttle logging
 		}
+
+		if (this->last_ticks == 0) {
+			this->last_ticks = Timer::Get_Tick_Count();
+
+			this->data_buffer[buffer_pos] = 0;
+			this->data_buffer[buffer_pos + 1] = 0;
+
+			buffer_pos += 2;
+		}
+		else {
+			uint16_t dt = Timer::Get_Tick_Count() - this->last_ticks;
+			this->last_ticks = Timer::Get_Tick_Count();
+
+			this->data_buffer[buffer_pos] = dt >> 8;
+			this->data_buffer[buffer_pos + 1] = dt & 0xFF;
+
+			buffer_pos += 2;
+		}
+
 
 		this->data_buffer[buffer_pos] = 0;
 
