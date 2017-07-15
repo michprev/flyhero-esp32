@@ -42,10 +42,12 @@ PID PID_Pitch(50);
 PID PID_Yaw(50);
 bool connected = false;
 bool start = false;
-bool data_received = false;
 bool inverse_yaw = false;
 uint16_t throttle = 0;
 IWDG_HandleTypeDef hiwdg;
+
+volatile bool data_received = false;
+volatile bool log_flag = false;
 
 int main(void)
 {
@@ -125,6 +127,12 @@ int main(void)
 	mpu.Data_Read_Callback = &IMU_Data_Read_Callback;
 
 	while (true) {
+		if (log_flag) {
+			log_flag = false;
+
+			// 200 us
+			logger.Send_Data();
+		}
 		esp.Get_Connection('4')->Connection_Send_Continue();
 	}
 }
@@ -231,8 +239,7 @@ void IMU_Data_Read_Callback() {
 	mpu.Compute_Euler();
 	mpu.Get_Euler(euler_data.x, euler_data.y, euler_data.z);
 
-	// 200 us
-	logger.Send_Data();
+	log_flag = true;
 
 	// 73 us
 	if (throttle >= 1050) {
