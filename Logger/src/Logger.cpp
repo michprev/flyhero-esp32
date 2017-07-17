@@ -146,7 +146,7 @@ HAL_StatusTypeDef Logger::Set_Data_Type(Log_Type log_type, Data_Type data_type) 
 	return HAL_ERROR;
 }
 
-HAL_StatusTypeDef Logger::Send_Data() {
+HAL_StatusTypeDef Logger::Send_Data(uint16_t throttle) {
 	if (this->log) {
 		uint8_t buffer_pos = 0;
 		MPU6050::Raw_Data raw_accel, raw_gyro;
@@ -245,8 +245,8 @@ HAL_StatusTypeDef Logger::Send_Data() {
 			buffer_pos += 4;
 		}
 		if (this->data_type & Throttle) {
-			this->data_buffer[buffer_pos] = 0;
-			this->data_buffer[buffer_pos + 1] = 0;
+			this->data_buffer[buffer_pos] = throttle >> 8;
+			this->data_buffer[buffer_pos + 1] = throttle & 0xFF;
 
 			buffer_pos += 2;
 			// TODO: implement throttle logging

@@ -129,7 +129,7 @@ int main(void)
 			log_flag = false;
 
 			// 200 us
-			logger.Send_Data();
+			logger.Send_Data(throttle);
 		}
 		esp.Get_Connection('4')->Connection_Send_Continue();
 	}
@@ -205,7 +205,7 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			connected = true;
 			uint16_t log_options = (data[1] << 8) | data[2];
 
-			logger.Set_Data_Type(Logger::UART, (Logger::Data_Type)log_options);
+			logger.Set_Data_Type(Logger::WiFi, (Logger::Data_Type)log_options);
 		}
 		break;
 	}
@@ -243,22 +243,22 @@ void IMU_Data_Read_Callback() {
 	// 73 us
 	if (throttle >= 1050) {
 		// 50 us
-		roll_correction = PID_Roll.Get_PID(euler_data.x);
-		pitch_correction = PID_Pitch.Get_PID(euler_data.y);
-		yaw_correction = PID_Yaw.Get_PID(euler_data.z);
+		roll_correction = PID_Roll.Get_PID(0 - euler_data.x);
+		pitch_correction = PID_Pitch.Get_PID(0 - euler_data.y);
+		yaw_correction = PID_Yaw.Get_PID(0 - euler_data.z);
 
 		// not sure about yaw signs
 		if (!inverse_yaw) {
-			FL = throttle + roll_correction + yaw_correction; // PB2
-			BL = throttle - pitch_correction - yaw_correction; // PA15
-			FR = throttle + pitch_correction - yaw_correction; // PB10
-			BR = throttle - roll_correction + yaw_correction; // PA1
+			FL = throttle - roll_correction - yaw_correction; // PB2
+			BL = throttle + pitch_correction + yaw_correction; // PA15
+			FR = throttle - pitch_correction + yaw_correction; // PB10
+			BR = throttle + roll_correction - yaw_correction; // PA1
 		}
 		else {
-			FL = throttle + roll_correction - yaw_correction; // PB2
-			BL = throttle - pitch_correction + yaw_correction; // PA15
-			FR = throttle + pitch_correction + yaw_correction; // PB10
-			BR = throttle - roll_correction - yaw_correction; // PA1
+			FL = throttle - roll_correction + yaw_correction; // PB2
+			BL = throttle + pitch_correction - yaw_correction; // PA15
+			FR = throttle - pitch_correction - yaw_correction; // PB10
+			BR = throttle + roll_correction + yaw_correction; // PA1
 		}
 
 		if (FL > 2000)

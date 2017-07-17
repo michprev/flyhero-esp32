@@ -44,7 +44,7 @@ public:
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Print(uint8_t *data, uint16_t len);
 	HAL_StatusTypeDef Set_Data_Type(Log_Type log_type, Data_Type data_type);
-	HAL_StatusTypeDef Send_Data();
+	HAL_StatusTypeDef Send_Data(uint16_t throttle);
 
 	DMA_HandleTypeDef* Get_DMA_Tx_Handle();
 	UART_HandleTypeDef* Get_UART_Handle();
