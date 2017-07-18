@@ -31,21 +31,18 @@ MPU6050& mpu = MPU6050::Instance();
 MS5611& ms5611 = MS5611::Instance();
 NEO_M8N& neo = NEO_M8N::Instance();
 Logger& logger = Logger::Instance();
+Motors_Controller& motors_controller = Motors_Controller::Instance();
 
 void Arm_Callback();
 void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
 void IMU_Data_Ready_Callback();
 void IMU_Data_Read_Callback();
 
-PID PID_Roll(50);
-PID PID_Pitch(50);
-PID PID_Yaw(50);
 bool connected = false;
 bool start = false;
 bool inverse_yaw = false;
 IWDG_HandleTypeDef hiwdg;
 
-volatile uint16_t throttle = 0;
 volatile bool data_received = false;
 volatile bool log_flag = false;
 
@@ -129,7 +126,7 @@ int main(void)
 			log_flag = false;
 
 			// 200 us
-			logger.Send_Data(throttle);
+			logger.Send_Data();
 		}
 		esp.Get_Connection('4')->Connection_Send_Continue();
 	}
@@ -140,61 +137,62 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 	case 22:
 		// around 75 us
 		if (data[0] == 0x5D) {
-			uint16_t roll_kP, pitch_kP, yaw_kP;
-			uint16_t roll_kI, pitch_kI, yaw_kI;
-			uint16_t roll_kD, pitch_kD, yaw_kD;
-			uint16_t tmp_throttle;
+			uint16_t roll_Kp, pitch_Kp, yaw_Kp;
+			uint16_t roll_Ki, pitch_Ki, yaw_Ki;
+			uint16_t roll_Kd, pitch_Kd, yaw_Kd;
+			uint16_t throttle;
 
 			data_received = true;
 
 			// 3 us
-			tmp_throttle = data[1] << 8;
-			tmp_throttle |= data[2];
+			throttle = data[1] << 8;
+			throttle |= data[2];
+
+			motors_controller.Set_Throttle(throttle + 1000);
 
 			// 3 us
-			roll_kP = data[3] << 8;
-			roll_kP |= data[4];
+			roll_Kp = data[3] << 8;
+			roll_Kp |= data[4];
+			roll_Kp *= 0.01f;
 
-			roll_kI = data[5] << 8;
-			roll_kI |= data[6];
+			roll_Ki = data[5] << 8;
+			roll_Ki |= data[6];
+			roll_Ki *= 0.01f;
 
-			roll_kD = data[7] << 8;
-			roll_kD |= data[8];
+			roll_Kd = data[7] << 8;
+			roll_Kd |= data[8];
+			roll_Kd *= 0.01f;
 
-			// 29 us
-			PID_Roll.Set_Kp(roll_kP * 0.01f);
-			PID_Roll.Set_Ki(roll_kI * 0.01f);
-			PID_Roll.Set_Kd(roll_kD * 0.01f);
+			motors_controller.Set_PID_Constants(Roll, roll_Kp, roll_Ki, roll_Kd);
 
-			pitch_kP = data[9] << 8;
-			pitch_kP |= data[10];
+			pitch_Kp = data[9] << 8;
+			pitch_Kp |= data[10];
+			pitch_Kp *= 0.01f;
 
-			pitch_kI = data[11] << 8;
-			pitch_kI |= data[12];
+			pitch_Ki = data[11] << 8;
+			pitch_Ki |= data[12];
+			pitch_Ki *= 0.01f;
 
-			pitch_kD = data[13] << 8;
-			pitch_kD |= data[14];
+			pitch_Kd = data[13] << 8;
+			pitch_Kd |= data[14];
+			pitch_Kd *= 0.01f;
 
-			PID_Pitch.Set_Kp(pitch_kP * 0.01f);
-			PID_Pitch.Set_Ki(pitch_kI * 0.01f);
-			PID_Pitch.Set_Kd(pitch_kD * 0.01f);
+			motors_controller.Set_PID_Constants(Pitch, pitch_Kp, pitch_Ki, pitch_Kd);
 
-			yaw_kP = data[15] << 8;
-			yaw_kP |= data[16];
+			yaw_Kp = data[15] << 8;
+			yaw_Kp |= data[16];
+			yaw_Kp *= 0.01f;
 
-			yaw_kI = data[17] << 8;
-			yaw_kI |= data[18];
+			yaw_Ki = data[17] << 8;
+			yaw_Ki |= data[18];
+			yaw_Ki *= 0.01f;
 
-			yaw_kD = data[19] << 8;
-			yaw_kD |= data[20];
+			yaw_Kd = data[19] << 8;
+			yaw_Kd |= data[20];
+			yaw_Kd *= 0.01f;
 
-			PID_Yaw.Set_Kp(yaw_kP * 0.01f);
-			PID_Yaw.Set_Ki(yaw_kI * 0.01f);
-			PID_Yaw.Set_Kd(yaw_kD * 0.01f);
-
-			inverse_yaw = (data[21] == 0x01);
-
-			throttle = tmp_throttle + 1000;
+			motors_controller.Set_PID_Constants(Yaw, yaw_Kp, yaw_Ki, yaw_Kd);
+			motors_controller.Set_Invert_Yaw(data[21] == 0x01);
 		}
 		break;
 	case 3:
@@ -222,77 +220,16 @@ void IMU_Data_Ready_Callback() {
 		LEDs::TurnOn(LEDs::Orange);
 }
 
-long FL, BL, FR, BR;
-long pitch_correction, roll_correction, yaw_correction;
-MPU6050::Sensor_Data euler_data;
-
 // IMU_Data_Ready_Callback() -> 340 us -> IMU_Data_Read_Callback()
 
 void IMU_Data_Read_Callback() {
 	if (data_received)
 		HAL_IWDG_Refresh(&hiwdg);
 	data_received = false;
-
-	mpu.Complete_Read();
-	// 200 us
-	mpu.Compute_Euler();
-	mpu.Get_Euler(euler_data.x, euler_data.y, euler_data.z);
-
 	log_flag = true;
 
-	// 73 us
-	if (throttle >= 1050) {
-		// 50 us
-		roll_correction = PID_Roll.Get_PID(0 - euler_data.x);
-		pitch_correction = PID_Pitch.Get_PID(0 - euler_data.y);
-		yaw_correction = PID_Yaw.Get_PID(0 - euler_data.z);
+	mpu.Complete_Read();
+	mpu.Compute_Euler();
 
-		// not sure about yaw signs
-		if (!inverse_yaw) {
-			FL = throttle - roll_correction - yaw_correction; // PB2
-			BL = throttle + pitch_correction + yaw_correction; // PA15
-			FR = throttle - pitch_correction + yaw_correction; // PB10
-			BR = throttle + roll_correction - yaw_correction; // PA1
-		}
-		else {
-			FL = throttle - roll_correction + yaw_correction; // PB2
-			BL = throttle + pitch_correction - yaw_correction; // PA15
-			FR = throttle - pitch_correction - yaw_correction; // PB10
-			BR = throttle + roll_correction + yaw_correction; // PA1
-		}
-
-		if (FL > 2000)
-			FL = 2000;
-		else if (FL < 1050)
-			FL = 940;
-
-		if (BL > 2000)
-			BL = 2000;
-		else if (BL < 1050)
-			BL = 940;
-
-		if (FR > 2000)
-			FR = 2000;
-		else if (FR < 1050)
-			FR = 940;
-
-		if (BR > 2000)
-			BR = 2000;
-		else if (BR < 1050)
-			BR = 940;
-
-		// 17 us
-		pwm.SetPulse(FL, 3);
-		pwm.SetPulse(BL, 2);
-		pwm.SetPulse(FR, 4);
-		pwm.SetPulse(BR, 1);
-	}
-	else {
-		mpu.Reset_Integrators();
-
-		pwm.SetPulse(940, 4);
-		pwm.SetPulse(940, 1);
-		pwm.SetPulse(940, 3);
-		pwm.SetPulse(940, 2);
-	}
+	motors_controller.Update_Motors();
 }
