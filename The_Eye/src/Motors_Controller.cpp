@@ -26,7 +26,7 @@ Motors_Controller::Motors_Controller() {
 	this->yaw_PID.Set_I_Max(50);
 
 	this->invert_yaw = false;
-	this->throttle = 940;
+	this->throttle = 1000;
 }
 
 void Motors_Controller::Set_PID_Constants(Axis axis, float Kp, float Ki, float Kd) {
