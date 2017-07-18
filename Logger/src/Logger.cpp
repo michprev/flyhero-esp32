@@ -108,30 +108,7 @@ HAL_StatusTypeDef Logger::Set_Data_Type(Log_Type log_type, Data_Type data_type) 
 		return HAL_OK;
 
 	if (this->log_type == UART) {
-		uint16_t header = 0;
-
-		if (data_type & Accel_X)
-			header |= 0x400;
-		if (data_type & Accel_Y)
-			header |= 0x200;
-		if (data_type & Accel_Z)
-			header |= 0x100;
-		if (data_type & Gyro_X)
-			header |= 0x80;
-		if (data_type & Gyro_Y)
-			header |= 0x40;
-		if (data_type & Gyro_Z)
-			header |= 0x20;
-		if (data_type & Temperature)
-			header |= 0x10;
-		if (data_type & Roll)
-			header |= 0x8;
-		if (data_type & Pitch)
-			header |= 0x4;
-		if (data_type & Yaw)
-			header |= 0x2;
-		if (data_type & Throttle)
-			header |= 0x1;
+		uint16_t header = data_type;
 
 		uint8_t tmp[3];
 		tmp[0] = 0x33;
@@ -250,7 +227,6 @@ HAL_StatusTypeDef Logger::Send_Data() {
 			this->data_buffer[buffer_pos + 1] = throttle & 0xFF;
 
 			buffer_pos += 2;
-			// TODO: implement throttle logging
 		}
 
 		if (this->last_ticks == 0) {

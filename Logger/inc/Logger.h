@@ -18,8 +18,8 @@ namespace flyhero {
 class Logger {
 public:
 	enum Data_Type {
-		Accel_X = 1 << 10, Accel_Y = 1 << 9, Accel_Z = 1 << 8, Gyro_X = 1 << 7, Gyro_Y = 1 << 6, Gyro_Z = 1 << 5,
-		Temperature = 1 << 4, Roll = 1 << 3, Pitch = 1 << 2, Yaw = 1 << 1, Throttle = 1 << 0,
+		Accel_X = 1 << 15, Accel_Y = 1 << 14, Accel_Z = 1 << 13, Gyro_X = 1 << 12, Gyro_Y = 1 << 11, Gyro_Z = 1 << 10,
+		Temperature = 1 << 9, Roll = 1 << 8, Pitch = 1 << 7, Yaw = 1 << 6, Throttle = 1 << 5,
 		Accel_All = Accel_X | Accel_Y | Accel_Z,
 		Gyro_All = Gyro_X | Gyro_Y | Gyro_Z,
 		Euler_All = Roll | Pitch | Yaw
