@@ -153,45 +153,36 @@ void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
 			// 3 us
 			roll_Kp = data[3] << 8;
 			roll_Kp |= data[4];
-			roll_Kp *= 0.01f;
 
 			roll_Ki = data[5] << 8;
 			roll_Ki |= data[6];
-			roll_Ki *= 0.01f;
 
 			roll_Kd = data[7] << 8;
 			roll_Kd |= data[8];
-			roll_Kd *= 0.01f;
 
-			motors_controller.Set_PID_Constants(Roll, roll_Kp, roll_Ki, roll_Kd);
+			motors_controller.Set_PID_Constants(Roll, roll_Kp * 0.01f, roll_Ki * 0.01f, roll_Kd * 0.01f);
 
 			pitch_Kp = data[9] << 8;
 			pitch_Kp |= data[10];
-			pitch_Kp *= 0.01f;
 
 			pitch_Ki = data[11] << 8;
 			pitch_Ki |= data[12];
-			pitch_Ki *= 0.01f;
 
 			pitch_Kd = data[13] << 8;
 			pitch_Kd |= data[14];
-			pitch_Kd *= 0.01f;
 
-			motors_controller.Set_PID_Constants(Pitch, pitch_Kp, pitch_Ki, pitch_Kd);
+			motors_controller.Set_PID_Constants(Pitch, pitch_Kp * 0.01f, pitch_Ki * 0.01f, pitch_Kd * 0.01f);
 
 			yaw_Kp = data[15] << 8;
 			yaw_Kp |= data[16];
-			yaw_Kp *= 0.01f;
 
 			yaw_Ki = data[17] << 8;
 			yaw_Ki |= data[18];
-			yaw_Ki *= 0.01f;
 
 			yaw_Kd = data[19] << 8;
 			yaw_Kd |= data[20];
-			yaw_Kd *= 0.01f;
 
-			motors_controller.Set_PID_Constants(Yaw, yaw_Kp, yaw_Ki, yaw_Kd);
+			motors_controller.Set_PID_Constants(Yaw, yaw_Kp * 0.01f, yaw_Ki * 0.01f, yaw_Kd * 0.01f);
 			motors_controller.Set_Invert_Yaw(data[21] == 0x01);
 		}
 		break;
