@@ -23,9 +23,9 @@ private:
 	Motors_Controller& operator=(Motors_Controller const&){};
 
 	PID roll_PID, pitch_PID, yaw_PID;
-	uint16_t motor_FL, motor_FR, motor_BL, motor_BR;
-	uint16_t throttle;
-	bool invert_yaw;
+	/*volatile*/ uint16_t motor_FL, motor_FR, motor_BL, motor_BR;
+	/*volatile*/ uint16_t throttle;
+	/*volatile*/ bool invert_yaw;
 
 public:
 	static Motors_Controller& Instance();
@@ -36,6 +36,10 @@ public:
 	void Update_Motors();
 
 	uint16_t Get_Throttle();
+	uint16_t Get_Motor_FL();
+	uint16_t Get_Motor_FR();
+	uint16_t Get_Motor_BL();
+	uint16_t Get_Motor_BR();
 };
 
 } /* namespace flyhero */

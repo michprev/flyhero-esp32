@@ -140,13 +140,13 @@ HAL_StatusTypeDef Logger::Send_Data() {
 			counter = 0;
 		}
 
-		if ((this->data_type & Accel_All) != 0)
+		if (this->data_type & Accel_All)
 			MPU6050::Instance().Get_Raw_Accel(raw_accel);
-		if ((this->data_type & Gyro_All) != 0)
+		if (this->data_type & Gyro_All)
 			MPU6050::Instance().Get_Raw_Gyro(raw_gyro);
-		if ((this->data_type & Temperature) != 0)
+		if (this->data_type & Temperature)
 			MPU6050::Instance().Get_Raw_Temp(raw_temp);
-		if ((this->data_type & Euler_All) != 0)
+		if (this->data_type & Euler_All)
 			MPU6050::Instance().Get_Euler(roll, pitch, yaw);
 
 		this->data_buffer[0] = 0x33;
@@ -225,6 +225,34 @@ HAL_StatusTypeDef Logger::Send_Data() {
 			uint16_t throttle = Motors_Controller::Instance().Get_Throttle();
 			this->data_buffer[buffer_pos] = throttle >> 8;
 			this->data_buffer[buffer_pos + 1] = throttle & 0xFF;
+
+			buffer_pos += 2;
+		}
+		if (this->data_type & Motor_FL) {
+			uint16_t FL = Motors_Controller::Instance().Get_Motor_FL();
+			this->data_buffer[buffer_pos] = FL >> 8;
+			this->data_buffer[buffer_pos + 1] = FL & 0xFF;
+
+			buffer_pos += 2;
+		}
+		if (this->data_type & Motor_FR) {
+			uint16_t FR = Motors_Controller::Instance().Get_Motor_FR();
+			this->data_buffer[buffer_pos] = FR >> 8;
+			this->data_buffer[buffer_pos + 1] = FR & 0xFF;
+
+			buffer_pos += 2;
+		}
+		if (this->data_type & Motor_BL) {
+			uint16_t BL = Motors_Controller::Instance().Get_Motor_BL();
+			this->data_buffer[buffer_pos] = BL >> 8;
+			this->data_buffer[buffer_pos + 1] = BL & 0xFF;
+
+			buffer_pos += 2;
+		}
+		if (this->data_type & Motor_BR) {
+			uint16_t BR = Motors_Controller::Instance().Get_Motor_BR();
+			this->data_buffer[buffer_pos] = BR >> 8;
+			this->data_buffer[buffer_pos + 1] = BR & 0xFF;
 
 			buffer_pos += 2;
 		}

@@ -123,4 +123,20 @@ uint16_t Motors_Controller::Get_Throttle() {
 	return this->throttle;
 }
 
+uint16_t Motors_Controller::Get_Motor_FL() {
+	return this->motor_FL;
+}
+
+uint16_t Motors_Controller::Get_Motor_FR() {
+	return this->motor_FR;
+}
+
+uint16_t Motors_Controller::Get_Motor_BL() {
+	return this->motor_BL;
+}
+
+uint16_t Motors_Controller::Get_Motor_BR() {
+	return this->motor_BR;
+}
+
 } /* namespace flyhero */
