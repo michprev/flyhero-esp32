@@ -125,7 +125,7 @@ void PWM_Generator::Arm(void(*Arm_Callback)())
 	this->SetPulse(2000, 4);
 
 	timestamp = HAL_GetTick();
-	while (HAL_GetTick() - timestamp < 3000) {
+	while (HAL_GetTick() - timestamp < 500) {
 		if (Arm_Callback != NULL)
 			Arm_Callback();
 	}
@@ -137,7 +137,7 @@ void PWM_Generator::Arm(void(*Arm_Callback)())
 	this->SetPulse(1000, 4);
 
 	timestamp = HAL_GetTick();
-	while (HAL_GetTick() - timestamp < 3000) {
+	while (HAL_GetTick() - timestamp < 500) {
 		if (Arm_Callback != NULL)
 			Arm_Callback();
 	}
