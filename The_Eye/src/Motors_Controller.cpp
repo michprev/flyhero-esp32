@@ -72,16 +72,16 @@ void Motors_Controller::Update_Motors() {
 
 		// not sure about yaw signs
 		if (!this->invert_yaw) {
-			this->motor_FL = throttle - roll_correction - yaw_correction; // PB2
-			this->motor_BL = throttle + pitch_correction + yaw_correction; // PA15
-			this->motor_FR = throttle - pitch_correction + yaw_correction; // PB10
-			this->motor_BR = throttle + roll_correction - yaw_correction; // PA1
+			this->motor_FL = throttle - roll_correction - pitch_correction - yaw_correction; // PB2
+			this->motor_BL = throttle - roll_correction + pitch_correction + yaw_correction; // PA15
+			this->motor_FR = throttle + roll_correction - pitch_correction + yaw_correction; // PB10
+			this->motor_BR = throttle + roll_correction + pitch_correction - yaw_correction; // PA1
 		}
 		else {
-			this->motor_FL = throttle - roll_correction + yaw_correction; // PB2
-			this->motor_BL = throttle + pitch_correction - yaw_correction; // PA15
-			this->motor_FR = throttle - pitch_correction - yaw_correction; // PB10
-			this->motor_BR = throttle + roll_correction + yaw_correction; // PA1
+			this->motor_FL = throttle - roll_correction - pitch_correction + yaw_correction; // PB2
+			this->motor_BL = throttle - roll_correction + pitch_correction - yaw_correction; // PA15
+			this->motor_FR = throttle + roll_correction - pitch_correction - yaw_correction; // PB10
+			this->motor_BR = throttle + roll_correction + pitch_correction + yaw_correction; // PA1
 		}
 
 		if (this->motor_FL > 2000)
