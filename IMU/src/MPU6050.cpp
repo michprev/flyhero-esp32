@@ -64,6 +64,15 @@ MPU6050::MPU6050()
 	this->delta_t = 0;
 	this->Data_Ready_Callback = NULL;
 	this->Data_Read_Callback = NULL;
+	this->quaternion.q0 = 1;
+	this->quaternion.q1 = 0;
+	this->quaternion.q2 = 0;
+	this->quaternion.q3 = 0;
+	this->mahony_Kp = 2;
+	this->mahony_Ki = 0.1f;
+	this->mahony_integral.x = 0;
+	this->mahony_integral.y = 0;
+	this->mahony_integral.z = 0;
 }
 
 DMA_HandleTypeDef* MPU6050::Get_DMA_Rx_Handle() {
@@ -592,12 +601,109 @@ void MPU6050::Compute_Euler() {
 	this->yaw += this->gyro.z * this->delta_t;
 }
 
+// http://x-io.co.uk/open-source-imu-and-ahrs-algorithms/
+void MPU6050::Compute_Mahony() {
+	float recip_norm;
+
+	Sensor_Data gyro_rad;
+	gyro_rad.x = this->gyro.x * this->DEG_TO_RAD;
+	gyro_rad.y = this->gyro.y * this->DEG_TO_RAD;
+	gyro_rad.z = this->gyro.z * this->DEG_TO_RAD;
+
+	Sensor_Data accel = this->accel;
+	Sensor_Data half_v, half_e;
+
+	// normalise accelerometer measurement
+	recip_norm = this->inv_sqrt(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z);
+	accel.x *= recip_norm;
+	accel.y *= recip_norm;
+	accel.z *= recip_norm;
+
+	// estimated direction of gravity and vector perpendicular to magnetic flux
+	half_v.x = this->quaternion.q1 * this->quaternion.q3 - this->quaternion.q0 * this->quaternion.q2;
+	half_v.y = this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3;
+	half_v.z = this->quaternion.q0 * this->quaternion.q0 - 0.5f + this->quaternion.q3 * this->quaternion.q3;
+
+	// error is sum of cross product between estimated and measured direction of gravity
+	half_e.x = (accel.y * half_v.z - accel.z * half_v.y);
+	half_e.y = (accel.z * half_v.x - accel.x * half_v.z);
+	half_e.z = (accel.x * half_v.y - accel.y * half_v.x);
+
+	if (this->mahony_Ki > 0) {
+		this->mahony_integral.x += 2 * this->mahony_Ki * half_e.x * 0.001f;
+		this->mahony_integral.y += 2 * this->mahony_Ki * half_e.y * 0.001f;
+		this->mahony_integral.z += 2 * this->mahony_Ki * half_e.z * 0.001f;
+
+		gyro_rad.x += this->mahony_integral.x;
+		gyro_rad.y += this->mahony_integral.y;
+		gyro_rad.z += this->mahony_integral.z;
+	}
+
+	gyro_rad.x += 2 * this->mahony_Kp * half_e.x;
+	gyro_rad.y += 2 * this->mahony_Kp * half_e.y;
+	gyro_rad.z += 2 * this->mahony_Kp * half_e.z;
+
+	// integrate rate of change of quaternion
+	gyro_rad.x *= 0.5f * 0.001f;		// pre-multiply common factors
+	gyro_rad.y *= 0.5f * 0.001f;
+	gyro_rad.z *= 0.5f * 0.001f;
+
+	float qa = this->quaternion.q0;
+	float qb = this->quaternion.q1;
+	float qc = this->quaternion.q2;
+
+	this->quaternion.q0 += (-qb * gyro_rad.x - qc * gyro_rad.y - this->quaternion.q3 * gyro_rad.z);
+	this->quaternion.q1 += (qa * gyro_rad.x + qc * gyro_rad.z - this->quaternion.q3 * gyro_rad.y);
+	this->quaternion.q2 += (qa * gyro_rad.y - qb * gyro_rad.z + this->quaternion.q3 * gyro_rad.x);
+	this->quaternion.q3 += (qa * gyro_rad.z + qb * gyro_rad.y - qc * gyro_rad.x);
+
+	// normalise quaternion
+	recip_norm = this->inv_sqrt(this->quaternion.q0 * this->quaternion.q0 +
+			this->quaternion.q1 * this->quaternion.q1 +
+			this->quaternion.q2 * this->quaternion.q2 +
+			this->quaternion.q3 * this->quaternion.q3);
+
+	this->quaternion.q0 *= recip_norm;
+	this->quaternion.q1 *= recip_norm;
+	this->quaternion.q2 *= recip_norm;
+	this->quaternion.q3 *= recip_norm;
+
+	// convert quaternion to euler
+	// https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Quaternion_to_Euler_Angles_Conversion
+
+	float q2_sqr = this->quaternion.q2 * this->quaternion.q2;
+
+	float t0 = +2.0 * (this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3);
+	float t1 = +1.0 - 2.0 * (this->quaternion.q1 * this->quaternion.q1 + q2_sqr);
+	this->roll = this->atan2(t0, t1);
+
+	float t2 = +2.0 * (this->quaternion.q0 * this->quaternion.q2 - this->quaternion.q3 * this->quaternion.q1);
+	t2 = ((t2 > 1.0) ? 1.0 : t2);
+	t2 = ((t2 < -1.0) ? -1.0 : t2);
+	this->pitch = std::asin(t2);
+	this->pitch *= this->RAD_TO_DEG;
+
+	float t3 = +2.0 * (this->quaternion.q0 * this->quaternion.q3 + this->quaternion.q1 * this->quaternion.q2);
+	float t4 = +1.0 - 2.0 * (q2_sqr + this->quaternion.q3 * this->quaternion.q3);
+	this->yaw = this->atan2(t3, t4);
+}
+
 void MPU6050::Get_Euler(float& roll, float& pitch, float& yaw) {
 	roll = this->roll;
 	pitch = this->pitch;
 	yaw = this->yaw;
 }
 
+inline float MPU6050::inv_sqrt(float x) {
+	float y = x;
+	long i = *(long*)&y;
+
+	i = 0x5f3759df - (i >> 1);
+	y = *(float*)&i;
+	y = y * (1.5f - (0.5f * x * y * y));
+
+	return y;
+}
 
 // use Betaflight atan2 approx: https://github.com/betaflight/betaflight/blob/master/src/main/common/maths.c
 float MPU6050::atan2(float y, float x) {

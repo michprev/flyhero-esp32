@@ -27,6 +27,10 @@ public:
 		int16_t x, y, z;
 	};
 
+	struct Quaternion {
+		float q0, q1, q2, q3;
+	};
+
 private:
 	/* Singleton begin */
 	MPU6050();
@@ -71,6 +75,7 @@ enum lpf_bandwidth {
 const float COMPLEMENTARY_COEFFICIENT = 0.995f;
 const double PI = 3.14159265358979323846;
 const float RAD_TO_DEG = 180 / this->PI;
+const float DEG_TO_RAD = this->PI / 180;
 const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS = 0xD0;
 const uint16_t I2C_TIMEOUT = 500;
@@ -101,6 +106,9 @@ Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
 Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
 
 Sensor_Data accel, gyro;
+Sensor_Data mahony_integral;
+Quaternion quaternion;
+float mahony_Kp, mahony_Ki;
 int16_t raw_temp;
 Raw_Data raw_accel, raw_gyro;
 uint32_t start_ticks;
@@ -120,6 +128,7 @@ volatile uint32_t data_ready_ticks;
 volatile float delta_t;
 
 float atan2(float y, float x);
+inline float inv_sqrt(float x);
 inline double atan(double z);
 
 void i2c_reset_bus();
@@ -148,6 +157,7 @@ public:
 	HAL_StatusTypeDef Init();
 	HAL_StatusTypeDef Calibrate();
 	void Compute_Euler();
+	void Compute_Mahony();
 	void Get_Euler(float& roll, float& pitch, float& yaw);
 	void Get_Raw_Accel(Raw_Data& raw_accel);
 	void Get_Raw_Gyro(Raw_Data& raw_gyro);

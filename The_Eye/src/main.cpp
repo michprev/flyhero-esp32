@@ -220,7 +220,8 @@ void IMU_Data_Read_Callback() {
 	log_flag = true;
 
 	mpu.Complete_Read();
-	mpu.Compute_Euler();
+	mpu.Compute_Mahony();
+	//mpu.Compute_Euler();
 
 	motors_controller.Update_Motors();
 }

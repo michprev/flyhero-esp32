@@ -71,8 +71,10 @@ void IMU_Data_Ready_Callback() {
 
 void IMU_Data_Read_Callback() {
 	mpu.Complete_Read();
+
 	// 200 us
-	mpu.Compute_Euler();
+	mpu.Compute_Mahony();
+	//mpu.Compute_Euler();
 
 	log_flag = true;
 }
