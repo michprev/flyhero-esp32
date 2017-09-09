@@ -344,6 +344,29 @@ void MPU9250::Init() {
 
 	this->set_interrupt(true);
 
+	// set SPI speed to 20 MHz
+
+	if ( (ret = spi_bus_remove_device(this->spi)) )
+		return;
+
+	spi_device_interface_config_t devcfg;
+	devcfg.command_bits = 0;
+	devcfg.address_bits = 8;
+	devcfg.dummy_bits = 0;
+	devcfg.mode = 0;
+	devcfg.duty_cycle_pos = 128;
+	devcfg.cs_ena_pretrans = 0;
+	devcfg.cs_ena_posttrans = 0;
+	devcfg.clock_speed_hz = 20000000;
+	devcfg.spics_io_num = GPIO_NUM_22;
+	devcfg.flags = 0;
+	devcfg.queue_size = 7;
+	devcfg.pre_cb = 0;
+	devcfg.post_cb = 0;
+
+	if ( (ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi)) )
+		return;
+
 	this->ready = true;
 }
 
