@@ -9,6 +9,11 @@
 
 namespace flyhero {
 
+static void IRAM_ATTR int_isr_handler(void* arg)
+{
+	MPU9250::Instance().Data_Ready_Callback();
+}
+
 MPU9250& MPU9250::Instance() {
 	static MPU9250 instance;
 
@@ -25,6 +30,8 @@ MPU9250::MPU9250() {
 	this->g_lpf = GYRO_LPF_NOT_SET;
 	this->g_mult = 0;
 	this->sample_rate = 0;
+	this->data_ready = false;
+	this->ready = false;
 }
 
 esp_err_t MPU9250::spi_init() {
@@ -61,6 +68,29 @@ esp_err_t MPU9250::spi_init() {
     	return ret;
 
     return ESP_OK;
+}
+
+esp_err_t MPU9250::int_init() {
+	esp_err_t ret;
+
+	// config INT pin
+	gpio_config_t conf;
+	conf.intr_type = GPIO_INTR_POSEDGE;
+	conf.mode = GPIO_MODE_INPUT;
+	conf.pin_bit_mask = GPIO_SEL_13;
+	conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	conf.pull_up_en = GPIO_PULLUP_DISABLE;
+
+	if ( (ret = gpio_config(&conf)) )
+		return ret;
+
+	if ( (ret = gpio_install_isr_service(0)) )
+		return ret;
+
+	if ( (ret = gpio_isr_handler_add(GPIO_NUM_13, int_isr_handler, NULL)))
+		return ret;
+
+	return ESP_OK;
 }
 
 esp_err_t MPU9250::spi_reg_read(uint8_t reg, uint8_t& data) {
@@ -263,6 +293,9 @@ void MPU9250::Init() {
 	if (this->rx_buffer == NULL)
 		std::cout << "alloc error" << std::endl;*/
 
+	if ( (ret = this->int_init()))
+		return;
+
 	if ( (ret = this->spi_init()) )
 		return;
 
@@ -302,33 +335,36 @@ void MPU9250::Init() {
 	this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10);
 
 	this->set_gyro_fsr(GYRO_FSR_2000);
-	this->set_gyro_lpf(GYRO_LPF_250HZ);
+	this->set_gyro_lpf(GYRO_LPF_184HZ);
 
 	this->set_accel_fsr(ACCEL_FSR_16);
 	this->set_accel_lpf(ACCEL_LPF_1046HZ);
 
-	this->set_sample_rate(8000);
+	this->set_sample_rate(1000);
 
 	this->set_interrupt(true);
 
+	this->ready = true;
+}
 
-	std::cout << "Init complete" << std::endl;
+void MPU9250::Data_Ready_Callback() {
+	portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 
+	vTaskEnterCritical(&mutex);
 
-	/*timeval start, end;
+	if (this->ready)
+		this->data_ready = true;
 
-	gettimeofday(&start, NULL);
+	vTaskExitCritical(&mutex);
+}
 
-	//this->spi_regs_read(this->REGISTERS.ACCEL_XOUT_H, 14);
+bool MPU9250::Data_Ready() {
+	bool tmp = this->data_ready;
 
+	if (this->data_ready)
+		this->data_ready = false;
 
-
-	gettimeofday(&end, NULL);
-
-	for (int i = 0; i < 14; i++)
-		std::cout << "data[" << i << "]: " << (int)(this->rx_buffer[i]) << std::endl;
-
-	std::cout << "in " << end.tv_sec - start.tv_sec << " s, " << end.tv_usec - start.tv_usec << " us" << std::endl;*/
+	return tmp;
 }
 
 } /* namespace flyhero */

@@ -102,8 +102,11 @@ private:
 	uint16_t sample_rate;
 	spi_device_handle_t spi;
 	uint8_t *rx_buffer;
+	bool data_ready;
+	bool ready;
 
 	esp_err_t spi_init();
+	esp_err_t int_init();
 	esp_err_t spi_reg_read(uint8_t reg, uint8_t& data);
 	esp_err_t spi_regs_read(uint8_t first_reg, uint8_t count);
 	esp_err_t spi_reg_write(uint8_t reg, uint8_t data);
@@ -119,6 +122,8 @@ public:
 	static MPU9250& Instance();
 
 	void Init();
+	void Data_Ready_Callback();
+	bool Data_Ready();
 };
 
 } /* namespace flyhero */
