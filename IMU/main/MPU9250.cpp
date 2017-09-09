@@ -18,6 +18,13 @@ MPU9250& MPU9250::Instance() {
 MPU9250::MPU9250() {
 	this->spi = NULL;
 	this->rx_buffer = NULL;
+	this->a_fsr = ACCEL_FSR_NOT_SET;
+	this->a_lpf = ACCEL_LPF_NOT_SET;
+	this->a_mult = 0;
+	this->g_fsr = GYRO_FSR_NOT_SET;
+	this->g_lpf = GYRO_LPF_NOT_SET;
+	this->g_mult = 0;
+	this->sample_rate = 0;
 }
 
 esp_err_t MPU9250::spi_init() {
@@ -48,7 +55,7 @@ esp_err_t MPU9250::spi_init() {
     devcfg.post_cb = 0;
 
     //Initialize the SPI bus
-    if ( (ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1)) )
+    if ( (ret = spi_bus_initialize(HSPI_HOST, &buscfg, 0)) )
     	return ret;
 
     if ( (ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi)) )
@@ -80,9 +87,9 @@ esp_err_t MPU9250::spi_reg_read(uint8_t reg, uint8_t& data) {
 DRAM_ATTR static const uint8_t tx_dummy[40] = { 0x00 };
 
 esp_err_t MPU9250::spi_regs_read(uint8_t first_reg, uint8_t count) {
-	//return ESP_ERR_NOT_SUPPORTED;
+	return ESP_ERR_NOT_SUPPORTED;
 
-	count += 4 - (count % 4);
+	/*count += 4 - (count % 4);
 
 	esp_err_t ret;
 
@@ -99,7 +106,7 @@ esp_err_t MPU9250::spi_regs_read(uint8_t first_reg, uint8_t count) {
 	if ( (ret = spi_device_transmit(this->spi, &trans)) )
 		return ret;
 
-	return ESP_OK;
+	return ESP_OK;*/
 }
 
 esp_err_t MPU9250::spi_reg_write(uint8_t reg, uint8_t data) {
@@ -231,13 +238,30 @@ void MPU9250::set_accel_lpf(accel_lpf lpf) {
 	this->a_lpf = lpf;
 }
 
+void MPU9250::set_sample_rate(uint16_t rate) {
+	// setting SMPLRT_DIV won't be effective
+	// 8800 Hz => sample at 32 kHz
+	// 3600 Hz => sample at 32 kHz
+	// 250 Hz => sample at 8 kHz
+	if (this->g_lpf == GYRO_LPF_8800HZ || this->g_lpf == GYRO_LPF_3600Hz || this->g_lpf == GYRO_LPF_250HZ)
+		return;
+
+	uint8_t div = (1000 - rate) / rate;
+
+	this->spi_reg_write(this->REGISTERS.SMPLRT_DIV, div);
+}
+
+void MPU9250::set_interrupt(bool enable) {
+	this->spi_reg_write(this->REGISTERS.INT_ENABLE, (enable ? 0x01 : 0x00));
+}
+
 void MPU9250::Init() {
 	esp_err_t ret;
 
-	this->rx_buffer = (uint8_t*)heap_caps_malloc(40, MALLOC_CAP_32BIT | MALLOC_CAP_DMA);
+	/*this->rx_buffer = (uint8_t*)heap_caps_malloc(40, MALLOC_CAP_32BIT | MALLOC_CAP_DMA);
 
 	if (this->rx_buffer == NULL)
-		std::cout << "alloc error" << std::endl;
+		std::cout << "alloc error" << std::endl;*/
 
 	if ( (ret = this->spi_init()) )
 		return;
@@ -268,16 +292,24 @@ void MPU9250::Init() {
 
 	this->spi_reg_read(this->REGISTERS.WHO_AM_I, who_am_i);
 
+
 	if (who_am_i != 0x71)
 		return;
 
+	this->set_interrupt(false);
 
+	// set INT pin active high, push-pull; don't use latched mode, fsync nor I2C bypass
+	this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10);
 
+	this->set_gyro_fsr(GYRO_FSR_2000);
+	this->set_gyro_lpf(GYRO_LPF_250HZ);
 
+	this->set_accel_fsr(ACCEL_FSR_16);
+	this->set_accel_lpf(ACCEL_LPF_1046HZ);
 
+	this->set_sample_rate(8000);
 
-
-
+	this->set_interrupt(true);
 
 
 	std::cout << "Init complete" << std::endl;

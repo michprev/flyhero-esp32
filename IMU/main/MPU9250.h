@@ -76,10 +76,13 @@ private:
 	};
 
 	const struct {
+		uint8_t SMPLRT_DIV			= 25;
 		uint8_t CONFIG 				= 26;
 		uint8_t GYRO_CONFIG 		= 27;
 		uint8_t ACCEL_CONFIG 		= 28;
 		uint8_t ACCEL_CONFIG2 		= 29;
+		uint8_t INT_PIN_CFG			= 55;
+		uint8_t INT_ENABLE			= 56;
 		uint8_t ACCEL_XOUT_H 		= 59;
 		uint8_t SIGNAL_PATH_RESET 	= 104;
 		uint8_t USER_CTRL 			= 106;
@@ -96,6 +99,7 @@ private:
 	gyro_lpf g_lpf;
 	accel_lpf a_lpf;
 	float g_mult, a_mult;
+	uint16_t sample_rate;
 	spi_device_handle_t spi;
 	uint8_t *rx_buffer;
 
@@ -108,6 +112,8 @@ private:
 	void set_accel_fsr(accel_fsr fsr);
 	void set_gyro_lpf(gyro_lpf lpf);
 	void set_accel_lpf(accel_lpf lpf);
+	void set_sample_rate(uint16_t rate);
+	void set_interrupt(bool enable);
 
 public:
 	static MPU9250& Instance();
