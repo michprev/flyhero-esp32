@@ -12,6 +12,7 @@
 #include <esp_err.h>
 #include <freertos/task.h>
 #include <cmath>
+#include "Biquad_Filter.h"
 
 extern "C" {
 
@@ -99,7 +100,8 @@ private:
 
 	const uint8_t ADC_BITS = 16;
 
-
+	Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
+	Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
 	gyro_fsr g_fsr;
 	accel_fsr a_fsr;
 	gyro_lpf g_lpf;
@@ -107,14 +109,14 @@ private:
 	float g_mult, a_mult;
 	uint16_t sample_rate;
 	spi_device_handle_t spi;
-	uint8_t *rx_buffer;
 	bool data_ready;
 	bool ready;
+	float accel_offsets[3];
+	float gyro_offsets[3];
 
 	esp_err_t spi_init();
 	esp_err_t int_init();
 	esp_err_t spi_reg_read(uint8_t reg, uint8_t& data);
-	esp_err_t spi_regs_read(uint8_t first_reg, uint8_t count);
 	esp_err_t spi_reg_write(uint8_t reg, uint8_t data);
 
 	void set_gyro_fsr(gyro_fsr fsr);
@@ -125,9 +127,20 @@ private:
 	void set_interrupt(bool enable);
 
 public:
+	struct Raw_Data {
+		int16_t x, y, z;
+	};
+
+	struct Sensor_Data {
+		float x, y, z;
+	};
+
 	static MPU9250& Instance();
 
 	void Init();
+	void Calibrate();
+	void Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro);
+	void Read_Data(Sensor_Data& accel, Sensor_Data& gyro);
 	void Data_Ready_Callback();
 	bool Data_Ready();
 };

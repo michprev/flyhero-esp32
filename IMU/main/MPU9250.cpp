@@ -20,9 +20,15 @@ MPU9250& MPU9250::Instance() {
 	return instance;
 }
 
-MPU9250::MPU9250() {
+MPU9250::MPU9250()
+	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10)
+	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+{
 	this->spi = NULL;
-	this->rx_buffer = NULL;
 	this->a_fsr = ACCEL_FSR_NOT_SET;
 	this->a_lpf = ACCEL_LPF_NOT_SET;
 	this->a_mult = 0;
@@ -32,6 +38,12 @@ MPU9250::MPU9250() {
 	this->sample_rate = 0;
 	this->data_ready = false;
 	this->ready = false;
+	this->accel_offsets[0] = 0;
+	this->accel_offsets[1] = 0;
+	this->accel_offsets[2] = 0;
+	this->gyro_offsets[0] = 0;
+	this->gyro_offsets[1] = 0;
+	this->gyro_offsets[2] = 0;
 }
 
 esp_err_t MPU9250::spi_init() {
@@ -111,31 +123,6 @@ esp_err_t MPU9250::spi_reg_read(uint8_t reg, uint8_t& data) {
 	data = trans.rx_data[0];
 
 	return ESP_OK;
-}
-
-DRAM_ATTR static const uint8_t tx_dummy[40] = { 0x00 };
-
-esp_err_t MPU9250::spi_regs_read(uint8_t first_reg, uint8_t count) {
-	return ESP_ERR_NOT_SUPPORTED;
-
-	/*count += 4 - (count % 4);
-
-	esp_err_t ret;
-
-	spi_transaction_t trans;
-	trans.flags = 0;
-	trans.cmd = 0;
-	trans.addr = first_reg | 0x80;
-	trans.length = count * 8;
-	trans.rxlength = count * 8;
-	trans.user = 0;
-	trans.tx_buffer = tx_dummy;
-	trans.rx_buffer = this->rx_buffer;
-
-	if ( (ret = spi_device_transmit(this->spi, &trans)) )
-		return ret;
-
-	return ESP_OK;*/
 }
 
 esp_err_t MPU9250::spi_reg_write(uint8_t reg, uint8_t data) {
@@ -289,11 +276,6 @@ void MPU9250::set_interrupt(bool enable) {
 void MPU9250::Init() {
 	esp_err_t ret;
 
-	/*this->rx_buffer = (uint8_t*)heap_caps_malloc(40, MALLOC_CAP_32BIT | MALLOC_CAP_DMA);
-
-	if (this->rx_buffer == NULL)
-		std::cout << "alloc error" << std::endl;*/
-
 	if ( (ret = this->int_init()))
 		return;
 
@@ -339,7 +321,7 @@ void MPU9250::Init() {
 	this->set_gyro_lpf(GYRO_LPF_184HZ);
 
 	this->set_accel_fsr(ACCEL_FSR_16);
-	this->set_accel_lpf(ACCEL_LPF_1046HZ);
+	this->set_accel_lpf(ACCEL_LPF_420HZ);
 
 	this->set_sample_rate(1000);
 
@@ -368,7 +350,108 @@ void MPU9250::Init() {
 	if ( (ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi)) )
 		return;
 
+	this->Calibrate();
+
 	this->ready = true;
+}
+
+void MPU9250::Calibrate() {
+	Raw_Data accel, gyro;
+
+	vTaskDelay(1000 / portTICK_RATE_MS);
+
+	for (uint16_t i = 0; i < 500; i++) {
+		this->Read_Raw(accel, gyro);
+
+		this->accel_offsets[0] += accel.x;
+		this->accel_offsets[1] += accel.y;
+		this->accel_offsets[2] += accel.z - 2048; // 2048 = 1G in +- 16G FSR
+		this->gyro_offsets[0] += gyro.x;
+		this->gyro_offsets[1] += gyro.y;
+		this->gyro_offsets[2] += gyro.z;
+	}
+
+	this->accel_offsets[0] /= -500;
+	this->accel_offsets[1] /= -500;
+	this->accel_offsets[2] /= -500;
+	this->gyro_offsets[0] /= -500;
+	this->gyro_offsets[1] /= -500;
+	this->gyro_offsets[2] /= -500;
+}
+
+void MPU9250::Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) {
+	esp_err_t ret;
+
+	static const uint8_t tx_data[14] = { 0x00 };
+	static uint8_t rx_data[14];
+
+	spi_transaction_t trans;
+	trans.flags = 0;
+	trans.cmd = 0;
+	trans.addr = this->REGISTERS.ACCEL_XOUT_H | 0x80;
+	trans.length = 14 * 8;
+	trans.rxlength = 14 * 8;
+	trans.user = 0;
+	trans.tx_buffer = tx_data;
+	trans.rx_buffer = rx_data;
+
+	// reading:
+	// 75 us not 32b aligned, non DMA capable mem
+	// 69 us 32b aligned, DMA capable mem
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return;
+
+	raw_accel.x = (rx_data[0] << 8) | rx_data[1];
+	raw_accel.y = (rx_data[2] << 8) | rx_data[3];
+	raw_accel.z = (rx_data[4] << 8) | rx_data[5];
+
+	raw_gyro.x = (rx_data[8] << 8) | rx_data[9];
+	raw_gyro.y = (rx_data[10] << 8) | rx_data[11];
+	raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
+}
+
+void MPU9250::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
+	esp_err_t ret;
+
+	static const uint8_t tx_data[14] = { 0x00 };
+	static uint8_t rx_data[14];
+
+	spi_transaction_t trans;
+	trans.flags = 0;
+	trans.cmd = 0;
+	trans.addr = this->REGISTERS.ACCEL_XOUT_H | 0x80;
+	trans.length = 14 * 8;
+	trans.rxlength = 14 * 8;
+	trans.user = 0;
+	trans.tx_buffer = tx_data;
+	trans.rx_buffer = rx_data;
+
+	// reading:
+	// 75 us not 32b aligned, non DMA capable mem
+	// 69 us 32b aligned, DMA capable mem
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return;
+
+	static Raw_Data raw_accel, raw_gyro;
+	static uint16_t raw_temp;
+
+	raw_accel.x = (rx_data[0] << 8) | rx_data[1];
+	raw_accel.y = (rx_data[2] << 8) | rx_data[3];
+	raw_accel.z = (rx_data[4] << 8) | rx_data[5];
+
+	raw_temp = (rx_data[6] << 8) | rx_data[7];
+
+	raw_gyro.x = (rx_data[8] << 8) | rx_data[9];
+	raw_gyro.y = (rx_data[10] << 8) | rx_data[11];
+	raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
+
+	accel.x = this->accel_x_filter.Apply_Filter((raw_accel.x + this->accel_offsets[0]) * this->a_mult);
+	accel.y = this->accel_y_filter.Apply_Filter((raw_accel.y + this->accel_offsets[1]) * this->a_mult);
+	accel.z = this->accel_z_filter.Apply_Filter((raw_accel.z + this->accel_offsets[2]) * this->a_mult);
+
+	gyro.x = this->gyro_x_filter.Apply_Filter((raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
+	gyro.y = this->gyro_y_filter.Apply_Filter((raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
+	gyro.z = this->gyro_z_filter.Apply_Filter((raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
 }
 
 void MPU9250::Data_Ready_Callback() {
