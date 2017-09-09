@@ -30,7 +30,6 @@ MPU9250::MPU9250() {
 esp_err_t MPU9250::spi_init() {
     esp_err_t ret;
 
-
     spi_bus_config_t buscfg;
     buscfg.miso_io_num = GPIO_NUM_25;
     buscfg.mosi_io_num = GPIO_NUM_23;
@@ -120,6 +119,7 @@ esp_err_t MPU9250::spi_reg_write(uint8_t reg, uint8_t data) {
 	trans.rxlength = 0;
 	trans.user = 0;
 	trans.tx_data[0] = data;
+	trans.rx_buffer = NULL;
 
 	if ( (ret = spi_device_transmit(this->spi, &trans)) )
 		return ret;
