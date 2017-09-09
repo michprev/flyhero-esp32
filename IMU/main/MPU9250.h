@@ -51,9 +51,13 @@ private:
 	};
 
 	enum gyro_lpf {
+		// 32 kHz
 		GYRO_LPF_8800HZ 	= 0x00,
+		// 32 kHz
 		GYRO_LPF_3600Hz 	= 0x00,
+		// should be 8 kHz, measured 32 kHz
 		GYRO_LPF_250HZ 		= 0x00,
+		// 1 kHz
 		GYRO_LPF_184HZ 		= 0x01,
 		GYRO_LPF_92HZ 		= 0x02,
 		GYRO_LPF_41HZ 		= 0x03,
@@ -64,7 +68,9 @@ private:
 	};
 
 	enum accel_lpf {
+		// 4 kHz
 		ACCEL_LPF_1046HZ 	= 0x00,
+		// 1 kHz
 		ACCEL_LPF_218HZ 	= 0x00,
 		ACCEL_LPF_99HZ 		= 0x02,
 		ACCEL_LPF_45HZ 		= 0x03,

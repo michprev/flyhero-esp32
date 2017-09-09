@@ -244,6 +244,7 @@ void MPU9250::set_gyro_lpf(gyro_lpf lpf) {
 	uint8_t gyro_config;
 
 	this->spi_reg_read(this->REGISTERS.GYRO_CONFIG, gyro_config);
+	gyro_config &= 0xFC;
 	this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | Fchoice_b);
 
 	this->spi_reg_write(this->REGISTERS.CONFIG, lpf);
@@ -269,10 +270,10 @@ void MPU9250::set_accel_lpf(accel_lpf lpf) {
 }
 
 void MPU9250::set_sample_rate(uint16_t rate) {
-	// setting SMPLRT_DIV won't be effective
+	// setting SMPLRT_DIV won't be effective in cases:
 	// 8800 Hz => sample at 32 kHz
 	// 3600 Hz => sample at 32 kHz
-	// 250 Hz => sample at 8 kHz
+	// 250 Hz => should sample at 8 kHz, measured 32 kHz
 	if (this->g_lpf == GYRO_LPF_8800HZ || this->g_lpf == GYRO_LPF_3600Hz || this->g_lpf == GYRO_LPF_250HZ)
 		return;
 
