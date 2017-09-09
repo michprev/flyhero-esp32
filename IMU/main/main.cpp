@@ -1,4 +1,14 @@
-#include "MPU6050.h"
+#include "MPU9250.h"
+
+using namespace flyhero;
+
+
+extern "C" void app_main(void) {
+	MPU9250::Instance().Init();
+}
+
+
+/*#include "MPU6050.h"
 #include <stdint.h>
 
 using namespace flyhero;
@@ -12,8 +22,8 @@ extern "C" void app_main(void)
 {
 	if (mpu.Init() || mpu.Calibrate()) {
 		while (true) {
-			/*LEDs::Toggle(LEDs::Green);
-			Timer::Delay_ms(500);*/
+			//LEDs::Toggle(LEDs::Green);
+			//Timer::Delay_ms(500);
 		}
 	}
 
@@ -34,8 +44,8 @@ extern "C" void app_main(void)
 
 void IMU_Data_Ready_Callback() {
 	// 160 us
-	/*if (mpu.Start_Read() != HAL_OK)
-		LEDs::TurnOn(LEDs::Orange);*/
+	//if (mpu.Start_Read() != HAL_OK)
+	//	LEDs::TurnOn(LEDs::Orange);
 }
 
 // IMU_Data_Ready_Callback() -> 340 us -> IMU_Data_Read_Callback()
@@ -46,4 +56,4 @@ void IMU_Data_Read_Callback() {
 	// 200 us
 	mpu.Compute_Mahony();
 	//mpu.Compute_Euler();
-}
+}*/
