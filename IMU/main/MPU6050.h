@@ -82,21 +82,14 @@ const struct {
 Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
 Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
 
-Sensor_Data accel, gyro;
-int16_t raw_temp;
-Raw_Data raw_accel, raw_gyro;
-uint32_t start_ticks;
 gyro_fsr g_fsr; // TODO better variable/enum name
 float g_mult;
 float a_mult;
 accel_fsr a_fsr;
 lpf_bandwidth lpf;
 int16_t sample_rate;
-uint8_t data_buffer[14];
 float accel_offsets[3];
 float gyro_offsets[3];
-volatile uint32_t data_ready_ticks;
-volatile float delta_t;
 
 esp_err_t i2c_init();
 esp_err_t int_init();
@@ -113,19 +106,9 @@ esp_err_t set_interrupt(bool enable);
 public:
 	static MPU6050& Instance();
 
-	void (*Data_Ready_Callback)();
-	void (*Data_Read_Callback)();
-
 	esp_err_t Init();
 	esp_err_t Calibrate();
-	void Get_Raw_Accel(Raw_Data& raw_accel);
-	void Get_Raw_Gyro(Raw_Data& raw_gyro);
-	void Get_Raw_Temp(int16_t& raw_temp);
-	void Get_Accel(Sensor_Data& accel);
-	void Get_Gyro(Sensor_Data& gyro);
 	esp_err_t Read_Raw(Raw_Data& accel, Raw_Data& gyro);
-	//HAL_StatusTypeDef Start_Read();
-	void Complete_Read();
 };
 
 } /* namespace The_Eye */

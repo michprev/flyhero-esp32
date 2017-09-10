@@ -38,11 +38,12 @@ MPU6050::MPU6050()
 	this->a_fsr = ACCEL_FSR_NOT_SET;
 	this->lpf = LPF_NOT_SET;
 	this->sample_rate = -1;
-	this->start_ticks = 0;
-	this->data_ready_ticks = 0;
-	this->delta_t = 0;
-	this->Data_Ready_Callback = NULL;
-	this->Data_Read_Callback = NULL;
+	this->accel_offsets[0] = 0;
+	this->accel_offsets[1] = 0;
+	this->accel_offsets[2] = 0;
+	this->gyro_offsets[0] = 0;
+	this->gyro_offsets[1] = 0;
+	this->gyro_offsets[2] = 0;
 }
 
 esp_err_t MPU6050::i2c_init() {
@@ -159,8 +160,6 @@ esp_err_t MPU6050::Init() {
 
 	if (this->set_interrupt(true))
 		return ESP_FAIL;
-
-	//this->start_ticks = Timer::Get_Tick_Count(); TODO
 
 	return ESP_OK;
 }
@@ -374,54 +373,6 @@ esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size) {
 	return ESP_OK;
 }
 
-/*HAL_StatusTypeDef MPU6050::Start_Read() {
-	if (this->data_ready_ticks != 0)
-		this->delta_t = (Timer::Get_Tick_Count() - this->data_ready_ticks) * 0.000001;
-	this->data_ready_ticks = Timer::Get_Tick_Count();
-
-	return HAL_I2C_Mem_Read_DMA(&this->hi2c, this->I2C_ADDRESS, this->REGISTERS.ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, this->data_buffer, 14);
-}*/
-
-void MPU6050::Complete_Read() {
-	this->raw_accel.x = (this->data_buffer[0] << 8) | this->data_buffer[1];
-	this->raw_accel.y = (this->data_buffer[2] << 8) | this->data_buffer[3];
-	this->raw_accel.z = (this->data_buffer[4] << 8) | this->data_buffer[5];
-
-	this->raw_temp = (this->data_buffer[6] << 8) | this->data_buffer[7];
-
-	this->raw_gyro.x = (this->data_buffer[8] << 8) | this->data_buffer[9];
-	this->raw_gyro.y = (this->data_buffer[10] << 8) | this->data_buffer[11];
-	this->raw_gyro.z = (this->data_buffer[12] << 8) | this->data_buffer[13];
-
-	this->accel.x = this->accel_x_filter.Apply_Filter((this->raw_accel.x + this->accel_offsets[0]) * this->a_mult);
-	this->accel.y = this->accel_y_filter.Apply_Filter((this->raw_accel.y + this->accel_offsets[1]) * this->a_mult);
-	this->accel.z = this->accel_z_filter.Apply_Filter((this->raw_accel.z + this->accel_offsets[2]) * this->a_mult);
-
-	this->gyro.x = this->gyro_x_filter.Apply_Filter((this->raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
-	this->gyro.y = this->gyro_y_filter.Apply_Filter((this->raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
-	this->gyro.z = this->gyro_z_filter.Apply_Filter((this->raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
-}
-
-void MPU6050::Get_Raw_Accel(Raw_Data& raw_accel) {
-	raw_accel = this->raw_accel;
-}
-
-void MPU6050::Get_Raw_Gyro(Raw_Data& raw_gyro) {
-	raw_gyro = this->raw_gyro;
-}
-
-void MPU6050::Get_Raw_Temp(int16_t& raw_temp) {
-	raw_temp = this->raw_temp;
-}
-
-void MPU6050::Get_Accel(Sensor_Data& accel) {
-	accel = this->accel;
-}
-
-void MPU6050::Get_Gyro(Sensor_Data& gyro) {
-	gyro = this->gyro;
-}
-
 esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
 	uint8_t tmp[14];
 
@@ -445,9 +396,6 @@ esp_err_t MPU6050::Calibrate() {
 
 	this->set_gyro_fsr(GYRO_FSR_1000);
 	this->set_accel_fsr(ACCEL_FSR_16);
-
-	// wait until internal sensor calibration done
-	//while (Timer::Get_Tick_Count() - this->start_ticks < 40000000);
 
 	uint8_t offset_data[6] = { 0x00 };
 
