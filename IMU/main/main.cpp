@@ -1,4 +1,7 @@
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include "MPU9250.h"
+#include "Mahony_Filter.h"
 
 // debug
 #include <iostream>
@@ -6,39 +9,52 @@
 
 using namespace flyhero;
 
+QueueHandle_t data_queue;
+
 void imu_task(void *args) {
 	MPU9250& mpu = MPU9250::Instance();
 	mpu.Init();
 
-	timeval time;
-	uint32_t tmp[10];
-	uint16_t pos = 0;
+	Mahony_Filter mahony(2, 0.1f, 1000);
 
-	bool run = true;
+	IMU::Sensor_Data accel, gyro;
+	IMU::Euler_Angles euler;
 
-	while (run) {
+	uint8_t i = 0;
+
+	while (true) {
 		if (mpu.Data_Ready()) {
-			gettimeofday(&time, NULL);
+			mpu.Read_Data(accel, gyro);
 
-			tmp[pos] = time.tv_usec - tmp[pos];
+			mahony.Compute(accel, gyro, euler);
 
-			pos++;
+			i++;
 
-			if (pos == 10)
-				break;
+			if (i % 100 == 0) {
+				i = 0;
 
-			tmp[pos] = time.tv_usec;
+				if (xQueueSendToBack(data_queue, &euler, 0) != pdTRUE)
+					break;
+			}
 		}
 	}
 
-	for (int i = 0; i < 10; i++)
-		std::cout << tmp[i] << std::endl;
+	std::cout << "exited" << std::endl;
 
 	vTaskDelete(NULL);
 }
 
 extern "C" void app_main(void) {
 
+	data_queue = xQueueCreate(10, sizeof(IMU::Euler_Angles));
+
 	xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 1, NULL, 1);
+
+	IMU::Euler_Angles euler;
+
+	while (true) {
+		if (xQueueReceive(data_queue, &euler, 0) == pdTRUE)
+			std::cout << euler.roll << " " << euler.pitch << " " << euler.yaw << std::endl;
+	}
 
 }
