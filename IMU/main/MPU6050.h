@@ -31,15 +31,8 @@ public:
 private:
 	/* Singleton begin */
 	MPU6050();
-	MPU6050(MPU6050 const&)
-	: accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	, gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 50)
-	{};
-	//MPU6050& operator=(MPU6050 const&){};
+	MPU6050(MPU6050 const&);
+	MPU6050& operator=(MPU6050 const&);
 	/*Singleton end */
 
 enum gyro_fsr {
