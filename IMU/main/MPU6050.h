@@ -52,10 +52,6 @@ enum lpf_bandwidth {
 	LPF_NOT_SET = 0xFF
 };
 
-const float COMPLEMENTARY_COEFFICIENT = 0.995f;
-const double PI = 3.14159265358979323846;
-const float RAD_TO_DEG = 180 / this->PI;
-const float DEG_TO_RAD = this->PI / 180;
 const uint8_t ADC_BITS = 16;
 const uint8_t I2C_ADDRESS_WRITE = (0x68 << 1);
 const uint8_t I2C_ADDRESS_READ = ((0x68 << 1) | 0x01);
@@ -101,10 +97,6 @@ float accel_offsets[3];
 float gyro_offsets[3];
 volatile uint32_t data_ready_ticks;
 volatile float delta_t;
-
-float atan2(float y, float x);
-inline float inv_sqrt(float x);
-inline double atan(double z);
 
 esp_err_t i2c_init();
 esp_err_t int_init();
