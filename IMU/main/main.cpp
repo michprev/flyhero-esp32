@@ -2,6 +2,7 @@
 #include <freertos/queue.h>
 #include "MPU9250.h"
 #include "Mahony_Filter.h"
+#include "Complementary_Filter.h"
 
 // debug
 #include <iostream>
@@ -15,7 +16,8 @@ void imu_task(void *args) {
 	MPU9250& mpu = MPU9250::Instance();
 	mpu.Init();
 
-	Mahony_Filter mahony(2, 0.1f, 1000);
+	//Mahony_Filter mahony(2, 0.1f, 1000);
+	Complementary_Filter complementary(0.995f, 1000);
 
 	IMU::Sensor_Data accel, gyro;
 	IMU::Euler_Angles euler;
@@ -26,7 +28,8 @@ void imu_task(void *args) {
 		if (mpu.Data_Ready()) {
 			mpu.Read_Data(accel, gyro);
 
-			mahony.Compute(accel, gyro, euler);
+			//mahony.Compute(accel, gyro, euler);
+			complementary.Compute(accel, gyro, euler);
 
 			i++;
 
