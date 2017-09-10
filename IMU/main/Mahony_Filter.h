@@ -9,12 +9,12 @@
 #define MAIN_MAHONY_FILTER_H_
 
 #include <cmath>
-#include "IMU.h"
+#include "Fusion_Filter.h"
 #include "Math.h"
 
 namespace flyhero {
 
-class Mahony_Filter {
+class Mahony_Filter : public Fusion_Filter {
 private:
 	IMU::Quaternion quaternion;
 	const float MAHONY_KP, MAHONY_KI;
@@ -23,9 +23,10 @@ private:
 
 public:
 	Mahony_Filter(float kp, float ki, uint16_t sample_rate);
+	~Mahony_Filter() override = default;
 
-	void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles& euler);
-	void Reset();
+	void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles& euler) override;
+	void Reset() override;
 
 };
 
