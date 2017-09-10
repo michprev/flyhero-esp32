@@ -13,6 +13,7 @@
 #include <freertos/task.h>
 #include <cmath>
 #include "Biquad_Filter.h"
+#include "IMU.h"
 
 extern "C" {
 
@@ -27,7 +28,7 @@ extern "C" {
 
 namespace flyhero {
 
-class MPU9250 {
+class MPU9250 : public IMU {
 private:
 	/* Singleton begin */
 	MPU9250();
@@ -127,14 +128,6 @@ private:
 	void set_interrupt(bool enable);
 
 public:
-	struct Raw_Data {
-		int16_t x, y, z;
-	};
-
-	struct Sensor_Data {
-		float x, y, z;
-	};
-
 	static MPU9250& Instance();
 
 	void Init();
