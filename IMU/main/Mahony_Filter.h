@@ -17,11 +17,12 @@ namespace flyhero {
 class Mahony_Filter {
 private:
 	IMU::Quaternion quaternion;
-	float mahony_Kp, mahony_Ki;
+	const float MAHONY_KP, MAHONY_KI;
+	const float REC_SAMPLE_RATE;
 	IMU::Sensor_Data mahony_integral;
 
 public:
-	Mahony_Filter(float kp, float ki);
+	Mahony_Filter(float kp, float ki, uint16_t sample_rate);
 
 	void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles& euler);
 	void Reset();

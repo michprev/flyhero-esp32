@@ -9,13 +9,12 @@
 
 namespace flyhero {
 
-Mahony_Filter::Mahony_Filter(float kp, float ki) {
+Mahony_Filter::Mahony_Filter(float kp, float ki, uint16_t sample_rate)
+	: MAHONY_KP(kp), MAHONY_KI(ki), REC_SAMPLE_RATE(1.0f / sample_rate) {
 	this->quaternion.q0 = 1;
 	this->quaternion.q1 = 0;
 	this->quaternion.q2 = 0;
 	this->quaternion.q3 = 0;
-	this->mahony_Kp = kp;
-	this->mahony_Ki = ki;
 	this->mahony_integral.x = 0;
 	this->mahony_integral.y = 0;
 	this->mahony_integral.z = 0;
@@ -48,24 +47,24 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 	half_e.y = (accel.z * half_v.x - accel.x * half_v.z);
 	half_e.z = (accel.x * half_v.y - accel.y * half_v.x);
 
-	if (this->mahony_Ki > 0) {
-		this->mahony_integral.x += 2 * this->mahony_Ki * half_e.x * 0.001f;
-		this->mahony_integral.y += 2 * this->mahony_Ki * half_e.y * 0.001f;
-		this->mahony_integral.z += 2 * this->mahony_Ki * half_e.z * 0.001f;
+	if (this->MAHONY_KI > 0) {
+		this->mahony_integral.x += 2 * this->MAHONY_KI * half_e.x * this->REC_SAMPLE_RATE;
+		this->mahony_integral.y += 2 * this->MAHONY_KI * half_e.y * this->REC_SAMPLE_RATE;
+		this->mahony_integral.z += 2 * this->MAHONY_KI * half_e.z * this->REC_SAMPLE_RATE;
 
 		gyro_rad.x += this->mahony_integral.x;
 		gyro_rad.y += this->mahony_integral.y;
 		gyro_rad.z += this->mahony_integral.z;
 	}
 
-	gyro_rad.x += 2 * this->mahony_Kp * half_e.x;
-	gyro_rad.y += 2 * this->mahony_Kp * half_e.y;
-	gyro_rad.z += 2 * this->mahony_Kp * half_e.z;
+	gyro_rad.x += 2 * this->MAHONY_KP * half_e.x;
+	gyro_rad.y += 2 * this->MAHONY_KP * half_e.y;
+	gyro_rad.z += 2 * this->MAHONY_KP * half_e.z;
 
 	// integrate rate of change of quaternion
-	gyro_rad.x *= 0.5f * 0.001f;		// pre-multiply common factors
-	gyro_rad.y *= 0.5f * 0.001f;
-	gyro_rad.z *= 0.5f * 0.001f;
+	gyro_rad.x *= 0.5f * this->REC_SAMPLE_RATE;		// pre-multiply common factors
+	gyro_rad.y *= 0.5f * this->REC_SAMPLE_RATE;
+	gyro_rad.z *= 0.5f * this->REC_SAMPLE_RATE;
 
 	float qa = this->quaternion.q0;
 	float qb = this->quaternion.q1;
