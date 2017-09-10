@@ -355,6 +355,7 @@ void MPU9250::Init() {
 	this->ready = true;
 }
 
+// we won't use offset registers since we would have to switch back to 1 MHz SPI clock
 void MPU9250::Calibrate() {
 	Raw_Data accel, gyro;
 
