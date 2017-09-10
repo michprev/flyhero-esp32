@@ -87,13 +87,9 @@ Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
 Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
 
 Sensor_Data accel, gyro;
-Sensor_Data mahony_integral;
-Quaternion quaternion;
-float mahony_Kp, mahony_Ki;
 int16_t raw_temp;
 Raw_Data raw_accel, raw_gyro;
 uint32_t start_ticks;
-float roll, pitch, yaw;
 gyro_fsr g_fsr; // TODO better variable/enum name
 float g_mult;
 float a_mult;
@@ -128,12 +124,8 @@ public:
 	void (*Data_Ready_Callback)();
 	void (*Data_Read_Callback)();
 
-	void Reset_Integrators();
 	esp_err_t Init();
 	esp_err_t Calibrate();
-	void Compute_Euler();
-	void Compute_Mahony();
-	void Get_Euler(float& roll, float& pitch, float& yaw);
 	void Get_Raw_Accel(Raw_Data& raw_accel);
 	void Get_Raw_Gyro(Raw_Data& raw_gyro);
 	void Get_Raw_Temp(int16_t& raw_temp);
