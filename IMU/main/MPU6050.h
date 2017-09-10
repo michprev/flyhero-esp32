@@ -11,23 +11,11 @@
 #include "driver/i2c.h"
 #include <cmath>
 #include "Biquad_Filter.h"
+#include "IMU.h"
 
 namespace flyhero {
 
-class MPU6050 {
-public:
-	struct Sensor_Data {
-		float x, y, z;
-	};
-
-	struct Raw_Data {
-		int16_t x, y, z;
-	};
-
-	struct Quaternion {
-		float q0, q1, q2, q3;
-	};
-
+class MPU6050 : public IMU {
 private:
 	/* Singleton begin */
 	MPU6050();
