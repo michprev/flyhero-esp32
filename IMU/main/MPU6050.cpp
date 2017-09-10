@@ -9,13 +9,8 @@
 
 namespace flyhero {
 
-extern "C" void int_handler(void *arg) {
-        /*if (run) {
-            timeval ticks;
-            gettimeofday(&ticks, NULL);
-
-            xQueueSendFromISR(int_handle, &ticks.tv_usec, NULL);
-        }*/
+static void int_handler(void *arg) {
+	MPU6050::Instance().Data_Ready_Callback();
 }
 
 MPU6050& MPU6050::Instance() {
@@ -44,6 +39,8 @@ MPU6050::MPU6050()
 	this->gyro_offsets[0] = 0;
 	this->gyro_offsets[1] = 0;
 	this->gyro_offsets[2] = 0;
+	this->ready = false;
+	this->data_ready = false;
 }
 
 esp_err_t MPU6050::i2c_init() {
@@ -57,9 +54,9 @@ esp_err_t MPU6050::i2c_init() {
 	conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
 	conf.master.clk_speed = 400000;
 
-	if ((state = i2c_param_config(I2C_NUM_0, &conf)))
+	if ( (state = i2c_param_config(I2C_NUM_0, &conf)) )
 		return state;
-	if ((state = i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0)))
+	if ( (state = i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0)) )
 		return state;
 
 	return ESP_OK;
@@ -69,27 +66,239 @@ esp_err_t MPU6050::int_init() {
 	esp_err_t state;
 
 	gpio_config_t conf;
-
-	conf.pin_bit_mask = GPIO_SEL_5;
+	conf.pin_bit_mask = GPIO_SEL_13;
 	conf.mode = GPIO_MODE_INPUT;
 	conf.pull_up_en = GPIO_PULLUP_DISABLE;
 	conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
 	conf.intr_type = GPIO_INTR_POSEDGE;
 
-	if ((state = gpio_config(&conf)))
+	if ( (state = gpio_config(&conf)) )
 		return state;
 
-	if ((state = gpio_install_isr_service(0)))
+	if ( (state = gpio_install_isr_service(0)) )
 		return state;
-	if ((state = gpio_isr_handler_add(GPIO_NUM_5, int_handler, NULL)))
+	if ( (state = gpio_isr_handler_add(GPIO_NUM_13, int_handler, NULL)) )
 		return state;
 
 	return ESP_OK;
 }
 
-esp_err_t MPU6050::Init() {
-	uint8_t tmp;
+esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t data) {
+	esp_err_t state;
 
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+	if ( (state = i2c_master_start(cmd)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, reg, true)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, data, true)) )
+		return state;
+	if ( (state = i2c_master_stop(cmd)) )
+		return state;
+
+	if ( (state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)) )
+		return state;
+
+	i2c_cmd_link_delete(cmd);
+
+	return ESP_OK;
+}
+
+esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t *data, uint8_t data_size) {
+	esp_err_t state;
+
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+	if ( (state = i2c_master_start(cmd)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, reg, true)) )
+		return state;
+	if ((state = i2c_master_write(cmd, data, data_size, true)))
+		return state;
+	if ( (state = i2c_master_stop(cmd)) )
+		return state;
+
+	if ( (state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)) )
+		return state;
+
+	i2c_cmd_link_delete(cmd);
+
+	return ESP_OK;
+}
+
+esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data) {
+	esp_err_t state;
+
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+	if ( (state = i2c_master_start(cmd)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, reg, true)) )
+		return state;
+
+	if ( (state = i2c_master_start(cmd)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)) )
+		return state;
+	if ( (state = i2c_master_read_byte(cmd, data, 0x01)) )
+		return state;
+	if ( (state = i2c_master_stop(cmd)) )
+		return state;
+
+	if ( (state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)) )
+		return state;
+
+	i2c_cmd_link_delete(cmd);
+
+	return ESP_OK;
+}
+
+esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size) {
+	esp_err_t state;
+
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+	if ( (state = i2c_master_start(cmd)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, reg, true)) )
+		return state;
+
+	if ( (state = i2c_master_start(cmd)) )
+		return state;
+	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)) )
+		return state;
+
+	for (uint8_t i = 0; i < data_size - 1; i++) {
+		if ( (state = i2c_master_read_byte(cmd, data + i, 0x00)) )
+			return state;
+	}
+	if ( (state = i2c_master_read_byte(cmd, data + data_size - 1, 0x01)) )
+		return state;
+
+	if ( (state = i2c_master_stop(cmd)) )
+		return state;
+
+	if ( (state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)) )
+		return state;
+
+	i2c_cmd_link_delete(cmd);
+
+	return ESP_OK;
+}
+
+esp_err_t MPU6050::set_gyro_fsr(gyro_fsr fsr) {
+	if (fsr == GYRO_FSR_NOT_SET)
+		return ESP_FAIL;
+
+	if (this->g_fsr == fsr)
+		return ESP_OK;
+
+	if (this->i2c_write(this->REGISTERS.GYRO_CONFIG, fsr) == ESP_OK) {
+		this->g_fsr = fsr;
+
+		switch (this->g_fsr) {
+		case GYRO_FSR_250:
+			this->g_mult = 250;
+			break;
+		case GYRO_FSR_500:
+			this->g_mult = 500;
+			break;
+		case GYRO_FSR_1000:
+			this->g_mult = 1000;
+			break;
+		case GYRO_FSR_2000:
+			this->g_mult = 2000;
+			break;
+		case GYRO_FSR_NOT_SET:
+			return ESP_FAIL;
+		}
+
+		this->g_mult /= std::pow(2, this->ADC_BITS - 1);
+
+		return ESP_OK;
+	}
+
+	return ESP_FAIL;
+}
+
+esp_err_t MPU6050::set_accel_fsr(accel_fsr fsr) {
+	if (fsr == ACCEL_FSR_NOT_SET)
+		return ESP_FAIL;
+
+	if (this->a_fsr == fsr)
+		return ESP_OK;
+
+	if (this->i2c_write(this->REGISTERS.ACCEL_CONFIG, fsr) == ESP_OK) {
+		this->a_fsr = fsr;
+
+		switch (this->a_fsr) {
+		case ACCEL_FSR_2:
+			this->a_mult = 2;
+			break;
+		case ACCEL_FSR_4:
+			this->a_mult = 4;
+			break;
+		case ACCEL_FSR_8:
+			this->a_mult = 8;
+			break;
+		case ACCEL_FSR_16:
+			this->a_mult = 16;
+			break;
+		case ACCEL_FSR_NOT_SET:
+			return ESP_FAIL;
+		}
+
+		this->a_mult /= std::pow(2, this->ADC_BITS - 1);
+
+		return ESP_OK;
+	}
+
+	return ESP_FAIL;
+}
+
+esp_err_t MPU6050::set_lpf(lpf_bandwidth lpf) {
+	if (lpf == LPF_NOT_SET)
+		return ESP_FAIL;
+
+	if (this->lpf == lpf)
+		return ESP_OK;
+
+	if (this->i2c_write(this->REGISTERS.CONFIG, lpf) == ESP_OK) {
+		this->lpf = lpf;
+		return ESP_OK;
+	}
+
+	return ESP_FAIL;
+}
+
+esp_err_t MPU6050::set_sample_rate(uint16_t rate) {
+	if (this->sample_rate == rate)
+		return ESP_OK;
+
+	uint8_t val = (1000 - rate) / rate;
+
+	if (this->i2c_write(this->REGISTERS.SMPRT_DIV, val) == ESP_OK) {
+		this->sample_rate = rate;
+		return ESP_OK;
+	}
+
+	return ESP_FAIL;
+}
+
+esp_err_t MPU6050::set_interrupt(bool enable) {
+	return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
+}
+
+esp_err_t MPU6050::Init() {
 	// init I2C bus including DMA peripheral
 	if (this->i2c_init())
 		return ESP_FAIL;
@@ -103,6 +312,7 @@ esp_err_t MPU6050::Init() {
 		return ESP_FAIL;
 
 	// wait until reset done
+	uint8_t tmp;
 	do {
 		this->i2c_read(this->REGISTERS.PWR_MGMT_1, &tmp);
 	} while (tmp & 0x80);
@@ -110,6 +320,7 @@ esp_err_t MPU6050::Init() {
 	// reset analog devices - should not be needed
 	if (this->i2c_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07))
 		return ESP_FAIL;
+
 	vTaskDelay(100 / portTICK_RATE_MS);
 
 	// wake up, set clock source PLL with Z gyro axis
@@ -150,7 +361,7 @@ esp_err_t MPU6050::Init() {
 	if (this->set_accel_fsr(ACCEL_FSR_16))
 		return ESP_FAIL;
 
-	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz) TODO
+	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
 	if (this->set_lpf(LPF_188HZ))
 		return ESP_FAIL;
 
@@ -161,231 +372,10 @@ esp_err_t MPU6050::Init() {
 	if (this->set_interrupt(true))
 		return ESP_FAIL;
 
-	return ESP_OK;
-}
-
-esp_err_t MPU6050::set_gyro_fsr(gyro_fsr fsr) {
-	if (this->g_fsr == fsr)
-		return ESP_OK;
-
-	if (this->i2c_write(this->REGISTERS.GYRO_CONFIG, fsr) == ESP_OK) {
-		this->g_fsr = fsr;
-
-		switch (this->g_fsr) {
-		case GYRO_FSR_250:
-			this->g_mult = 250;
-			break;
-		case GYRO_FSR_500:
-			this->g_mult = 500;
-			break;
-		case GYRO_FSR_1000:
-			this->g_mult = 1000;
-			break;
-		case GYRO_FSR_2000:
-			this->g_mult = 2000;
-			break;
-		case GYRO_FSR_NOT_SET:
-			return ESP_FAIL;
-		}
-
-		this->g_mult /= std::pow(2, this->ADC_BITS - 1);
-
-		return ESP_OK;
-	}
-
-	return ESP_FAIL;
-}
-
-esp_err_t MPU6050::set_accel_fsr(accel_fsr fsr) {
-	if (this->a_fsr == fsr)
-		return ESP_OK;
-
-	if (this->i2c_write(this->REGISTERS.ACCEL_CONFIG, fsr) == ESP_OK) {
-		this->a_fsr = fsr;
-
-		switch (this->a_fsr) {
-		case ACCEL_FSR_2:
-			this->a_mult = 2;
-			break;
-		case ACCEL_FSR_4:
-			this->a_mult = 4;
-			break;
-		case ACCEL_FSR_8:
-			this->a_mult = 8;
-			break;
-		case ACCEL_FSR_16:
-			this->a_mult = 16;
-			break;
-		case ACCEL_FSR_NOT_SET:
-			return ESP_FAIL;
-		}
-
-		this->a_mult /= std::pow(2, this->ADC_BITS - 1);
-
-		return ESP_OK;
-	}
-
-	return ESP_FAIL;
-}
-
-esp_err_t MPU6050::set_lpf(lpf_bandwidth lpf) {
-	if (this->lpf == lpf)
-		return ESP_OK;
-
-	if (this->i2c_write(this->REGISTERS.CONFIG, lpf) == ESP_OK) {
-		this->lpf = lpf;
-		return ESP_OK;
-	}
-
-	return ESP_FAIL;
-}
-
-esp_err_t MPU6050::set_sample_rate(uint16_t rate) {
-	if (this->sample_rate == rate)
-		return ESP_OK;
-
-	uint8_t val = (1000 - rate) / rate;
-
-	if (this->i2c_write(this->REGISTERS.SMPRT_DIV, val) == ESP_OK) {
-		this->sample_rate = rate;
-		return ESP_OK;
-	}
-
-	return ESP_FAIL;
-}
-
-esp_err_t MPU6050::set_interrupt(bool enable) {
-	return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
-}
-
-esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t data) {
-	esp_err_t state;
-
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-
-	if ((state = i2c_master_start(cmd)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, reg, true)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, data, true)))
-		return state;
-	if ((state = i2c_master_stop(cmd)))
-		return state;
-
-	if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-		return state;
-
-	i2c_cmd_link_delete(cmd);
-
-	return ESP_OK;
-}
-
-esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t *data, uint8_t data_size) {
-	esp_err_t state;
-
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-
-	if ((state = i2c_master_start(cmd)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, reg, true)))
-		return state;
-	if ((state = i2c_master_write(cmd, data, data_size, true)))
-		return state;
-	if ((state = i2c_master_stop(cmd)))
-		return state;
-
-	if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-		return state;
-
-	i2c_cmd_link_delete(cmd);
-
-	return ESP_OK;
-}
-
-esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data) {
-	esp_err_t state;
-
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-
-	if ((state = i2c_master_start(cmd)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, reg, true)))
-		return state;
-
-	if ((state = i2c_master_start(cmd)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)))
-		return state;
-	if ((state = i2c_master_read_byte(cmd, data, 0x01)))
-		return state;
-	if ((state = i2c_master_stop(cmd)))
-		return state;
-
-	if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-		return state;
-
-	i2c_cmd_link_delete(cmd);
-
-	return ESP_OK;
-}
-
-esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size) {
-	esp_err_t state;
-
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-
-	if ((state = i2c_master_start(cmd)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, reg, true)))
-		return state;
-
-	if ((state = i2c_master_start(cmd)))
-		return state;
-	if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)))
-		return state;
-
-	/*if ((state = i2c_master_read(cmd, data, data_size, 0x01)))
-		return state;*/
-
-	for (uint8_t i = 0; i < data_size - 1; i++) {
-		if ((state = i2c_master_read_byte(cmd, data + i, 0x00)))
-			return state;
-	}
-	if ((state = i2c_master_read_byte(cmd, data + data_size - 1, 0x01)))
-		return state;
-
-	if ((state = i2c_master_stop(cmd)))
-		return state;
-
-	if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-		return state;
-
-	i2c_cmd_link_delete(cmd);
-
-	return ESP_OK;
-}
-
-esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
-	uint8_t tmp[14];
-
-	if (this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, tmp, 14))
+	if (this->Calibrate())
 		return ESP_FAIL;
 
-	accel.x = (tmp[0] << 8) | tmp[1];
-	accel.y = (tmp[2] << 8) | tmp[3];
-	accel.z = (tmp[4] << 8) | tmp[5];
-
-	gyro.x = (tmp[8] << 8) | tmp[9];
-	gyro.y = (tmp[10] << 8) | tmp[11];
-	gyro.z = (tmp[12] << 8) | tmp[13];
+	this->ready = true;
 
 	return ESP_OK;
 }
@@ -499,6 +489,70 @@ esp_err_t MPU6050::Calibrate() {
 	this->gyro_offsets[2] /= -500;
 
 	return ESP_OK;
+}
+
+esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
+	static uint8_t data[14];
+
+	if (this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14))
+		return ESP_FAIL;
+
+	accel.x = (data[0] << 8) | data[1];
+	accel.y = (data[2] << 8) | data[3];
+	accel.z = (data[4] << 8) | data[5];
+
+	gyro.x = (data[8] << 8) | data[9];
+	gyro.y = (data[10] << 8) | data[11];
+	gyro.z = (data[12] << 8) | data[13];
+
+	return ESP_OK;
+}
+
+esp_err_t MPU6050::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
+	static uint8_t data[14];
+
+	if (this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14))
+		return ESP_FAIL;
+
+	static Raw_Data raw_accel, raw_gyro;
+
+	raw_accel.x = (data[0] << 8) | data[1];
+	raw_accel.y = (data[2] << 8) | data[3];
+	raw_accel.z = (data[4] << 8) | data[5];
+
+	raw_gyro.x = (data[8] << 8) | data[9];
+	raw_gyro.y = (data[10] << 8) | data[11];
+	raw_gyro.z = (data[12] << 8) | data[13];
+
+	accel.x = this->accel_x_filter.Apply_Filter((raw_accel.x + this->accel_offsets[0]) * this->a_mult);
+	accel.y = this->accel_y_filter.Apply_Filter((raw_accel.y + this->accel_offsets[1]) * this->a_mult);
+	accel.z = this->accel_z_filter.Apply_Filter((raw_accel.z + this->accel_offsets[2]) * this->a_mult);
+
+	gyro.x = this->gyro_x_filter.Apply_Filter((raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
+	gyro.y = this->gyro_y_filter.Apply_Filter((raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
+	gyro.z = this->gyro_z_filter.Apply_Filter((raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
+
+	return ESP_OK;
+}
+
+void MPU6050::Data_Ready_Callback() {
+	portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
+
+	vTaskEnterCritical(&mutex);
+
+	if (this->ready)
+		this->data_ready = true;
+
+	vTaskExitCritical(&mutex);
+}
+
+bool MPU6050::Data_Ready() {
+	bool tmp = this->data_ready;
+
+	if (this->data_ready)
+		this->data_ready = false;
+
+	return tmp;
 }
 
 } /* namespace The_Eye */
