@@ -18,7 +18,7 @@ class Mahony_Filter {
 private:
 	IMU::Quaternion quaternion;
 	const float MAHONY_KP, MAHONY_KI;
-	const float REC_SAMPLE_RATE;
+	const float DELTA_T;
 	IMU::Sensor_Data mahony_integral;
 
 public:

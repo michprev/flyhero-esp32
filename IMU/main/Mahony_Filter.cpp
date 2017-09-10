@@ -10,7 +10,7 @@
 namespace flyhero {
 
 Mahony_Filter::Mahony_Filter(float kp, float ki, uint16_t sample_rate)
-	: MAHONY_KP(kp), MAHONY_KI(ki), REC_SAMPLE_RATE(1.0f / sample_rate) {
+	: MAHONY_KP(kp), MAHONY_KI(ki), DELTA_T(1.0f / sample_rate) {
 	this->quaternion.q0 = 1;
 	this->quaternion.q1 = 0;
 	this->quaternion.q2 = 0;
@@ -48,9 +48,9 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 	half_e.z = (accel.x * half_v.y - accel.y * half_v.x);
 
 	if (this->MAHONY_KI > 0) {
-		this->mahony_integral.x += 2 * this->MAHONY_KI * half_e.x * this->REC_SAMPLE_RATE;
-		this->mahony_integral.y += 2 * this->MAHONY_KI * half_e.y * this->REC_SAMPLE_RATE;
-		this->mahony_integral.z += 2 * this->MAHONY_KI * half_e.z * this->REC_SAMPLE_RATE;
+		this->mahony_integral.x += 2 * this->MAHONY_KI * half_e.x * this->DELTA_T;
+		this->mahony_integral.y += 2 * this->MAHONY_KI * half_e.y * this->DELTA_T;
+		this->mahony_integral.z += 2 * this->MAHONY_KI * half_e.z * this->DELTA_T;
 
 		gyro_rad.x += this->mahony_integral.x;
 		gyro_rad.y += this->mahony_integral.y;
@@ -62,9 +62,9 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 	gyro_rad.z += 2 * this->MAHONY_KP * half_e.z;
 
 	// integrate rate of change of quaternion
-	gyro_rad.x *= 0.5f * this->REC_SAMPLE_RATE;		// pre-multiply common factors
-	gyro_rad.y *= 0.5f * this->REC_SAMPLE_RATE;
-	gyro_rad.z *= 0.5f * this->REC_SAMPLE_RATE;
+	gyro_rad.x *= 0.5f * this->DELTA_T;		// pre-multiply common factors
+	gyro_rad.y *= 0.5f * this->DELTA_T;
+	gyro_rad.z *= 0.5f * this->DELTA_T;
 
 	float qa = this->quaternion.q0;
 	float qb = this->quaternion.q1;
