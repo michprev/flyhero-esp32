@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include "MPU6050.h"
 #include "MPU9250.h"
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
@@ -13,7 +14,8 @@ using namespace flyhero;
 QueueHandle_t data_queue;
 
 void imu_task(void *args) {
-	MPU9250& mpu = MPU9250::Instance();
+	//MPU9250& mpu = MPU9250::Instance();
+	MPU6050& mpu = MPU6050::Instance();
 	mpu.Init();
 
 	//Mahony_Filter mahony(2, 0.1f, 1000);
