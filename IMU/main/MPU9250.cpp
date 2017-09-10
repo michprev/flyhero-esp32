@@ -321,7 +321,7 @@ void MPU9250::Init() {
 	this->set_gyro_lpf(GYRO_LPF_184HZ);
 
 	this->set_accel_fsr(ACCEL_FSR_16);
-	this->set_accel_lpf(ACCEL_LPF_420HZ);
+	this->set_accel_lpf(ACCEL_LPF_218HZ);
 
 	this->set_sample_rate(1000);
 

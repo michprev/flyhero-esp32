@@ -79,6 +79,7 @@ private:
 		ACCEL_LPF_21HZ 		= 0x04,
 		ACCEL_LPF_10HZ 		= 0x05,
 		ACCEL_LPF_5HZ 		= 0x06,
+		// do not use - outputs strange values
 		ACCEL_LPF_420HZ 	= 0x07,
 		ACCEL_LPF_NOT_SET 	= 0xFF
 	};
