@@ -5,8 +5,7 @@
  *      Author: michp
  */
 
-#ifndef MAIN_MATH_H_
-#define MAIN_MATH_H_
+#pragma once
 
 #include <cmath>
 
@@ -69,5 +68,3 @@ inline float Math::Atan2(float y, float x) {
 }
 
 } /* namespace flyhero */
-
-#endif /* MAIN_MATH_H_ */

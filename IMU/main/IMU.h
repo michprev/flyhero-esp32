@@ -5,8 +5,7 @@
  *      Author: michp
  */
 
-#ifndef MAIN_IMU_H_
-#define MAIN_IMU_H_
+#pragma once
 
 #include <stdint.h>
 
@@ -33,5 +32,3 @@ public:
 };
 
 } /* namespace flyhero */
-
-#endif /* MAIN_IMU_H_ */

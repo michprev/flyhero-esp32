@@ -5,8 +5,7 @@
  *      Author: michp
  */
 
-#ifndef BIQUAD_FILTER_H_
-#define BIQUAD_FILTER_H_
+#pragma once
 
 #include <cmath>
 
@@ -40,5 +39,3 @@ float Biquad_Filter::Apply_Filter(float value) {
 }
 
 } /* namespace flyhero */
-
-#endif /* BIQUAD_FILTER_H_ */

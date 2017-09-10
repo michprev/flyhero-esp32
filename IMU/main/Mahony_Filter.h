@@ -5,8 +5,7 @@
  *      Author: michp
  */
 
-#ifndef MAIN_MAHONY_FILTER_H_
-#define MAIN_MAHONY_FILTER_H_
+#pragma once
 
 #include <cmath>
 #include "Fusion_Filter.h"
@@ -31,5 +30,3 @@ public:
 };
 
 } /* namespace flyhero */
-
-#endif /* MAIN_MAHONY_FILTER_H_ */
