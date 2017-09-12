@@ -17,135 +17,61 @@ PWM_Generator& PWM_Generator::Instance() {
 
 void PWM_Generator::Init()
 {
-	if (__GPIOA_IS_CLK_DISABLED())
-		__GPIOA_CLK_ENABLE();
-	if (__GPIOB_IS_CLK_DISABLED())
-		__GPIOB_CLK_ENABLE();
-	if (__TIM2_IS_CLK_DISABLED())
-		__TIM2_CLK_ENABLE();
+	mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, GPIO_NUM_32);
+	mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, GPIO_NUM_33);
+	mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1A, GPIO_NUM_25);
+	mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1B, GPIO_NUM_26);
 
-	const uint32_t PERIOD_US = 500;
-	const uint32_t PULSE_US = 0;
+	mcpwm_config_t pwm_config;
+	pwm_config.cmpr_a = 0;
+	pwm_config.cmpr_b = 0;
+	pwm_config.counter_mode = MCPWM_UP_COUNTER;
+	pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
+	pwm_config.frequency = 1000;
 
-	GPIO_InitTypeDef GPIO_InitStruct;
-	GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_15;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
+	mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_1, &pwm_config);
 
-	GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_10;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-	uint32_t PclkFreq = HAL_RCC_GetPCLK1Freq();
-
-
-	// 8 MHz timer frequency
-	// 1000 ticks = 125 us
-	// 2000 ticks = 250 us
-	// 4000 ticks period 500 us => PWM frequency 2 kHz
-
-	this->htim2.Instance = TIM2;
-	this->htim2.Init.Prescaler = (uint16_t)((PclkFreq) / 8000000) - 1;
-	this->htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-	this->htim2.Init.Period = PERIOD_US * 8 - 1;
-	this->htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	HAL_TIM_PWM_Init(&this->htim2);
-
-	TIM_OC_InitTypeDef sConfig;
-	sConfig.OCMode = TIM_OCMODE_PWM1;
-	sConfig.Pulse = PULSE_US * 8;
-	sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-	sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-	sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	HAL_TIM_PWM_ConfigChannel(&this->htim2, &sConfig, TIM_CHANNEL_1);
-
-	sConfig.OCMode = TIM_OCMODE_PWM1;
-	sConfig.Pulse = PULSE_US * 8;
-	sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-	sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-	sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	HAL_TIM_PWM_ConfigChannel(&this->htim2, &sConfig, TIM_CHANNEL_2);
-
-	sConfig.OCMode = TIM_OCMODE_PWM1;
-	sConfig.Pulse = PULSE_US * 8;
-	sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-	sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-	sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	HAL_TIM_PWM_ConfigChannel(&this->htim2, &sConfig, TIM_CHANNEL_3);
-
-	sConfig.OCMode = TIM_OCMODE_PWM1;
-	sConfig.Pulse = PULSE_US * 8;
-	sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfig.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	sConfig.OCFastMode = TIM_OCFAST_DISABLE;
-	sConfig.OCIdleState = TIM_OCIDLESTATE_RESET;
-	sConfig.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	HAL_TIM_PWM_ConfigChannel(&this->htim2, &sConfig, TIM_CHANNEL_4);
-
-	HAL_TIM_PWM_Start(&this->htim2, TIM_CHANNEL_1);
-	HAL_TIM_PWM_Start(&this->htim2, TIM_CHANNEL_2);
-	HAL_TIM_PWM_Start(&this->htim2, TIM_CHANNEL_3);
-	HAL_TIM_PWM_Start(&this->htim2, TIM_CHANNEL_4);
+	mcpwm_start(MCPWM_UNIT_0, MCPWM_TIMER_0);
+	mcpwm_start(MCPWM_UNIT_0, MCPWM_TIMER_1);
 }
 
-void PWM_Generator::SetPulse(uint16_t ticks, uint8_t channel)
+void PWM_Generator::Set_Pulse(Motor_Type motor, uint16_t us)
 {
-	TIM_OC_InitTypeDef sConfig;
+	if (us > 1000)
+		return;
 
-	if (channel == 1)
-		__HAL_TIM_SET_COMPARE(&this->htim2, TIM_CHANNEL_1, ticks);
-	else if (channel == 2)
-		__HAL_TIM_SET_COMPARE(&this->htim2, TIM_CHANNEL_2, ticks);
-	else if (channel == 3)
-		__HAL_TIM_SET_COMPARE(&this->htim2, TIM_CHANNEL_3, ticks);
-	else if (channel == 4)
-		__HAL_TIM_SET_COMPARE(&this->htim2, TIM_CHANNEL_4, ticks);
-}
-
-void PWM_Generator::Arm(void(*Arm_Callback)())
-{
-	uint32_t timestamp;
-
-	// we set maximum pulse here
-	this->SetPulse(2000, 1);
-	this->SetPulse(2000, 2);
-	this->SetPulse(2000, 3);
-	this->SetPulse(2000, 4);
-
-	timestamp = HAL_GetTick();
-	while (HAL_GetTick() - timestamp < 500) {
-		if (Arm_Callback != NULL)
-			Arm_Callback();
+	switch (motor) {
+	case MOTOR_FL:
+		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, us);
+		break;
+	case MOTOR_BL:
+		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, us);
+		break;
+	case MOTOR_FR:
+		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_OPR_A, us);
+		break;
+	case MOTOR_BR:
+		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_OPR_B, us);
+		break;
 	}
+}
+
+void PWM_Generator::Arm()
+{
+	// we set maximum pulse here
+	this->Set_Pulse(MOTOR_FL, 1000);
+	this->Set_Pulse(MOTOR_BL, 1000);
+	this->Set_Pulse(MOTOR_FR, 1000);
+	this->Set_Pulse(MOTOR_BR, 1000);
+
+	vTaskDelay(1000 / portTICK_RATE_MS);
 
 	// we set minimum pulse here
-	this->SetPulse(1000, 1);
-	this->SetPulse(1000, 2);
-	this->SetPulse(1000, 3);
-	this->SetPulse(1000, 4);
-
-	timestamp = HAL_GetTick();
-	while (HAL_GetTick() - timestamp < 500) {
-		if (Arm_Callback != NULL)
-			Arm_Callback();
-	}
-
-	this->SetPulse(940, 1);
-	this->SetPulse(940, 2);
-	this->SetPulse(940, 3);
-	this->SetPulse(940, 4);
+	this->Set_Pulse(MOTOR_FL, 0);
+	this->Set_Pulse(MOTOR_BL, 0);
+	this->Set_Pulse(MOTOR_FR, 0);
+	this->Set_Pulse(MOTOR_BR, 0);
 }
 
 }

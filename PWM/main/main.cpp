@@ -1,37 +1,32 @@
-/**
-  ******************************************************************************
-  * @file    main.c
-  * @author  Ac6
-  * @version V1.0
-  * @date    01-December-2013
-  * @brief   Default main function.
-  ******************************************************************************
-*/
-
-
-#include "stm32f4xx.h"
-#include "stm32f4xx_nucleo.h"
-#include "stm32f4xx_hal.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include "PWM_Generator.h"
 
 using namespace flyhero;
 
-extern "C" void initialise_monitor_handles(void);
-
-int main(void)
+extern "C" void app_main(void)
 {
-	HAL_Init();
-	//initialise_monitor_handles();
-
 	PWM_Generator& pwm = PWM_Generator::Instance();
 
 	pwm.Init();
-	pwm.Arm(NULL);
 
-	pwm.SetPulse(1050, 1);
-	pwm.SetPulse(1050, 2);
-	pwm.SetPulse(1050, 3);
-	pwm.SetPulse(1050, 4);
+	vTaskDelay(1000 / portTICK_RATE_MS);
 
-	for(;;);
+	pwm.Arm();
+
+	while (true) {
+		pwm.Set_Pulse(PWM_Generator::MOTOR_FL, 100);
+		pwm.Set_Pulse(PWM_Generator::MOTOR_BL, 100);
+		pwm.Set_Pulse(PWM_Generator::MOTOR_FR, 100);
+		pwm.Set_Pulse(PWM_Generator::MOTOR_BR, 100);
+
+		vTaskDelay(1000 / portTICK_RATE_MS);
+
+		pwm.Set_Pulse(PWM_Generator::MOTOR_FL, 0);
+		pwm.Set_Pulse(PWM_Generator::MOTOR_BL, 0);
+		pwm.Set_Pulse(PWM_Generator::MOTOR_FR, 0);
+		pwm.Set_Pulse(PWM_Generator::MOTOR_BR, 0);
+
+		vTaskDelay(1000 / portTICK_RATE_MS);
+	}
 }
