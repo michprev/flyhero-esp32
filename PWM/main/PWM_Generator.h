@@ -21,12 +21,17 @@ private:
 	PWM_Generator& operator=(PWM_Generator const&);
 
 public:
-	enum Motor_Type { MOTOR_FL, MOTOR_BL, MOTOR_FR, MOTOR_BR };
+	enum Motor_Type { MOTOR_FL = 1 << 0, MOTOR_BL = 1 << 1, MOTOR_FR = 1 << 2,
+		MOTOR_BR = 1 << 3, MOTORS_ALL = MOTOR_FL | MOTOR_BL | MOTOR_FR | MOTOR_BR };
 
 	static PWM_Generator& Instance();
 	void Init();
 	void Set_Pulse(Motor_Type motor, uint16_t us);
 	void Arm();
 };
+
+inline PWM_Generator::Motor_Type operator|(PWM_Generator::Motor_Type a, PWM_Generator::Motor_Type b) {
+	return static_cast<PWM_Generator::Motor_Type>(static_cast<int>(a) | static_cast<int>(b));
+}
 
 }

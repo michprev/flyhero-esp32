@@ -41,37 +41,25 @@ void PWM_Generator::Set_Pulse(Motor_Type motor, uint16_t us)
 	if (us > 1000)
 		return;
 
-	switch (motor) {
-	case MOTOR_FL:
+	if (motor & MOTOR_FL)
 		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, us);
-		break;
-	case MOTOR_BL:
+	if (motor & MOTOR_BL)
 		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, us);
-		break;
-	case MOTOR_FR:
+	if (motor & MOTOR_FR)
 		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_OPR_A, us);
-		break;
-	case MOTOR_BR:
+	if (motor & MOTOR_BR)
 		mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_OPR_B, us);
-		break;
-	}
 }
 
 void PWM_Generator::Arm()
 {
 	// we set maximum pulse here
-	this->Set_Pulse(MOTOR_FL, 1000);
-	this->Set_Pulse(MOTOR_BL, 1000);
-	this->Set_Pulse(MOTOR_FR, 1000);
-	this->Set_Pulse(MOTOR_BR, 1000);
+	this->Set_Pulse(MOTORS_ALL, 1000);
 
 	vTaskDelay(1000 / portTICK_RATE_MS);
 
 	// we set minimum pulse here
-	this->Set_Pulse(MOTOR_FL, 0);
-	this->Set_Pulse(MOTOR_BL, 0);
-	this->Set_Pulse(MOTOR_FR, 0);
-	this->Set_Pulse(MOTOR_BR, 0);
+	this->Set_Pulse(MOTORS_ALL, 0);
 }
 
 }

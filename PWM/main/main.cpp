@@ -15,17 +15,11 @@ extern "C" void app_main(void)
 	pwm.Arm();
 
 	while (true) {
-		pwm.Set_Pulse(PWM_Generator::MOTOR_FL, 100);
-		pwm.Set_Pulse(PWM_Generator::MOTOR_BL, 100);
-		pwm.Set_Pulse(PWM_Generator::MOTOR_FR, 100);
-		pwm.Set_Pulse(PWM_Generator::MOTOR_BR, 100);
+		pwm.Set_Pulse(PWM_Generator::MOTORS_ALL, 100);
 
 		vTaskDelay(1000 / portTICK_RATE_MS);
 
-		pwm.Set_Pulse(PWM_Generator::MOTOR_FL, 0);
-		pwm.Set_Pulse(PWM_Generator::MOTOR_BL, 0);
-		pwm.Set_Pulse(PWM_Generator::MOTOR_FR, 0);
-		pwm.Set_Pulse(PWM_Generator::MOTOR_BR, 0);
+		pwm.Set_Pulse(PWM_Generator::MOTORS_ALL, 0);
 
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
