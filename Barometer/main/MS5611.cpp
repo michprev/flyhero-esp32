@@ -9,157 +9,238 @@ MS5611& MS5611::Instance() {
 }
 
 MS5611::MS5611() {
-	this->D1_Timestamp = 0;
-	this->D2_Timestamp = 0;
-	this->D1 = 0;
-	this->D2 = 0;
+	this->spi = NULL;
+	std::memset(this->c, 0, 6);
+	this->d1 = 0;
+	this->d2 = 0;
 }
 
-HAL_StatusTypeDef MS5611::Reset()
-{
-	uint8_t reset = 0x1E;
-	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(this->hi2c, this->ADDRESS, &reset, 1, HAL_MAX_DELAY);
+esp_err_t MS5611::spi_init() {
+    esp_err_t ret;
 
-	HAL_Delay(20);
+    spi_bus_config_t buscfg;
+    buscfg.miso_io_num = GPIO_NUM_25;
+    buscfg.mosi_io_num = GPIO_NUM_23;
+    buscfg.sclk_io_num = GPIO_NUM_19;
+    buscfg.quadwp_io_num = -1;
+    buscfg.quadhd_io_num = -1;
+    buscfg.max_transfer_sz = 0;
 
-	return status;
+    spi_device_interface_config_t devcfg;
+    devcfg.command_bits = 8;
+    devcfg.address_bits = 0;
+    devcfg.dummy_bits = 0;
+    devcfg.mode = 0;
+    devcfg.duty_cycle_pos = 128;
+    devcfg.cs_ena_pretrans = 0;
+    devcfg.cs_ena_posttrans = 0;
+    devcfg.clock_speed_hz = 20000000;
+    devcfg.spics_io_num = GPIO_NUM_22;
+    devcfg.flags = 0;
+    devcfg.queue_size = 7;
+    devcfg.pre_cb = 0;
+    devcfg.post_cb = 0;
+
+    //Initialize the SPI bus
+    if ( (ret = spi_bus_initialize(HSPI_HOST, &buscfg, 0)) )
+    	return ret;
+
+    if ( (ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi)) )
+    	return ret;
+
+    return ESP_OK;
 }
 
-HAL_StatusTypeDef MS5611::Init(I2C_HandleTypeDef *hi2c)
+esp_err_t MS5611::reset()
 {
-	this->hi2c = hi2c;
+	esp_err_t ret;
 
-	HAL_StatusTypeDef status;
+	spi_transaction_t trans;
+	trans.flags = 0;
+	trans.cmd = 0x1E;
+	trans.addr = 0;
+	trans.length = 0;
+	trans.rxlength = 0;
+	trans.user = 0;
+	trans.tx_buffer = NULL;
+	trans.rx_buffer = NULL;
 
-	uint8_t data[2];
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return ret;
+
+	return ESP_OK;
+}
+
+esp_err_t MS5611::load_prom() {
+	esp_err_t ret;
+
+	spi_transaction_t trans;
+	trans.flags = SPI_TRANS_USE_RXDATA;
+	trans.cmd = 0;
+	trans.addr = 0;
+	trans.length = 16;
+	trans.rxlength = 16;
+	trans.user = 0;
+	trans.tx_buffer = NULL;
 
 	for (uint8_t i = 0; i < 6; i++) {
-		status = HAL_I2C_Mem_Read(this->hi2c, this->ADDRESS, 0xA2 + i * 2, I2C_MEMADD_SIZE_8BIT, data, 2, 50);
+		trans.cmd = 0xA2 + i * 2;
 
-		if (status != HAL_OK)
-			return status;
+		if ( (ret = spi_device_transmit(this->spi, &trans)) )
+			return ret;
 
-		C[i] = data[0] << 8;
-		C[i] |= data[1];
-
-		HAL_Delay(10);
+		this->c[i] = trans.rx_data[0] << 8;
+		this->c[i] |= trans.rx_data[1];
 	}
 
-	return HAL_OK;
+	return ESP_OK;
 }
 
-bool MS5611::D1_Ready() {
-	if (this->D1_Timestamp != 0 && HAL_GetTick() - this->D1_Timestamp >= 10) {
-		uint8_t conversionData[3];
-		HAL_I2C_Mem_Read(this->hi2c, this->ADDRESS, 0x00, I2C_MEMADD_SIZE_8BIT, conversionData, 3, HAL_MAX_DELAY);
-		this->D1 = conversionData[0] << 16;
-		this->D1 |= conversionData[1] << 8;
-		this->D1 |= conversionData[2];
+esp_err_t MS5611::read_d1() {
+	esp_err_t ret;
 
-		this->D1_Timestamp = 0;
+	// convert D1 (OSR = 4096)
+	spi_transaction_t trans;
+	trans.flags = 0;
+	trans.cmd = 0x48;
+	trans.addr = 0;
+	trans.length = 0;
+	trans.rxlength = 0;
+	trans.user = 0;
+	trans.rx_buffer = NULL;
+	trans.tx_buffer = NULL;
 
-		return true;
-	}
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return ret;
 
-	return false;
+	// not supported yet
+	//TickType_t current_ticks = xTaskGetTickCount();
+	//vTaskDelayUntil(&current_ticks, 10 / portTICK_RATE_MS);
+
+	// wait until conversion done
+	vTaskDelay(10 / portTICK_RATE_MS);
+
+	// read converted D1 value
+	trans.flags = SPI_TRANS_USE_RXDATA;
+	trans.cmd = 0x00;
+	trans.addr = 0;
+	trans.length = 24;
+	trans.rxlength = 24;
+	trans.user = 0;
+	trans.tx_buffer = NULL;
+
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return ret;
+
+	this->d1 = trans.rx_data[0] << 16;
+	this->d1 |= trans.rx_data[1] << 8;
+	this->d1 |= trans.rx_data[2];
+
+	return ESP_OK;
 }
 
-bool MS5611::D2_Ready() {
-	if (this->D2_Timestamp != 0 && HAL_GetTick() - this->D2_Timestamp >= 10) {
-		uint8_t conversionData[3];
-		HAL_I2C_Mem_Read(this->hi2c, this->ADDRESS, 0x00, I2C_MEMADD_SIZE_8BIT, conversionData, 3, HAL_MAX_DELAY);
-		this->D2 = conversionData[0] << 16;
-		this->D2 |= conversionData[1] << 8;
-		this->D2 |= conversionData[2];
+esp_err_t MS5611::read_d2() {
+	esp_err_t ret;
 
-		this->D2_Timestamp = 0;
+	// convert D2 (OSR = 4096)
+	spi_transaction_t trans;
+	trans.flags = 0;
+	trans.cmd = 0x58;
+	trans.addr = 0;
+	trans.length = 0;
+	trans.rxlength = 0;
+	trans.user = 0;
+	trans.rx_buffer = NULL;
+	trans.tx_buffer = NULL;
 
-		return true;
-	}
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return ret;
 
-	return false;
+	// wait until conversion done
+	vTaskDelay(10 / portTICK_RATE_MS);
+
+	// not supported yet
+	//TickType_t current_ticks = xTaskGetTickCount();
+	//vTaskDelayUntil(&current_ticks, 10 / portTICK_RATE_MS);
+
+	// read converted D2 value
+	trans.flags = SPI_TRANS_USE_RXDATA;
+	trans.cmd = 0x00;
+	trans.addr = 0;
+	trans.length = 24;
+	trans.rxlength = 24;
+	trans.user = 0;
+	trans.tx_buffer = NULL;
+
+	if ( (ret = spi_device_transmit(this->spi, &trans)) )
+		return ret;
+
+	this->d2 = trans.rx_data[0] << 16;
+	this->d2 |= trans.rx_data[1] << 8;
+	this->d2 |= trans.rx_data[2];
+
+	return ESP_OK;
 }
 
-HAL_StatusTypeDef MS5611::ConvertD1() {
-	uint8_t convertD1 = 0x48;
-	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(this->hi2c, this->ADDRESS, &convertD1, 1, HAL_MAX_DELAY);
-	this->D1_Timestamp = HAL_GetTick();
-
-	return status;
-}
-
-HAL_StatusTypeDef MS5611::ConvertD2() {
-	uint8_t convertD2 = 0x58;
-	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(this->hi2c, this->ADDRESS, &convertD2, 1, HAL_MAX_DELAY);
-	this->D2_Timestamp = HAL_GetTick();
-
-	return status;
-}
-
-HAL_StatusTypeDef MS5611::GetData(int32_t * temperature, int32_t * pressure)
+esp_err_t MS5611::Init()
 {
-	int32_t dT = D2 - (uint32_t)C[4] * pow(2, 8);
-	int32_t TEMP = 2000 + dT * C[5] / pow(2, 23);
-	int64_t OFF = (int64_t)C[1] * pow(2, 16) + (int64_t)(C[3] * dT) / pow(2, 7);
-	int64_t SENS = (int64_t)C[0] * pow(2, 15) + (int64_t)(C[2] * dT) / pow(2, 8);
+	esp_err_t ret;
 
-	int32_t TEMP2 = 0;
-	int64_t OFF2 = 0;
-	int64_t SENS2 = 0;
+	if ( (ret = this->spi_init()) )
+		return ret;
 
-	if (TEMP < 2000) {
-		TEMP2 = (dT * dT) / pow(2, 31);
-		OFF2 = 5 * ((TEMP - 2000) * (TEMP - 2000)) / 2;
-		SENS2 = 5 * ((TEMP - 2000) * (TEMP - 2000)) / 4;
-	}
-	if (TEMP < -1500) {
-		OFF2 = OFF2 + 7 * ((TEMP + 1500) * (TEMP + 1500));
-		SENS2 = SENS2 + 11 * ((TEMP + 1500) * (TEMP + 1500)) / 2;
-	}
+	if ( (ret = this->reset()) )
+		return ret;
 
-	TEMP -= TEMP2;
-	OFF -= OFF2;
-	SENS -= SENS2;
+	// wait until reset done
+	vTaskDelay(20 / portTICK_RATE_MS);
 
-	int32_t P = (((double)D1) * SENS / pow(2, 21) - OFF) / pow(2, 15);
+	if ( (ret = this->load_prom()) )
+		return ret;
 
-	*temperature = TEMP;
-	*pressure = P;
-
-	return HAL_OK;
+	return ESP_OK;
 }
 
-/*HAL_StatusTypeDef MS5611::I2C_Init()
+esp_err_t MS5611::Get_Data(int32_t& temperature, int32_t& pressure)
 {
-	if (__GPIOB_IS_CLK_DISABLED())
-		__GPIOB_CLK_ENABLE();
+	esp_err_t ret;
 
-	if (__I2C1_IS_CLK_DISABLED())
-		__I2C1_CLK_ENABLE();
+	if ( (ret = this->read_d1()) )
+		return ret;
 
-	GPIO_InitTypeDef gpio;
-	gpio.Pin = GPIO_PIN_8 | GPIO_PIN_9;
-	gpio.Mode = GPIO_MODE_AF_OD;
-	gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	gpio.Pull = GPIO_PULLUP;
-	gpio.Alternate = GPIO_AF4_I2C1;
-	HAL_GPIO_DeInit(GPIOB, GPIO_PIN_8 | GPIO_PIN_9);
-	HAL_GPIO_Init(GPIOB, &gpio);
+	if ( (ret = this->read_d2()) )
+		return ret;
 
-	this->hi2c.Instance = I2C1;
-	this->hi2c.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	this->hi2c.Init.ClockSpeed = 400000;
-	this->hi2c.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	this->hi2c.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	this->hi2c.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	this->hi2c.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	this->hi2c.Init.OwnAddress1 = 0;
-	this->hi2c.Init.OwnAddress2 = 0;
+	int32_t d_t = this->d2 - (uint32_t)this->c[4] * 256;
+	int32_t temp = 2000 + ((int64_t)d_t * this->c[5]) / 8388608;
 
-	if (HAL_I2C_DeInit(&this->hi2c) != HAL_OK)
-		return HAL_ERROR;
+	int64_t off = (int64_t)this->c[1] * 65536 + (int64_t)this->c[3] * d_t / 128;
+	int64_t sens = (int64_t)this->c[0] * 32768 + (int64_t)this->c[2] * d_t / 256;
 
-	return HAL_I2C_Init(&this->hi2c);
-}*/
+	int32_t temp_2 = 0;
+	int64_t off_2 = 0;
+	int64_t sens_2 = 0;
+
+	if (temp < 2000) {
+		temp_2 = ((int64_t)d_t * d_t) / 2147483648;
+		off_2 = 5 * ((temp - 2000) * (temp - 2000)) / 2;
+		sens_2 = 5 * ((temp - 2000) * (temp - 2000)) / 4;
+	}
+	if (temp < -1500) {
+		off_2 = off_2 + 7 * (temp + 1500) * (temp + 1500);
+		sens_2 = sens_2 + 11 * (temp + 1500) * (temp + 1500) / 2;
+	}
+
+	temp -= temp_2;
+	off -= off_2;
+	sens -= sens_2;
+
+	int32_t p = (this->d1 * sens / 2097152 - off) / 32768;
+
+	temperature = temp;
+	pressure = p;
+
+	return ESP_OK;
+}
 
 }
