@@ -289,8 +289,6 @@ esp_err_t MPU9250::set_sample_rate(uint16_t rate) {
 
 	uint8_t div = (1000 - rate) / rate;
 
-	esp_err_t ret;
-
 	return this->spi_reg_write(this->REGISTERS.SMPLRT_DIV, div);
 }
 
@@ -299,16 +297,12 @@ esp_err_t MPU9250::set_interrupt(bool enable) {
 }
 
 void MPU9250::Init() {
-	esp_err_t ret;
+	ESP_ERROR_CHECK(this->int_init());
 
-	if ( (ret = this->int_init()))
-		return;
-
-	if ( (ret = this->spi_init()) )
-		return;
+	ESP_ERROR_CHECK(this->spi_init());
 
 	// reset the device
-	this->spi_reg_write(this->REGISTERS.PWR_MGMT_1, 0x80);
+	ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.PWR_MGMT_1, 0x80));
 
 	// wait until reset done
 	uint8_t tmp;
@@ -323,39 +317,38 @@ void MPU9250::Init() {
 	*/
 
 	// disable FIFO, I2C master; SPI mode only; reset all signal paths
-	this->spi_reg_write(this->REGISTERS.USER_CTRL, 0x2F);
+	ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.USER_CTRL, 0x2F));
 
 	// enable all sensors
-	this->spi_reg_write(this->REGISTERS.PWR_MGMT_2, 0x00);
+	ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.PWR_MGMT_2, 0x00));
 
 	// check device responding
 	uint8_t who_am_i;
 
-	this->spi_reg_read(this->REGISTERS.WHO_AM_I, who_am_i);
+	ESP_ERROR_CHECK(this->spi_reg_read(this->REGISTERS.WHO_AM_I, who_am_i));
 
 
 	if (who_am_i != 0x71)
-		return;
+		ESP_ERROR_CHECK(ESP_FAIL);
 
-	this->set_interrupt(false);
+	ESP_ERROR_CHECK(this->set_interrupt(false));
 
 	// set INT pin active high, push-pull; don't use latched mode, fsync nor I2C bypass
-	this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10);
+	ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10));
 
-	this->set_gyro_fsr(GYRO_FSR_2000);
-	this->set_gyro_lpf(GYRO_LPF_184HZ);
+	ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_2000));
+	ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_184HZ));
 
-	this->set_accel_fsr(ACCEL_FSR_16);
-	this->set_accel_lpf(ACCEL_LPF_218HZ);
+	ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
+	ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
 
-	this->set_sample_rate(1000);
+	ESP_ERROR_CHECK(this->set_sample_rate(1000));
 
-	this->set_interrupt(true);
+	ESP_ERROR_CHECK(this->set_interrupt(true));
 
 	// set SPI speed to 20 MHz
 
-	if ( (ret = spi_bus_remove_device(this->spi)) )
-		return;
+	ESP_ERROR_CHECK(spi_bus_remove_device(this->spi));
 
 	spi_device_interface_config_t devcfg;
 	devcfg.command_bits = 0;
@@ -372,8 +365,7 @@ void MPU9250::Init() {
 	devcfg.pre_cb = 0;
 	devcfg.post_cb = 0;
 
-	if ( (ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi)) )
-		return;
+	ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
 
 	this->Calibrate();
 
@@ -406,8 +398,6 @@ void MPU9250::Calibrate() {
 }
 
 void MPU9250::Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) {
-	esp_err_t ret;
-
 	static const uint8_t tx_data[14] = { 0x00 };
 	static uint8_t rx_data[14];
 
@@ -424,8 +414,7 @@ void MPU9250::Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) {
 	// reading:
 	// 75 us not 32b aligned, non DMA capable mem
 	// 69 us 32b aligned, DMA capable mem
-	if ( (ret = spi_device_transmit(this->spi, &trans)) )
-		return;
+	ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
 
 	raw_accel.x = (rx_data[0] << 8) | rx_data[1];
 	raw_accel.y = (rx_data[2] << 8) | rx_data[3];
@@ -437,8 +426,6 @@ void MPU9250::Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) {
 }
 
 void MPU9250::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
-	esp_err_t ret;
-
 	static const uint8_t tx_data[14] = { 0x00 };
 	static uint8_t rx_data[14];
 
@@ -455,8 +442,7 @@ void MPU9250::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
 	// reading:
 	// 75 us not 32b aligned, non DMA capable mem
 	// 69 us 32b aligned, DMA capable mem
-	if ( (ret = spi_device_transmit(this->spi, &trans)) )
-		return;
+	ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
 
 	static Raw_Data raw_accel, raw_gyro;
 	static uint16_t raw_temp;
