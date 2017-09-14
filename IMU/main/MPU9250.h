@@ -121,12 +121,12 @@ private:
 	esp_err_t spi_reg_read(uint8_t reg, uint8_t& data);
 	esp_err_t spi_reg_write(uint8_t reg, uint8_t data);
 
-	void set_gyro_fsr(gyro_fsr fsr);
-	void set_accel_fsr(accel_fsr fsr);
-	void set_gyro_lpf(gyro_lpf lpf);
-	void set_accel_lpf(accel_lpf lpf);
-	void set_sample_rate(uint16_t rate);
-	void set_interrupt(bool enable);
+	esp_err_t set_gyro_fsr(gyro_fsr fsr);
+	esp_err_t set_accel_fsr(accel_fsr fsr);
+	esp_err_t set_gyro_lpf(gyro_lpf lpf);
+	esp_err_t set_accel_lpf(accel_lpf lpf);
+	esp_err_t set_sample_rate(uint16_t rate);
+	esp_err_t set_interrupt(bool enable);
 
 public:
 	static MPU9250& Instance();

@@ -144,19 +144,23 @@ esp_err_t MPU9250::spi_reg_write(uint8_t reg, uint8_t data) {
 	return ESP_OK;
 }
 
-void MPU9250::set_gyro_fsr(gyro_fsr fsr) {
+esp_err_t MPU9250::set_gyro_fsr(gyro_fsr fsr) {
+	esp_err_t ret;
+
 	if (fsr == GYRO_FSR_NOT_SET)
-		return;
+		return ESP_FAIL;
 
 	if (fsr == this->g_fsr)
-		return;
+		return ESP_OK;
 
 
 	// gyro FSR config shares the same register with DLPF config so we just update reg value
 	uint8_t gyro_config;
 
-	this->spi_reg_read(this->REGISTERS.GYRO_CONFIG, gyro_config);
-	this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | fsr);
+	if ( (ret = this->spi_reg_read(this->REGISTERS.GYRO_CONFIG, gyro_config)) )
+		return ret;
+	if ( (ret = this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | fsr)) )
+		return ret;
 
 	this->g_fsr = fsr;
 
@@ -174,20 +178,25 @@ void MPU9250::set_gyro_fsr(gyro_fsr fsr) {
 		this->g_mult = 2000;
 		break;
 	case GYRO_FSR_NOT_SET:
-		return;
+		return ESP_FAIL;
 	}
 
 	this->g_mult /= std::pow(2, this->ADC_BITS - 1);
+
+	return ESP_OK;
 }
 
-void MPU9250::set_accel_fsr(accel_fsr fsr) {
+esp_err_t MPU9250::set_accel_fsr(accel_fsr fsr) {
+	esp_err_t ret;
+
 	if (fsr == ACCEL_FSR_NOT_SET)
-		return;
+		return ESP_FAIL;
 
 	if (fsr == this->a_fsr)
-		return;
+		return ESP_OK;
 
-	this->spi_reg_write(this->REGISTERS.ACCEL_CONFIG, fsr);
+	if ( (ret = this->spi_reg_write(this->REGISTERS.ACCEL_CONFIG, fsr)) )
+		return ret;
 
 	this->a_fsr = fsr;
 
@@ -205,18 +214,22 @@ void MPU9250::set_accel_fsr(accel_fsr fsr) {
 		this->a_mult = 16;
 		break;
 	case ACCEL_FSR_NOT_SET:
-		return;
+		return ESP_FAIL;
 	}
 
 	this->a_mult /= std::pow(2, this->ADC_BITS - 1);
+
+	return ESP_OK;
 }
 
-void MPU9250::set_gyro_lpf(gyro_lpf lpf) {
+esp_err_t MPU9250::set_gyro_lpf(gyro_lpf lpf) {
+	esp_err_t ret;
+
 	if (lpf == GYRO_LPF_NOT_SET)
-		return;
+		return ESP_FAIL;
 
 	if (this->g_lpf == lpf)
-		return;
+		return ESP_OK;
 
 	uint8_t Fchoice_b;
 
@@ -230,47 +243,59 @@ void MPU9250::set_gyro_lpf(gyro_lpf lpf) {
 	// gyro DLPF config shares the same register with FSR config so we just update reg value
 	uint8_t gyro_config;
 
-	this->spi_reg_read(this->REGISTERS.GYRO_CONFIG, gyro_config);
+	if ( (ret = this->spi_reg_read(this->REGISTERS.GYRO_CONFIG, gyro_config)) )
+		return ret;
 	gyro_config &= 0xFC;
-	this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | Fchoice_b);
+	if ( (ret = this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | Fchoice_b)) )
+		return ret;
 
-	this->spi_reg_write(this->REGISTERS.CONFIG, lpf);
+	if ( (ret = this->spi_reg_write(this->REGISTERS.CONFIG, lpf)) )
+		return ret;
 
 	this->g_lpf = lpf;
+
+	return ESP_OK;
 }
 
-void MPU9250::set_accel_lpf(accel_lpf lpf) {
+esp_err_t MPU9250::set_accel_lpf(accel_lpf lpf) {
+	esp_err_t ret;
+
 	if (lpf == ACCEL_LPF_NOT_SET)
-		return;
+		return ESP_FAIL;
 
 	if (lpf == this->a_lpf)
-		return;
+		return ESP_OK;
 
 	uint8_t accel_config2 = lpf;
 
 	if (lpf == ACCEL_LPF_1046HZ)
 		accel_config2 |= 0x08;
 
-	this->spi_reg_write(this->REGISTERS.ACCEL_CONFIG2, accel_config2);
+	if ( (ret = this->spi_reg_write(this->REGISTERS.ACCEL_CONFIG2, accel_config2)) )
+		return ret;
 
 	this->a_lpf = lpf;
+
+	return ESP_OK;
 }
 
-void MPU9250::set_sample_rate(uint16_t rate) {
+esp_err_t MPU9250::set_sample_rate(uint16_t rate) {
 	// setting SMPLRT_DIV won't be effective in cases:
 	// 8800 Hz => sample at 32 kHz
 	// 3600 Hz => sample at 32 kHz
 	// 250 Hz => should sample at 8 kHz, measured 32 kHz
 	if (this->g_lpf == GYRO_LPF_8800HZ || this->g_lpf == GYRO_LPF_3600Hz || this->g_lpf == GYRO_LPF_250HZ)
-		return;
+		return ESP_OK;
 
 	uint8_t div = (1000 - rate) / rate;
 
-	this->spi_reg_write(this->REGISTERS.SMPLRT_DIV, div);
+	esp_err_t ret;
+
+	return this->spi_reg_write(this->REGISTERS.SMPLRT_DIV, div);
 }
 
-void MPU9250::set_interrupt(bool enable) {
-	this->spi_reg_write(this->REGISTERS.INT_ENABLE, (enable ? 0x01 : 0x00));
+esp_err_t MPU9250::set_interrupt(bool enable) {
+	return this->spi_reg_write(this->REGISTERS.INT_ENABLE, (enable ? 0x01 : 0x00));
 }
 
 void MPU9250::Init() {
