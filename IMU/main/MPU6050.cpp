@@ -300,16 +300,13 @@ esp_err_t MPU6050::set_interrupt(bool enable) {
 
 esp_err_t MPU6050::Init() {
 	// init I2C bus including DMA peripheral
-	if (this->i2c_init())
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_init());
 
 	// init INT pin on ESP32
-	if (this->int_init())
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->int_init());
 
 	// reset device
-	if (this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x80))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x80));
 
 	// wait until reset done
 	uint8_t tmp;
@@ -318,62 +315,49 @@ esp_err_t MPU6050::Init() {
 	} while (tmp & 0x80);
 
 	// reset analog devices - should not be needed
-	if (this->i2c_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07));
 
 	vTaskDelay(100 / portTICK_RATE_MS);
 
 	// wake up, set clock source PLL with Z gyro axis
-	if (this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x03))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x03));
 
 	vTaskDelay(50 / portTICK_RATE_MS);
 
 	// do not disable any sensor
-	if (this->i2c_write(this->REGISTERS.PWR_MGMT_2, 0x00))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.PWR_MGMT_2, 0x00));
 
 	// check I2C connection
 	uint8_t who_am_i;
-	if (this->i2c_read(this->REGISTERS.WHO_AM_I, &who_am_i))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_read(this->REGISTERS.WHO_AM_I, &who_am_i));
 
 	if (who_am_i != 0x68)
-		return ESP_FAIL;
+		ESP_ERROR_CHECK(ESP_FAIL);
 
 	// disable interrupt
-	if (this->set_interrupt(false))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->set_interrupt(false));
 
 	// set INT pin active high, push-pull; don't use latched mode, fsync nor I2C master aux
-	if (this->i2c_write(this->REGISTERS.INT_PIN_CFG, 0x00))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.INT_PIN_CFG, 0x00));
 
 	// disable I2C master aux
-	if (this->i2c_write(this->REGISTERS.USER_CTRL, 0x20))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.USER_CTRL, 0x20));
 
 	// set gyro full scale range
-	if (this->set_gyro_fsr(GYRO_FSR_2000))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_2000));
 
 	// set accel full scale range
-	if (this->set_accel_fsr(ACCEL_FSR_16))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
 
 	// set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
-	if (this->set_lpf(LPF_188HZ))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->set_lpf(LPF_188HZ));
 
 	// set sample rate to 1 kHz
-	if (this->set_sample_rate(1000))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->set_sample_rate(1000));
 
-	if (this->set_interrupt(true))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->set_interrupt(true));
 
-	if (this->Calibrate())
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->Calibrate());
 
 	this->ready = true;
 
@@ -392,7 +376,7 @@ esp_err_t MPU6050::Calibrate() {
 	// gyro offsets should be already zeroed
 	// for accel we need to read factory values and preserve bit 0 of LSB for each axis
 	// http://www.digikey.com/en/pdf/i/invensense/mpu-hardware-offset-registers
-	this->i2c_read(this->REGISTERS.ACCEL_X_OFFSET, offset_data, 6);
+	ESP_ERROR_CHECK(this->i2c_read(this->REGISTERS.ACCEL_X_OFFSET, offset_data, 6));
 
 	int16_t accel_offsets[3];
 	accel_offsets[0] = (offset_data[0] << 8) | offset_data[1];
@@ -405,7 +389,7 @@ esp_err_t MPU6050::Calibrate() {
 	// we want accel Z to be 2048 (+ 1g)
 
 	for (uint16_t i = 0; i < 500; i++) {
-		this->Read_Raw(accel, gyro);
+		ESP_ERROR_CHECK(this->Read_Raw(accel, gyro));
 
 		offsets[0] += accel.x;
 		offsets[1] += accel.y;
@@ -449,7 +433,7 @@ esp_err_t MPU6050::Calibrate() {
 	offset_data[4] = accel_offsets[2] >> 8;
 	offset_data[5] = accel_offsets[2] & 0xFF;
 
-	this->i2c_write(this->REGISTERS.ACCEL_X_OFFSET, offset_data, 6);
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.ACCEL_X_OFFSET, offset_data, 6));
 
 	offset_data[0] = gyro_x >> 8;
 	offset_data[1] = gyro_x & 0xFF;
@@ -458,7 +442,7 @@ esp_err_t MPU6050::Calibrate() {
 	offset_data[4] = gyro_z >> 8;
 	offset_data[5] = gyro_z & 0xFF;
 
-	this->i2c_write(this->REGISTERS.GYRO_X_OFFSET, offset_data, 6);
+	ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.GYRO_X_OFFSET, offset_data, 6));
 
 	// set gyro & accel FSR to its original value
 	this->set_gyro_fsr(prev_g_fsr);
@@ -471,7 +455,7 @@ esp_err_t MPU6050::Calibrate() {
 	this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
 
 	for (uint16_t i = 0; i < 500; i++) {
-		this->Read_Raw(accel, gyro);
+		ESP_ERROR_CHECK(this->Read_Raw(accel, gyro));
 
 		this->accel_offsets[0] += accel.x;
 		this->accel_offsets[1] += accel.y;
@@ -494,8 +478,7 @@ esp_err_t MPU6050::Calibrate() {
 esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
 	static uint8_t data[14];
 
-	if (this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14));
 
 	accel.x = (data[0] << 8) | data[1];
 	accel.y = (data[2] << 8) | data[3];
@@ -511,8 +494,7 @@ esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
 esp_err_t MPU6050::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
 	static uint8_t data[14];
 
-	if (this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14))
-		return ESP_FAIL;
+	ESP_ERROR_CHECK(this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14));
 
 	static Raw_Data raw_accel, raw_gyro;
 
