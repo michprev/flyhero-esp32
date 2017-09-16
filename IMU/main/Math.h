@@ -12,6 +12,9 @@
 namespace flyhero {
 
 class Math {
+private:
+	Math() {};
+
 public:
 	static constexpr double PI = 3.14159265358979323846;
 	static constexpr float DEG_TO_RAD = Math::PI / 180;
