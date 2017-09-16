@@ -93,13 +93,13 @@ void WiFi_Controller::Init() {
 	ESP_ERROR_CHECK(this->udp_server_start());
 }
 
-bool WiFi_Controller::Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t& read_length) {
+bool WiFi_Controller::Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t& received_length) {
 	int len;
 
 	if ( (len = recv(this->socket_handle, buffer, buffer_length, 0)) < 0)
 		return false;
 
-	read_length = len;
+	received_length = len;
 
 	return true;
 }

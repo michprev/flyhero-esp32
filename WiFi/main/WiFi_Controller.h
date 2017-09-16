@@ -31,7 +31,7 @@ public:
 	static WiFi_Controller& Instance();
 
 	void Init();
-	bool Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t& read_length);
+	bool Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t& received_length);
 
 };
 
