@@ -5,19 +5,18 @@
  *      Author: michp
  */
 
-#ifndef PID_H_
-#define PID_H_
+#pragma once
 
-#include "cmath"
+#include <sys/time.h>
+#include <cmath>
 #include "Biquad_Filter.h"
-#include "Timer.h"
 
 namespace flyhero {
 
 class PID {
 private:
 	Biquad_Filter d_term_lpf;
-	uint32_t last_t;
+	timeval last_t;
 	float Kp, Ki, Kd;
 	float integrator;
 	float i_max;
@@ -35,5 +34,3 @@ public:
 };
 
 } /* namespace flyhero */
-
-#endif /* PID_H_ */

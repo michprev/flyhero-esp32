@@ -5,7 +5,7 @@
  *      Author: michp
  */
 
-#include <PID.h>
+#include "PID.h"
 
 namespace flyhero {
 
@@ -13,7 +13,8 @@ namespace flyhero {
 PID::PID(float i_max, float Kp, float Ki, float Kd)
 	: d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, 1000, 20)
 {
-	this->last_t = 0;
+	this->last_t.tv_sec = 0;
+	this->last_t.tv_usec = 0;
 	this->integrator = 0;
 	this->Kp = Kp;
 	this->Ki = Ki;
@@ -25,15 +26,18 @@ PID::PID(float i_max, float Kp, float Ki, float Kd)
 
 float PID::Get_PID(float error) {
 	// ticks in us
-	float dt = (Timer::Get_Tick_Count() - this->last_t) * 0.000001;
+	timeval now;
+	gettimeofday(&now, NULL);
+
+	float dt = ((now.tv_sec - this->last_t.tv_sec) * 1000 + now.tv_usec - this->last_t.tv_usec) * 0.000001f;
 	float output = 0;
 
-	if (this->last_t == 0 || dt > 1000) {
+	if (this->last_t.tv_sec == 0 || dt > 1000) {
 		this->integrator = 0;
 		dt = 0;
 	}
 
-	this->last_t = Timer::Get_Tick_Count();
+	this->last_t = now;
 
 	// proportional component
 	output += error * this->Kp;
