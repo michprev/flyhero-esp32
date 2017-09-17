@@ -1,227 +1,122 @@
-/**
-  ******************************************************************************
-  * @file    main.cpp
-  * @author  Michal Prevratil
-  * @version V1.0
-  * @date    01-December-2013
-  * @brief   Default main function.
-  ******************************************************************************
-*/
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 
-#include "PWM_Generator.h"
-#include "ESP.h"
-#include "MS5611.h"
-#include "MPU6050.h"
+#include "Motors_Controller.h"
+#include "MPU9250.h"
+#include "Mahony_Filter.h"
+#include "WiFi_Controller.h"
+#include "CRC.h"
 #include "LEDs.h"
-#include "NEO_M8N.h"
-#include "PID.h"
-#include "Logger.h"
-#include "Timer.h"
-#include "ESP_Connection.h"
 
 using namespace flyhero;
 
-#ifdef LOG
-extern "C" void initialise_monitor_handles(void);
-#endif
-
-ESP& esp = ESP::Create_Instance(ESP8266);
-PWM_Generator& pwm = PWM_Generator::Instance();
-MPU6050& mpu = MPU6050::Instance();
-MS5611& ms5611 = MS5611::Instance();
-NEO_M8N& neo = NEO_M8N::Instance();
-Logger& logger = Logger::Instance();
 Motors_Controller& motors_controller = Motors_Controller::Instance();
+QueueHandle_t euler_queue;
 
-void Arm_Callback();
-void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length);
-void IMU_Data_Ready_Callback();
-void IMU_Data_Read_Callback();
+void wifi_task(void *args);
+void imu_task(void *args);
 
-bool connected = false;
-bool start = false;
-bool inverse_yaw = false;
-IWDG_HandleTypeDef hiwdg;
-
-volatile bool data_received = false;
-volatile bool log_flag = false;
-
-int main(void)
-{
-	HAL_Init();
-#ifdef LOG
-	initialise_monitor_handles();
-#endif
-
-	uint32_t timestamp;
-
+extern "C" void app_main(void) {
 	LEDs::Init();
 
-	hiwdg.Instance = IWDG;
-	hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
-	hiwdg.Init.Reload = 480;
-	// timeout after 2 s
+	euler_queue = xQueueCreate(20, sizeof(IMU::Euler_Angles));
 
-	// reset gyro
-	if (mpu.Init()) {
-		LEDs::TurnOn(LEDs::Yellow);
-		while (true);
-	}
+	xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
+	xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
 
-	logger.Init();
-	esp.Init(&IPD_Callback);
+	while (true);
+}
 
-	timestamp = HAL_GetTick();
+void imu_task(void *args) {
+	IMU::Sensor_Data accel, gyro;
+	IMU::Euler_Angles euler;
 
-	while (!connected) {
-		if (HAL_GetTick() - timestamp >= 750) {
-			LEDs::Toggle(LEDs::Green);
+	MPU9250& mpu = MPU9250::Instance();
+	Mahony_Filter mahony(2, 0.1f, 1000);
 
-			timestamp = HAL_GetTick();
-		}
-		esp.Process_Data();
-	}
-	LEDs::TurnOff(LEDs::Green);
+	motors_controller.Init();
+	mpu.Init();
 
-	pwm.Init();
-	pwm.Arm(&Arm_Callback);
-
-	if (mpu.Calibrate() != HAL_OK) {
-		LEDs::TurnOn(LEDs::Yellow);
-		while (true);
-	}
-
-	pwm.SetPulse(1100, 1);
-	pwm.SetPulse(1100, 2);
-	pwm.SetPulse(1100, 3);
-	pwm.SetPulse(1100, 4);
-
-	Timer::Delay_ms(250);
-
-	pwm.SetPulse(940, 4);
-	pwm.SetPulse(940, 1);
-	pwm.SetPulse(940, 3);
-	pwm.SetPulse(940, 2);
-
-	while (!start) {
-		if (HAL_GetTick() - timestamp >= 750) {
-			LEDs::Toggle(LEDs::Green);
-
-			timestamp = HAL_GetTick();
-		}
-		esp.Process_Data();
-	}
-
-	LEDs::TurnOn(LEDs::Green);
-
-#ifndef LOG
-	HAL_IWDG_Init(&hiwdg);
-#endif
-
-	mpu.Data_Ready_Callback = &IMU_Data_Ready_Callback;
-	mpu.Data_Read_Callback = &IMU_Data_Read_Callback;
+	uint8_t i = 0;
 
 	while (true) {
-		if (log_flag) {
-			log_flag = false;
+		if (mpu.Data_Ready()) {
+			mpu.Read_Data(accel, gyro);
 
-			// 200 us
-			logger.Send_Data();
+			mahony.Compute(accel, gyro, euler);
+
+			i++;
+
+			if (i == 100) {
+				xQueueSend(euler_queue, &euler, 0);
+				i = 0;
+			}
+
+
+			motors_controller.Update_Motors(euler);
 		}
-		esp.Get_Connection('4')->Connection_Send_Continue();
 	}
 }
 
-void IPD_Callback(uint8_t link_ID, uint8_t *data, uint16_t length) {
-	switch (length) {
-	case 22:
-		// around 75 us
-		if (data[0] == 0x5D) {
-			uint16_t roll_Kp, pitch_Kp, yaw_Kp;
-			uint16_t roll_Ki, pitch_Ki, yaw_Ki;
-			uint16_t roll_Kd, pitch_Kd, yaw_Kd;
-			uint16_t throttle;
+void wifi_task(void *args) {
+	const uint8_t BUFFER_SIZE = 200;
 
-			data_received = true;
+	WiFi_Controller& wifi = WiFi_Controller::Instance();
+	uint8_t buffer[BUFFER_SIZE];
+	uint8_t received_length;
 
-			// 3 us
-			throttle = data[1] << 8;
-			throttle |= data[2];
+	IMU::Euler_Angles euler;
 
-			motors_controller.Set_Throttle(throttle + 1000);
+	wifi.Init();
 
-			// 3 us
-			roll_Kp = data[3] << 8;
-			roll_Kp |= data[4];
+	while (true) {
+		if (wifi.Receive(buffer, BUFFER_SIZE, received_length)) {
+			if (buffer[0] != received_length) {
+				std::cout << "wrong length\n";
+				continue;
+			}
 
-			roll_Ki = data[5] << 8;
-			roll_Ki |= data[6];
+			uint16_t crc = buffer[received_length - 2] << 8;
+			crc |= buffer[received_length - 1];
 
-			roll_Kd = data[7] << 8;
-			roll_Kd |= data[8];
+			if (crc != CRC::CRC16(buffer, received_length - 2)) {
+				std::cout << "wrong crc\n";
+				continue;
+			}
 
-			motors_controller.Set_PID_Constants(Roll, roll_Kp * 0.01f, roll_Ki * 0.01f, roll_Kd * 0.01f);
+			uint16_t throttle = buffer[1] << 8;
+			throttle |= buffer[2];
 
-			pitch_Kp = data[9] << 8;
-			pitch_Kp |= data[10];
-
-			pitch_Ki = data[11] << 8;
-			pitch_Ki |= data[12];
-
-			pitch_Kd = data[13] << 8;
-			pitch_Kd |= data[14];
-
-			motors_controller.Set_PID_Constants(Pitch, pitch_Kp * 0.01f, pitch_Ki * 0.01f, pitch_Kd * 0.01f);
-
-			yaw_Kp = data[15] << 8;
-			yaw_Kp |= data[16];
-
-			yaw_Ki = data[17] << 8;
-			yaw_Ki |= data[18];
-
-			yaw_Kd = data[19] << 8;
-			yaw_Kd |= data[20];
-
-			motors_controller.Set_PID_Constants(Yaw, yaw_Kp * 0.01f, yaw_Ki * 0.01f, yaw_Kd * 0.01f);
-			motors_controller.Set_Invert_Yaw(data[21] == 0x01);
+			std::cout << "t: " << throttle << std::endl;
 		}
-		break;
-	case 3:
-		if (data[0] == 0x3D) {
-			start = true;
-		}
-		if (data[0] == 0x5D) {
-			connected = true;
-			uint16_t log_options = (data[1] << 8) | data[2];
 
-			logger.Set_Data_Type(Logger::WiFi, (Logger::Data_Type)log_options);
+		if (xQueueReceive(euler_queue, &euler, 0) == pdTRUE) {
+			uint8_t *roll, *pitch, *yaw;
+			roll = (uint8_t*)&euler.roll;
+			pitch = (uint8_t*)&euler.pitch;
+			yaw = (uint8_t*)&euler.yaw;
+
+			uint8_t data[15];
+			data[0] = 15;
+			data[1] = roll[0];
+			data[2] = roll[1];
+			data[3] = roll[2];
+			data[4] = roll[3];
+			data[5] = pitch[0];
+			data[6] = pitch[1];
+			data[7] = pitch[2];
+			data[8] = pitch[3];
+			data[9] = yaw[0];
+			data[10] = yaw[1];
+			data[11] = yaw[2];
+			data[12] = yaw[3];
+
+			uint16_t crc = CRC::CRC16(data, 13);
+
+			data[13] = crc >> 8;
+			data[14] = crc & 0xFF;
+
+			wifi.Send(data, 15);
 		}
-		break;
 	}
-}
-
-void Arm_Callback() {
-	esp.Process_Data();
-	//HAL_IWDG_Refresh(&hiwdg);
-}
-
-void IMU_Data_Ready_Callback() {
-	// 160 us
-	if (mpu.Start_Read() != HAL_OK)
-		LEDs::TurnOn(LEDs::Orange);
-}
-
-// IMU_Data_Ready_Callback() -> 340 us -> IMU_Data_Read_Callback()
-
-void IMU_Data_Read_Callback() {
-	if (data_received)
-		HAL_IWDG_Refresh(&hiwdg);
-	data_received = false;
-	log_flag = true;
-
-	mpu.Complete_Read();
-	mpu.Compute_Mahony();
-	//mpu.Compute_Euler();
-
-	motors_controller.Update_Motors();
 }
