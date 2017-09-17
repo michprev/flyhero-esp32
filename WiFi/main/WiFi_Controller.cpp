@@ -13,9 +13,17 @@ static esp_err_t event_handler(void *ctx, system_event_t *event) {
 	switch (event->event_id) {
 	case SYSTEM_EVENT_AP_STACONNECTED:
 
+
+		LEDs::Turn_On(LEDs::ONBOARD);
+		vTaskDelay(250 / portTICK_RATE_MS);
+		LEDs::Turn_Off(LEDs::ONBOARD);
 		break;
 	case SYSTEM_EVENT_AP_STADISCONNECTED:
 
+
+		LEDs::Turn_On(LEDs::ONBOARD);
+		vTaskDelay(1000 / portTICK_RATE_MS);
+		LEDs::Turn_Off(LEDs::ONBOARD);
 		break;
 	default:
 		break;
@@ -32,6 +40,8 @@ WiFi_Controller& WiFi_Controller::Instance() {
 
 WiFi_Controller::WiFi_Controller() {
 	this->socket_handle = -1;
+	this->client_socket_length = sizeof(this->client);
+	this->client_connected = false;
 }
 
 void WiFi_Controller::ap_init() {
@@ -96,12 +106,35 @@ void WiFi_Controller::Init() {
 bool WiFi_Controller::Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t& received_length) {
 	int len;
 
-	if ( (len = recv(this->socket_handle, buffer, buffer_length, 0)) < 0)
+	if ( (len = recvfrom(this->socket_handle, buffer, buffer_length, 0, (sockaddr*)(&this->client), &this->client_socket_length)) < 0)
 		return false;
 
 	received_length = len;
 
 	return true;
+}
+
+bool WiFi_Controller::Send(uint8_t *data, uint8_t data_length) {
+	if (!this->client_connected)
+		return false;
+
+	int len;
+
+	if ( (len = sendto(this->socket_handle, data, data_length, 0, (sockaddr*)&this->client, this->client_socket_length)) < 0)
+		return false;
+
+	if (len != data_length)
+		return false;
+
+	return true;
+}
+
+void WiFi_Controller::Client_Connected_Callback() {
+	this->client_connected = true;
+}
+
+void WiFi_Controller::Client_Disconnected_Callback() {
+	this->client_connected = false;
 }
 
 } /* namespace flyhero */
