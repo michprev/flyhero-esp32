@@ -298,7 +298,7 @@ esp_err_t MPU6050::set_interrupt(bool enable) {
 	return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
 }
 
-esp_err_t MPU6050::Init() {
+void MPU6050::Init() {
 	// init I2C bus including DMA peripheral
 	ESP_ERROR_CHECK(this->i2c_init());
 
@@ -357,14 +357,12 @@ esp_err_t MPU6050::Init() {
 
 	ESP_ERROR_CHECK(this->set_interrupt(true));
 
-	ESP_ERROR_CHECK(this->Calibrate());
+	this->Calibrate();
 
 	this->ready = true;
-
-	return ESP_OK;
 }
 
-esp_err_t MPU6050::Calibrate() {
+void MPU6050::Calibrate() {
 	gyro_fsr prev_g_fsr = this->g_fsr;
 	accel_fsr prev_a_fsr = this->a_fsr;
 
@@ -389,7 +387,7 @@ esp_err_t MPU6050::Calibrate() {
 	// we want accel Z to be 2048 (+ 1g)
 
 	for (uint16_t i = 0; i < 500; i++) {
-		ESP_ERROR_CHECK(this->Read_Raw(accel, gyro));
+		this->Read_Raw(accel, gyro);
 
 		offsets[0] += accel.x;
 		offsets[1] += accel.y;
@@ -455,7 +453,7 @@ esp_err_t MPU6050::Calibrate() {
 	this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
 
 	for (uint16_t i = 0; i < 500; i++) {
-		ESP_ERROR_CHECK(this->Read_Raw(accel, gyro));
+		this->Read_Raw(accel, gyro);
 
 		this->accel_offsets[0] += accel.x;
 		this->accel_offsets[1] += accel.y;
@@ -471,12 +469,10 @@ esp_err_t MPU6050::Calibrate() {
 	this->gyro_offsets[0] /= -500;
 	this->gyro_offsets[1] /= -500;
 	this->gyro_offsets[2] /= -500;
-
-	return ESP_OK;
 }
 
-esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
-	static uint8_t data[14];
+void MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
+	uint8_t data[14];
 
 	ESP_ERROR_CHECK(this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14));
 
@@ -487,16 +483,14 @@ esp_err_t MPU6050::Read_Raw(Raw_Data& accel, Raw_Data& gyro) {
 	gyro.x = (data[8] << 8) | data[9];
 	gyro.y = (data[10] << 8) | data[11];
 	gyro.z = (data[12] << 8) | data[13];
-
-	return ESP_OK;
 }
 
-esp_err_t MPU6050::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
-	static uint8_t data[14];
+void MPU6050::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
+	uint8_t data[14];
 
 	ESP_ERROR_CHECK(this->i2c_read(this->REGISTERS.ACCEL_XOUT_H, data, 14));
 
-	static Raw_Data raw_accel, raw_gyro;
+	Raw_Data raw_accel, raw_gyro;
 
 	raw_accel.x = (data[0] << 8) | data[1];
 	raw_accel.y = (data[2] << 8) | data[3];
@@ -513,8 +507,6 @@ esp_err_t MPU6050::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
 	gyro.x = this->gyro_x_filter.Apply_Filter((raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
 	gyro.y = this->gyro_y_filter.Apply_Filter((raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
 	gyro.z = this->gyro_z_filter.Apply_Filter((raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
-
-	return ESP_OK;
 }
 
 void MPU6050::Data_Ready_Callback() {
