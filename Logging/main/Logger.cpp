@@ -51,6 +51,9 @@ esp_err_t Logger::append_message(uint32_t time, const char *tag, const char *mes
 
 	std::cout << "file is NULL: " << (this->log_file == NULL ? "true" : "false") << std::endl;
 
+	if (this->log_file != NULL)
+		fclose(this->log_file);
+
 	/*if (this->log_file == NULL)
 		return ESP_FAIL;
 
