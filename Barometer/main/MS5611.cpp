@@ -53,8 +53,6 @@ esp_err_t MS5611::spi_init() {
 
 esp_err_t MS5611::reset()
 {
-	esp_err_t ret;
-
 	spi_transaction_t trans;
 	trans.flags = 0;
 	trans.cmd = 0x1E;
@@ -65,10 +63,7 @@ esp_err_t MS5611::reset()
 	trans.tx_buffer = NULL;
 	trans.rx_buffer = NULL;
 
-	if ( (ret = spi_device_transmit(this->spi, &trans)) )
-		return ret;
-
-	return ESP_OK;
+	return spi_device_transmit(this->spi, &trans);
 }
 
 esp_err_t MS5611::load_prom() {
@@ -182,34 +177,24 @@ esp_err_t MS5611::read_d2() {
 	return ESP_OK;
 }
 
-esp_err_t MS5611::Init()
+void MS5611::Init()
 {
-	esp_err_t ret;
 
-	if ( (ret = this->spi_init()) )
-		return ret;
+	ESP_ERROR_CHECK(this->spi_init());
 
-	if ( (ret = this->reset()) )
-		return ret;
+	ESP_ERROR_CHECK(this->reset());
 
 	// wait until reset done
 	vTaskDelay(20 / portTICK_RATE_MS);
 
-	if ( (ret = this->load_prom()) )
-		return ret;
-
-	return ESP_OK;
+	ESP_ERROR_CHECK(this->load_prom());
 }
 
-esp_err_t MS5611::Get_Data(int32_t& temperature, int32_t& pressure)
+void MS5611::Get_Data(int32_t& temperature, int32_t& pressure)
 {
-	esp_err_t ret;
+	ESP_ERROR_CHECK(this->read_d1());
 
-	if ( (ret = this->read_d1()) )
-		return ret;
-
-	if ( (ret = this->read_d2()) )
-		return ret;
+	ESP_ERROR_CHECK(this->read_d2());
 
 	int32_t d_t = this->d2 - (uint32_t)this->c[4] * 256;
 	int32_t temp = 2000 + ((int64_t)d_t * this->c[5]) / 8388608;
@@ -239,8 +224,6 @@ esp_err_t MS5611::Get_Data(int32_t& temperature, int32_t& pressure)
 
 	temperature = temp;
 	pressure = p;
-
-	return ESP_OK;
 }
 
 }

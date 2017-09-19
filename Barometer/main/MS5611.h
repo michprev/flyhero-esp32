@@ -36,8 +36,8 @@ private:
 public:
 	static MS5611& Instance();
 
-	esp_err_t Init();
-	esp_err_t Get_Data(int32_t& temperature, int32_t& pressure);
+	void Init();
+	void Get_Data(int32_t& temperature, int32_t& pressure);
 };
 
 }
