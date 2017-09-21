@@ -17,10 +17,10 @@ PWM_Generator& PWM_Generator::Instance() {
 
 void PWM_Generator::Init()
 {
-	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, GPIO_NUM_32));
-	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, GPIO_NUM_33));
-	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1A, GPIO_NUM_25));
-	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1B, GPIO_NUM_26));
+	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, GPIO_NUM_25));
+	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, GPIO_NUM_26));
+	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1A, GPIO_NUM_27));
+	ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1B, GPIO_NUM_14));
 
 	mcpwm_config_t pwm_config;
 	pwm_config.cmpr_a = 0;
