@@ -50,9 +50,9 @@ esp_err_t MPU9250::spi_init() {
     esp_err_t ret;
 
     spi_bus_config_t buscfg;
-    buscfg.miso_io_num = GPIO_NUM_19;
-    buscfg.mosi_io_num = GPIO_NUM_22;
-    buscfg.sclk_io_num = GPIO_NUM_23;
+    buscfg.miso_io_num = GPIO_NUM_16;
+    buscfg.mosi_io_num = GPIO_NUM_5;
+    buscfg.sclk_io_num = GPIO_NUM_18;
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
@@ -66,7 +66,7 @@ esp_err_t MPU9250::spi_init() {
     devcfg.cs_ena_pretrans = 0;
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 1000000;
-    devcfg.spics_io_num = GPIO_NUM_21;
+    devcfg.spics_io_num = GPIO_NUM_13;
     devcfg.flags = 0;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
@@ -89,7 +89,7 @@ esp_err_t MPU9250::int_init() {
 	gpio_config_t conf;
 	conf.intr_type = GPIO_INTR_POSEDGE;
 	conf.mode = GPIO_MODE_INPUT;
-	conf.pin_bit_mask = GPIO_SEL_18;
+	conf.pin_bit_mask = GPIO_SEL_4;
 	conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
 	conf.pull_up_en = GPIO_PULLUP_DISABLE;
 
@@ -99,7 +99,7 @@ esp_err_t MPU9250::int_init() {
 	if ( (ret = gpio_install_isr_service(0)) )
 		return ret;
 
-	if ( (ret = gpio_isr_handler_add(GPIO_NUM_18, int_isr_handler, NULL)))
+	if ( (ret = gpio_isr_handler_add(GPIO_NUM_4, int_isr_handler, NULL)))
 		return ret;
 
 	return ESP_OK;
@@ -359,7 +359,7 @@ void MPU9250::Init() {
 	devcfg.cs_ena_pretrans = 0;
 	devcfg.cs_ena_posttrans = 0;
 	devcfg.clock_speed_hz = 20000000;
-	devcfg.spics_io_num = GPIO_NUM_21;
+	devcfg.spics_io_num = GPIO_NUM_13;
 	devcfg.flags = 0;
 	devcfg.queue_size = 7;
 	devcfg.pre_cb = 0;
