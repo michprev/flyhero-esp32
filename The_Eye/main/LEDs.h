@@ -17,7 +17,7 @@ private:
 	LEDs() {};
 
 public:
-	enum Color { ONBOARD = 1 << 0 };
+	enum Color { ONBOARD = 1 << 0, WARNING = 1 << 1 };
 
 	static void Init();
 	static void Turn_On(Color color);
