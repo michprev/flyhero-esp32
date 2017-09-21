@@ -19,9 +19,9 @@ esp_err_t MS5611::spi_init() {
     esp_err_t ret;
 
     spi_bus_config_t buscfg;
-    buscfg.miso_io_num = GPIO_NUM_4;
-    buscfg.mosi_io_num = GPIO_NUM_17;
-    buscfg.sclk_io_num = GPIO_NUM_5;
+    buscfg.miso_io_num = GPIO_NUM_19;
+    buscfg.mosi_io_num = GPIO_NUM_22;
+    buscfg.sclk_io_num = GPIO_NUM_23;
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
@@ -35,7 +35,7 @@ esp_err_t MS5611::spi_init() {
     devcfg.cs_ena_pretrans = 0;
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 20000000;
-    devcfg.spics_io_num = GPIO_NUM_16;
+    devcfg.spics_io_num = GPIO_NUM_21;
     devcfg.flags = 0;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
