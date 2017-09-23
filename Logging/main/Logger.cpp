@@ -49,18 +49,14 @@ esp_err_t Logger::print_and_remove() {
 esp_err_t Logger::append_message(uint32_t time, const char *tag, const char *message) {
 	this->log_file = fopen(this->LOG_FILENAME, "a");
 
-	std::cout << "file is NULL: " << (this->log_file == NULL ? "true" : "false") << std::endl;
-
-	if (this->log_file != NULL)
-		fclose(this->log_file);
-
-	/*if (this->log_file == NULL)
+	if (this->log_file == NULL)
 		return ESP_FAIL;
 
-	fprintf(this->log_file, "(%d) %s: %s\n", time, tag, message);
+	if (fprintf(this->log_file, "(%d) %s: %s\n", time, tag, message) < 0)
+		return ESP_FAIL;
 
 	if (fclose(this->log_file) != 0)
-		return ESP_FAIL;*/
+		return ESP_FAIL;
 
 	return ESP_OK;
 }
