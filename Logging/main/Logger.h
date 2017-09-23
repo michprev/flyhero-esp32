@@ -10,13 +10,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <iostream>
-
-extern "C" {
-
 #include <esp_spiffs.h>
-
-}
 
 namespace flyhero {
 
