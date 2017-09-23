@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <esp_spiffs.h>
+#include <iostream>
 
 namespace flyhero {
 
