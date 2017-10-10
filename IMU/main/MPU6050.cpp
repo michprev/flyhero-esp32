@@ -48,9 +48,9 @@ esp_err_t MPU6050::i2c_init() {
 
 	i2c_config_t conf;
 	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = GPIO_NUM_18;
+	conf.sda_io_num = GPIO_NUM_5;
 	conf.sda_pullup_en = GPIO_PULLUP_DISABLE;
-	conf.scl_io_num = GPIO_NUM_19;
+	conf.scl_io_num = GPIO_NUM_18;
 	conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
 	conf.master.clk_speed = 400000;
 
@@ -66,7 +66,7 @@ esp_err_t MPU6050::int_init() {
 	esp_err_t state;
 
 	gpio_config_t conf;
-	conf.pin_bit_mask = GPIO_SEL_13;
+	conf.pin_bit_mask = GPIO_SEL_4;
 	conf.mode = GPIO_MODE_INPUT;
 	conf.pull_up_en = GPIO_PULLUP_DISABLE;
 	conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
@@ -77,7 +77,7 @@ esp_err_t MPU6050::int_init() {
 
 	if ( (state = gpio_install_isr_service(0)) )
 		return state;
-	if ( (state = gpio_isr_handler_add(GPIO_NUM_13, int_handler, NULL)) )
+	if ( (state = gpio_isr_handler_add(GPIO_NUM_4, int_handler, NULL)) )
 		return state;
 
 	return ESP_OK;
