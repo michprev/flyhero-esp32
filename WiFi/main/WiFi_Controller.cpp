@@ -12,14 +12,14 @@ namespace flyhero {
 static esp_err_t event_handler(void *ctx, system_event_t *event) {
 	switch (event->event_id) {
 	case SYSTEM_EVENT_AP_STACONNECTED:
-
+		WiFi_Controller::Instance().Client_Connected_Callback();
 
 		LEDs::Turn_On(LEDs::WARNING);
 		vTaskDelay(250 / portTICK_RATE_MS);
 		LEDs::Turn_Off(LEDs::WARNING);
 		break;
 	case SYSTEM_EVENT_AP_STADISCONNECTED:
-
+		WiFi_Controller::Instance().Client_Disconnected_Callback();
 
 		LEDs::Turn_On(LEDs::WARNING);
 		vTaskDelay(1000 / portTICK_RATE_MS);
