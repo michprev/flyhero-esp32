@@ -3,7 +3,9 @@
 
 #include "Motors_Controller.h"
 #include "MPU9250.h"
+#include "MPU6050.h"
 #include "Mahony_Filter.h"
+#include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
 #include "CRC.h"
 #include "LEDs.h"
@@ -15,6 +17,8 @@ QueueHandle_t euler_queue;
 
 void wifi_task(void *args);
 void imu_task(void *args);
+
+void wifi_parser(uint8_t *buffer, uint8_t received_length);
 
 extern "C" void app_main(void) {
 	LEDs::Init();
@@ -31,8 +35,10 @@ void imu_task(void *args) {
 	IMU::Sensor_Data accel, gyro;
 	IMU::Euler_Angles euler;
 
-	MPU9250& mpu = MPU9250::Instance();
-	Mahony_Filter mahony(2, 0.1f, 1000);
+	//MPU9250& mpu = MPU9250::Instance();
+	MPU6050& mpu = MPU6050::Instance();
+	//Mahony_Filter mahony(2, 0.1f, 1000);
+	Complementary_Filter complementary(0.995f, 1000);
 
 	motors_controller.Init();
 	mpu.Init();
@@ -43,7 +49,8 @@ void imu_task(void *args) {
 		if (mpu.Data_Ready()) {
 			mpu.Read_Data(accel, gyro);
 
-			mahony.Compute(accel, gyro, euler);
+			//mahony.Compute(accel, gyro, euler);
+			complementary.Compute(accel, gyro, euler);
 
 			i++;
 
@@ -71,23 +78,19 @@ void wifi_task(void *args) {
 
 	while (true) {
 		if (wifi.Receive(buffer, BUFFER_SIZE, received_length)) {
-			if (buffer[0] != received_length) {
-				std::cout << "wrong length\n";
+			// wrong length
+			if (buffer[0] != received_length)
 				continue;
-			}
 
-			uint16_t crc = buffer[received_length - 2] << 8;
-			crc |= buffer[received_length - 1];
+			uint16_t crc;
+			crc = buffer[received_length - 1] << 8;
+			crc |= buffer[received_length - 2];
 
-			if (crc != CRC::CRC16(buffer, received_length - 2)) {
-				std::cout << "wrong crc\n";
-				continue;
-			}
+			// wrong crc
+			if (crc != CRC::CRC16(buffer, received_length - 2))
+                continue;
 
-			uint16_t throttle = buffer[1] << 8;
-			throttle |= buffer[2];
-
-			std::cout << "t: " << throttle << std::endl;
+			wifi_parser(buffer, received_length);
 		}
 
 		if (xQueueReceive(euler_queue, &euler, 0) == pdTRUE) {
@@ -96,27 +99,46 @@ void wifi_task(void *args) {
 			pitch = (uint8_t*)&euler.pitch;
 			yaw = (uint8_t*)&euler.yaw;
 
-			uint8_t data[15];
-			data[0] = 15;
-			data[1] = roll[0];
-			data[2] = roll[1];
+			uint8_t data[16];
+
+            data[0] = 16;
+            data[1] = 0x00;
+			data[2] = roll[3];
 			data[3] = roll[2];
-			data[4] = roll[3];
-			data[5] = pitch[0];
-			data[6] = pitch[1];
+			data[4] = roll[1];
+			data[5] = roll[0];
+			data[6] = pitch[3];
 			data[7] = pitch[2];
-			data[8] = pitch[3];
-			data[9] = yaw[0];
-			data[10] = yaw[1];
+			data[8] = pitch[1];
+			data[9] = pitch[0];
+			data[10] = yaw[3];
 			data[11] = yaw[2];
-			data[12] = yaw[3];
+			data[12] = yaw[1];
+			data[13] = yaw[0];
 
-			uint16_t crc = CRC::CRC16(data, 13);
+			uint16_t crc = CRC::CRC16(data, 14);
 
-			data[13] = crc >> 8;
-			data[14] = crc & 0xFF;
+            data[14] = crc & 0xFF;
+			data[15] = crc >> 8;
 
-			wifi.Send(data, 15);
+			wifi.Send(data, 16);
 		}
+	}
+}
+
+void wifi_parser(uint8_t *buffer, uint8_t received_length) {
+	switch (buffer[1]) {
+	case 0x00:
+		uint16_t throttle;
+		throttle = buffer[3] << 8;
+		throttle |= buffer[2];
+
+		//std::cout << "t: " << throttle << std::endl;
+
+		motors_controller.Set_Throttle(throttle);
+		motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
+		motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
+
+		break;
 	}
 }
