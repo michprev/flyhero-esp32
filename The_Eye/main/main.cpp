@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <nvs_flash.h>
 
 #include "Motors_Controller.h"
 #include "MPU9250.h"
@@ -21,6 +22,16 @@ void imu_task(void *args);
 void wifi_parser(uint8_t *buffer, uint8_t received_length);
 
 extern "C" void app_main(void) {
+    // Initialize NVS
+    esp_err_t nvs_status = nvs_flash_init();
+
+    if (nvs_status == ESP_ERR_NVS_NO_FREE_PAGES) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_status = nvs_flash_init();
+    }
+
+    ESP_ERROR_CHECK(nvs_status);
+
 	LEDs::Init();
 
 	euler_queue = xQueueCreate(20, sizeof(IMU::Euler_Angles));
