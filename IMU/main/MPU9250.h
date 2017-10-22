@@ -131,12 +131,12 @@ private:
 public:
 	static MPU9250& Instance();
 
-	void Init();
-	void Calibrate();
-	void Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro);
-	void Read_Data(Sensor_Data& accel, Sensor_Data& gyro);
-	void Data_Ready_Callback();
-	bool Data_Ready();
+	void Init() override;
+	void Calibrate() override;
+	void Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) override;
+	void Read_Data(Sensor_Data& accel, Sensor_Data& gyro) override;
+	void Data_Ready_Callback() override;
+	bool Data_Ready() override;
 };
 
 } /* namespace flyhero */
