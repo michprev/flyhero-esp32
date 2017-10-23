@@ -149,7 +149,7 @@ esp_err_t IMU_Detector::Detect_IMU(IMU **imu) {
             return ESP_OK;
         }
 
-        IMU_Detector::i2c_deinit();
+        IMU_Detector::spi_deinit();
     }
 
     return ESP_FAIL;
