@@ -1,7 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include "MPU6050.h"
-#include "MPU9250.h"
+#include "IMU_Detector.h"
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 
@@ -14,9 +13,10 @@ using namespace flyhero;
 QueueHandle_t data_queue;
 
 void imu_task(void *args) {
-	//MPU9250& mpu = MPU9250::Instance();
-	MPU6050& mpu = MPU6050::Instance();
-	mpu.Init();
+	IMU *imu = NULL;
+	ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
+
+	imu->Init();
 
 	//Mahony_Filter mahony(2, 0.1f, 1000);
 	Complementary_Filter complementary(0.995f, 1000);
@@ -27,8 +27,8 @@ void imu_task(void *args) {
 	uint8_t i = 0;
 
 	while (true) {
-		if (mpu.Data_Ready()) {
-			mpu.Read_Data(accel, gyro);
+		if (imu->Data_Ready()) {
+			imu->Read_Data(accel, gyro);
 
 			//mahony.Compute(accel, gyro, euler);
 			complementary.Compute(accel, gyro, euler);
