@@ -3,13 +3,13 @@
 #include <nvs_flash.h>
 
 #include "Motors_Controller.h"
-#include "MPU9250.h"
-#include "MPU6050.h"
+#include "IMU_Detector.h"
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
 #include "CRC.h"
 #include "LEDs.h"
+#include "../../IMU/main/IMU_Detector.h"
 
 using namespace flyhero;
 
@@ -48,20 +48,21 @@ void imu_task(void *args) {
 	IMU::Sensor_Data accel, gyro;
 	IMU::Euler_Angles mahony_euler, complementary_euler;
 
-	//MPU9250& mpu = MPU9250::Instance();
-	MPU6050& mpu = MPU6050::Instance();
+    IMU *imu;
+    ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
+
 	Mahony_Filter mahony(2, 0.1f, 1000);
 	Complementary_Filter complementary(0.995f, 1000);
 
 	motors_controller.Init();
-	mpu.Init();
+	imu->Init();
 
     IMU::Euler_Angles queue_data[FUSION_ALGORITHMS_USED];
 	uint8_t i = 0;
 
 	while (true) {
-		if (mpu.Data_Ready()) {
-			mpu.Read_Data(accel, gyro);
+		if (imu->Data_Ready()) {
+			imu->Read_Data(accel, gyro);
 
 			mahony.Compute(accel, gyro, mahony_euler);
 			complementary.Compute(accel, gyro, complementary_euler);
