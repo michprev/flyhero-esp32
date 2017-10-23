@@ -328,7 +328,7 @@ void MPU9250::Init() {
 	ESP_ERROR_CHECK(this->spi_reg_read(this->REGISTERS.WHO_AM_I, who_am_i));
 
 
-	if (who_am_i != 0x71)
+	if (who_am_i != 0x71 && who_am_i != 0x73)
 		ESP_ERROR_CHECK(ESP_FAIL);
 
 	ESP_ERROR_CHECK(this->set_interrupt(false));
