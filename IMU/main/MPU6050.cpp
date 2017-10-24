@@ -177,10 +177,9 @@ esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size) {
 	if ( (state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)) )
 		return state;
 
-	for (uint8_t i = 0; i < data_size - 1; i++) {
-		if ( (state = i2c_master_read_byte(cmd, data + i, 0x00)) )
-			return state;
-	}
+	if ( (state = i2c_master_read(cmd, data, data_size - 1, 0x00)) )
+        return state;
+
 	if ( (state = i2c_master_read_byte(cmd, data + data_size - 1, 0x01)) )
 		return state;
 
