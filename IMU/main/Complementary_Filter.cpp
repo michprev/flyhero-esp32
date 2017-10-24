@@ -28,6 +28,11 @@ void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro
 
 	this->euler.yaw += gyro.z * this->DELTA_T;
 
+	if (this->euler.yaw > 180)
+		this->euler.yaw -= 360;
+	else if (this->euler.yaw < -180)
+		this->euler.yaw += 360;
+
 	euler = this->euler;
 }
 

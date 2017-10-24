@@ -16,11 +16,9 @@ namespace flyhero {
 
 class MPU6050 : public IMU {
 private:
-	/* Singleton begin */
 	MPU6050();
 	MPU6050(MPU6050 const&);
 	MPU6050& operator=(MPU6050 const&);
-	/*Singleton end */
 
 	enum gyro_fsr {
 		GYRO_FSR_250 = 0x00,
@@ -107,12 +105,12 @@ private:
 public:
 	static MPU6050& Instance();
 
-	esp_err_t Init();
-	esp_err_t Calibrate();
-	esp_err_t Read_Raw(Raw_Data& accel, Raw_Data& gyro);
-	esp_err_t Read_Data(Sensor_Data& accel, Sensor_Data& gyro);
-	void Data_Ready_Callback();
-	bool Data_Ready();
+	void Init() override;
+	void Calibrate() override;
+	void Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) override;
+	void Read_Data(Sensor_Data& accel, Sensor_Data& gyro) override;
+	void Data_Ready_Callback() override;
+	bool Data_Ready() override;
 };
 
 } /* namespace The_Eye */

@@ -6,6 +6,7 @@ using namespace flyhero;
 extern "C" void app_main(void)
 {
 	WiFi_Controller& wifi = WiFi_Controller::Instance();
+	LEDs::Init();
 
 	wifi.Init();
 
@@ -18,5 +19,7 @@ extern "C" void app_main(void)
 
 			std::cout << buffer << std::endl;
 		}
+
+		vTaskDelay(500 / portTICK_RATE_MS);
 	}
 }

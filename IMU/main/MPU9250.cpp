@@ -50,9 +50,9 @@ esp_err_t MPU9250::spi_init() {
     esp_err_t ret;
 
     spi_bus_config_t buscfg;
-    buscfg.miso_io_num = GPIO_NUM_25;
-    buscfg.mosi_io_num = GPIO_NUM_23;
-    buscfg.sclk_io_num = GPIO_NUM_19;
+    buscfg.miso_io_num = GPIO_NUM_16;
+    buscfg.mosi_io_num = GPIO_NUM_5;
+    buscfg.sclk_io_num = GPIO_NUM_18;
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
@@ -66,7 +66,7 @@ esp_err_t MPU9250::spi_init() {
     devcfg.cs_ena_pretrans = 0;
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 1000000;
-    devcfg.spics_io_num = GPIO_NUM_22;
+    devcfg.spics_io_num = GPIO_NUM_13;
     devcfg.flags = 0;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
@@ -89,7 +89,7 @@ esp_err_t MPU9250::int_init() {
 	gpio_config_t conf;
 	conf.intr_type = GPIO_INTR_POSEDGE;
 	conf.mode = GPIO_MODE_INPUT;
-	conf.pin_bit_mask = GPIO_SEL_13;
+	conf.pin_bit_mask = GPIO_SEL_4;
 	conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
 	conf.pull_up_en = GPIO_PULLUP_DISABLE;
 
@@ -99,7 +99,7 @@ esp_err_t MPU9250::int_init() {
 	if ( (ret = gpio_install_isr_service(0)) )
 		return ret;
 
-	if ( (ret = gpio_isr_handler_add(GPIO_NUM_13, int_isr_handler, NULL)))
+	if ( (ret = gpio_isr_handler_add(GPIO_NUM_4, int_isr_handler, NULL)))
 		return ret;
 
 	return ESP_OK;
@@ -328,7 +328,7 @@ void MPU9250::Init() {
 	ESP_ERROR_CHECK(this->spi_reg_read(this->REGISTERS.WHO_AM_I, who_am_i));
 
 
-	if (who_am_i != 0x71)
+	if (who_am_i != 0x71 && who_am_i != 0x73)
 		ESP_ERROR_CHECK(ESP_FAIL);
 
 	ESP_ERROR_CHECK(this->set_interrupt(false));
@@ -359,7 +359,7 @@ void MPU9250::Init() {
 	devcfg.cs_ena_pretrans = 0;
 	devcfg.cs_ena_posttrans = 0;
 	devcfg.clock_speed_hz = 20000000;
-	devcfg.spics_io_num = GPIO_NUM_22;
+	devcfg.spics_io_num = GPIO_NUM_13;
 	devcfg.flags = 0;
 	devcfg.queue_size = 7;
 	devcfg.pre_cb = 0;
@@ -416,12 +416,12 @@ void MPU9250::Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) {
 	// 69 us 32b aligned, DMA capable mem
 	ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
 
-	raw_accel.x = (rx_data[0] << 8) | rx_data[1];
-	raw_accel.y = (rx_data[2] << 8) | rx_data[3];
+	raw_accel.x = (rx_data[2] << 8) | rx_data[3];
+	raw_accel.y = (rx_data[0] << 8) | rx_data[1];
 	raw_accel.z = (rx_data[4] << 8) | rx_data[5];
 
-	raw_gyro.x = (rx_data[8] << 8) | rx_data[9];
-	raw_gyro.y = (rx_data[10] << 8) | rx_data[11];
+	raw_gyro.x = (rx_data[10] << 8) | rx_data[11];
+	raw_gyro.y = (rx_data[8] << 8) | rx_data[9];
 	raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
 }
 
@@ -445,16 +445,13 @@ void MPU9250::Read_Data(Sensor_Data& accel, Sensor_Data& gyro) {
 	ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
 
 	static Raw_Data raw_accel, raw_gyro;
-	static uint16_t raw_temp;
 
-	raw_accel.x = (rx_data[0] << 8) | rx_data[1];
-	raw_accel.y = (rx_data[2] << 8) | rx_data[3];
+	raw_accel.x = (rx_data[2] << 8) | rx_data[3];
+	raw_accel.y = (rx_data[0] << 8) | rx_data[1];
 	raw_accel.z = (rx_data[4] << 8) | rx_data[5];
 
-	raw_temp = (rx_data[6] << 8) | rx_data[7];
-
-	raw_gyro.x = (rx_data[8] << 8) | rx_data[9];
-	raw_gyro.y = (rx_data[10] << 8) | rx_data[11];
+	raw_gyro.x = (rx_data[10] << 8) | rx_data[11];
+	raw_gyro.y = (rx_data[8] << 8) | rx_data[9];
 	raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
 
 	accel.x = this->accel_x_filter.Apply_Filter((raw_accel.x + this->accel_offsets[0]) * this->a_mult);

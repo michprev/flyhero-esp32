@@ -29,6 +29,12 @@ public:
 		float q0, q1, q2, q3;
 	};
 
+	virtual void Init() = 0;
+	virtual void Calibrate() = 0;
+	virtual void Read_Raw(Raw_Data& raw_accel, Raw_Data& raw_gyro) = 0;
+	virtual void Read_Data(Sensor_Data& accel, Sensor_Data& gyro) = 0;
+	virtual void Data_Ready_Callback() = 0;
+	virtual bool Data_Ready() = 0;
 };
 
 } /* namespace flyhero */

@@ -12,18 +12,18 @@ namespace flyhero {
 static esp_err_t event_handler(void *ctx, system_event_t *event) {
 	switch (event->event_id) {
 	case SYSTEM_EVENT_AP_STACONNECTED:
+		WiFi_Controller::Instance().Client_Connected_Callback();
 
-
-		LEDs::Turn_On(LEDs::ONBOARD);
+		LEDs::Turn_On(LEDs::WARNING);
 		vTaskDelay(250 / portTICK_RATE_MS);
-		LEDs::Turn_Off(LEDs::ONBOARD);
+		LEDs::Turn_Off(LEDs::WARNING);
 		break;
 	case SYSTEM_EVENT_AP_STADISCONNECTED:
+		WiFi_Controller::Instance().Client_Disconnected_Callback();
 
-
-		LEDs::Turn_On(LEDs::ONBOARD);
+		LEDs::Turn_On(LEDs::WARNING);
 		vTaskDelay(1000 / portTICK_RATE_MS);
-		LEDs::Turn_Off(LEDs::ONBOARD);
+		LEDs::Turn_Off(LEDs::WARNING);
 		break;
 	default:
 		break;
@@ -61,8 +61,6 @@ void WiFi_Controller::ap_init() {
 	wifi_config.ap.max_connection = 1;
 	std::memcpy(wifi_config.ap.password, "dronjede", 9);
 	std::memcpy(wifi_config.ap.ssid, "DRON_WIFI", 10);
-	//wifi_config.ap.password = "dronjede";
-	//wifi_config.ap.ssid = "DRON_WIFI";
 	wifi_config.ap.ssid_hidden = 0; // TODO
 	wifi_config.ap.ssid_len = 0;
 
