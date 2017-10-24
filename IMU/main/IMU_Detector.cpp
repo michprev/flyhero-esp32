@@ -148,6 +148,12 @@ esp_err_t IMU_Detector::Detect_IMU(IMU **imu) {
 
             return ESP_OK;
         }
+        else if (IMU_Detector::try_spi_imu(0x75, 0x68)) {
+            *imu = &MPU6000::Instance();
+            IMU_Detector::spi_deinit();
+
+            return ESP_OK;
+        }
 
         IMU_Detector::spi_deinit();
     }

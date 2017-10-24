@@ -9,6 +9,7 @@
 #include "IMU.h"
 #include "MPU6050.h"
 #include "MPU9250.h"
+#include "MPU6000.h"
 
 namespace flyhero {
 
