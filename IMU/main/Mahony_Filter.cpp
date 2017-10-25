@@ -91,18 +91,18 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
 	float q2_sqr = this->quaternion.q2 * this->quaternion.q2;
 
-	float t0 = +2.0 * (this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3);
-	float t1 = +1.0 - 2.0 * (this->quaternion.q1 * this->quaternion.q1 + q2_sqr);
+	float t0 = +2.0f * (this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3);
+	float t1 = +1.0f - 2.0f * (this->quaternion.q1 * this->quaternion.q1 + q2_sqr);
 	euler.roll = Math::Atan2(t0, t1);
 
-	float t2 = +2.0 * (this->quaternion.q0 * this->quaternion.q2 - this->quaternion.q3 * this->quaternion.q1);
-	t2 = ((t2 > 1.0) ? 1.0 : t2);
-	t2 = ((t2 < -1.0) ? -1.0 : t2);
+	float t2 = +2.0f * (this->quaternion.q0 * this->quaternion.q2 - this->quaternion.q3 * this->quaternion.q1);
+	t2 = ((t2 > 1.0f) ? 1.0f : t2);
+	t2 = ((t2 < -1.0f) ? -1.0f : t2);
 	euler.pitch = std::asin(t2);
 	euler.pitch *= Math::RAD_TO_DEG;
 
-	float t3 = +2.0 * (this->quaternion.q0 * this->quaternion.q3 + this->quaternion.q1 * this->quaternion.q2);
-	float t4 = +1.0 - 2.0 * (q2_sqr + this->quaternion.q3 * this->quaternion.q3);
+	float t3 = +2.0f * (this->quaternion.q0 * this->quaternion.q3 + this->quaternion.q1 * this->quaternion.q2);
+	float t4 = +1.0f - 2.0f * (q2_sqr + this->quaternion.q3 * this->quaternion.q3);
 	euler.yaw = Math::Atan2(t3, t4);
 }
 
