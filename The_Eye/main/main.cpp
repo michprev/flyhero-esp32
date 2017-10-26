@@ -8,20 +8,26 @@
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
 #include "CRC.h"
-#include "LEDs.h"
-#include "../../IMU/main/IMU_Detector.h"
+
 
 using namespace flyhero;
 
+const uint8_t FUSION_ALGORITHMS_USED = 2;
+
+struct wifi_log_data {
+    IMU::Euler_Angles euler[FUSION_ALGORITHMS_USED];
+    uint16_t free_time;
+};
+
 Motors_Controller& motors_controller = Motors_Controller::Instance();
-QueueHandle_t euler_queue;
+QueueHandle_t wifi_log_data_queue;
 
 void wifi_task(void *args);
 void imu_task(void *args);
 
+
 void wifi_parser(uint8_t *buffer, uint8_t received_length);
 
-const uint8_t FUSION_ALGORITHMS_USED = 2;
 
 extern "C" void app_main(void) {
     // Initialize NVS
@@ -36,10 +42,10 @@ extern "C" void app_main(void) {
 
 	LEDs::Init();
 
-	euler_queue = xQueueCreate(20, sizeof(IMU::Euler_Angles[FUSION_ALGORITHMS_USED]));
+	wifi_log_data_queue = xQueueCreate(20, sizeof(wifi_log_data));
 
 	xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
-	xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
 
 	while (true);
 }
@@ -57,11 +63,15 @@ void imu_task(void *args) {
 	motors_controller.Init();
 	imu->Init();
 
-    IMU::Euler_Angles queue_data[FUSION_ALGORITHMS_USED];
+    wifi_log_data log_data;
+
+	timeval start, end;
 	uint8_t i = 0;
 
 	while (true) {
 		if (imu->Data_Ready()) {
+			gettimeofday(&end, NULL);
+
 			imu->Read_Data(accel, gyro);
 
 			mahony.Compute(accel, gyro, mahony_euler);
@@ -70,15 +80,18 @@ void imu_task(void *args) {
 			i++;
 
 			if (i == 100) {
-                queue_data[0] = mahony_euler;
-                queue_data[1] = complementary_euler;
+                log_data.euler[0] = mahony_euler;
+                log_data.euler[1] = complementary_euler;
+                log_data.free_time = end.tv_usec - start.tv_usec;
 
-				xQueueSend(euler_queue, &queue_data, 0);
+				xQueueSend(wifi_log_data_queue, &log_data, 0);
 				i = 0;
 			}
 
 
 			motors_controller.Update_Motors(mahony_euler);
+
+			gettimeofday(&start, NULL);
 		}
 	}
 }
@@ -90,7 +103,7 @@ void wifi_task(void *args) {
 	uint8_t buffer[BUFFER_SIZE];
 	uint8_t received_length;
 
-	IMU::Euler_Angles euler[FUSION_ALGORITHMS_USED];
+    wifi_log_data datagram_data;
 
 	wifi.Init();
 
@@ -111,33 +124,35 @@ void wifi_task(void *args) {
 			wifi_parser(buffer, received_length);
 		}
 
-		if (xQueueReceive(euler_queue, &euler, 0) == pdTRUE) {
+		if (xQueueReceive(wifi_log_data_queue, &datagram_data, 0) == pdTRUE) {
 			uint8_t *roll, *pitch, *yaw;
 
-            // 1 (data size) + 1 (datagram type) + 12 * #_fusion_algorithms_used + 2 (crc)
-            const uint8_t DATA_SIZE = 4 + 12 * FUSION_ALGORITHMS_USED;
+            // 1 (data size) + 1 (datagram type) + 2 (free time) + 12 * #_fusion_algorithms_used + 2 (crc)
+            const uint8_t DATA_SIZE = 6 + 12 * FUSION_ALGORITHMS_USED;
             uint8_t data[DATA_SIZE];
 
             data[0] = DATA_SIZE;
             data[1] = 0x00;
+            data[2] = datagram_data.free_time & 0xFF;
+            data[3] = datagram_data.free_time >> 8;
 
             for (uint8_t i = 0; i < FUSION_ALGORITHMS_USED; i++) {
-                roll = (uint8_t *) &(euler[i].roll);
-                pitch = (uint8_t *) &(euler[i].pitch);
-                yaw = (uint8_t *) &(euler[i].yaw);
+                roll = (uint8_t *) &(datagram_data.euler[i].roll);
+                pitch = (uint8_t *) &(datagram_data.euler[i].pitch);
+                yaw = (uint8_t *) &(datagram_data.euler[i].yaw);
 
-                data[2 + i * 12] = roll[3];
-                data[3 + i * 12] = roll[2];
-                data[4 + i * 12] = roll[1];
-                data[5 + i * 12] = roll[0];
-                data[6 + i * 12] = pitch[3];
-                data[7 + i * 12] = pitch[2];
-                data[8 + i * 12] = pitch[1];
-                data[9 + i * 12] = pitch[0];
-                data[10 + i * 12] = yaw[3];
-                data[11 + i * 12] = yaw[2];
-                data[12 + i * 12] = yaw[1];
-                data[13 + i * 12] = yaw[0];
+                data[4 + i * 12] = roll[3];
+                data[5 + i * 12] = roll[2];
+                data[6 + i * 12] = roll[1];
+                data[7 + i * 12] = roll[0];
+                data[8 + i * 12] = pitch[3];
+                data[9 + i * 12] = pitch[2];
+                data[10 + i * 12] = pitch[1];
+                data[11 + i * 12] = pitch[0];
+                data[12 + i * 12] = yaw[3];
+                data[13 + i * 12] = yaw[2];
+                data[14 + i * 12] = yaw[1];
+                data[15 + i * 12] = yaw[0];
             }
 
 			uint16_t crc = CRC::CRC16(data, DATA_SIZE - 2);
