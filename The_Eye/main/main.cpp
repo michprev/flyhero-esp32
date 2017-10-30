@@ -127,32 +127,31 @@ void wifi_task(void *args) {
 		if (xQueueReceive(wifi_log_data_queue, &datagram_data, 0) == pdTRUE) {
 			uint8_t *roll, *pitch, *yaw;
 
-            // 1 (data size) + 1 (datagram type) + 2 (free time) + 12 * #_fusion_algorithms_used + 2 (crc)
-            const uint8_t DATA_SIZE = 6 + 12 * FUSION_ALGORITHMS_USED;
+            // 1 (data size) + 2 (free time) + 12 * #_fusion_algorithms_used + 2 (crc)
+            const uint8_t DATA_SIZE = 5 + 12 * FUSION_ALGORITHMS_USED;
             uint8_t data[DATA_SIZE];
 
             data[0] = DATA_SIZE;
-            data[1] = 0x00;
-            data[2] = datagram_data.free_time & 0xFF;
-            data[3] = datagram_data.free_time >> 8;
+            data[1] = datagram_data.free_time & 0xFF;
+            data[2] = datagram_data.free_time >> 8;
 
             for (uint8_t i = 0; i < FUSION_ALGORITHMS_USED; i++) {
                 roll = (uint8_t *) &(datagram_data.euler[i].roll);
                 pitch = (uint8_t *) &(datagram_data.euler[i].pitch);
                 yaw = (uint8_t *) &(datagram_data.euler[i].yaw);
 
-                data[4 + i * 12] = roll[3];
-                data[5 + i * 12] = roll[2];
-                data[6 + i * 12] = roll[1];
-                data[7 + i * 12] = roll[0];
-                data[8 + i * 12] = pitch[3];
-                data[9 + i * 12] = pitch[2];
-                data[10 + i * 12] = pitch[1];
-                data[11 + i * 12] = pitch[0];
-                data[12 + i * 12] = yaw[3];
-                data[13 + i * 12] = yaw[2];
-                data[14 + i * 12] = yaw[1];
-                data[15 + i * 12] = yaw[0];
+                data[3 + i * 12] = roll[3];
+                data[4 + i * 12] = roll[2];
+                data[5 + i * 12] = roll[1];
+                data[6 + i * 12] = roll[0];
+                data[7 + i * 12] = pitch[3];
+                data[8 + i * 12] = pitch[2];
+                data[9 + i * 12] = pitch[1];
+                data[10 + i * 12] = pitch[0];
+                data[11 + i * 12] = yaw[3];
+                data[12 + i * 12] = yaw[2];
+                data[13 + i * 12] = yaw[1];
+                data[14 + i * 12] = yaw[0];
             }
 
 			uint16_t crc = CRC::CRC16(data, DATA_SIZE - 2);
@@ -166,18 +165,13 @@ void wifi_task(void *args) {
 }
 
 void wifi_parser(uint8_t *buffer, uint8_t received_length) {
-	switch (buffer[1]) {
-	case 0x00:
-		uint16_t throttle;
-		throttle = buffer[3] << 8;
-		throttle |= buffer[2];
+    uint16_t throttle;
+    throttle = buffer[2] << 8;
+    throttle |= buffer[1];
 
-		//std::cout << "t: " << throttle << std::endl;
+    printf("t %d\n", throttle);
 
-		motors_controller.Set_Throttle(throttle);
-		motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
-		motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
-
-		break;
-	}
+    motors_controller.Set_Throttle(throttle);
+    motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
+    motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
 }

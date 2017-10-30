@@ -79,18 +79,13 @@ void wifi_task(void *args) {
             if (crc != CRC::CRC16(buffer, received_length - 2))
                 continue;
 
-            switch (buffer[1]) {
-            case 0x00:
-                uint16_t throttle;
-                throttle = buffer[3] << 8;
-                throttle |= buffer[2];
-                    
-                motors_controller.Set_Throttle(throttle);
-                motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
-                motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
+            uint16_t throttle;
+            throttle = buffer[2] << 8;
+            throttle |= buffer[1];
 
-                break;
-            }
+            motors_controller.Set_Throttle(throttle);
+            motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
+            motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
         }
     }
 }
