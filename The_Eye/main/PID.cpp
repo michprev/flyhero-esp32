@@ -7,90 +7,100 @@
 
 #include "PID.h"
 
-namespace flyhero {
+
+namespace flyhero
+{
 
 // assume that PID will be computed at 1 kHz
 PID::PID(float i_max, float Kp, float Ki, float Kd)
-	: d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, 1000, 20)
+        : d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, 1000, 20)
 {
-	this->last_t.tv_sec = 0;
-	this->last_t.tv_usec = 0;
-	this->integrator = 0;
-	this->Kp = Kp;
-	this->Ki = Ki;
-	this->Kd = Kd;
-	this->i_max = i_max;
-	this->last_d = NAN;
-	this->last_error = NAN;
+    this->last_t.tv_sec = 0;
+    this->last_t.tv_usec = 0;
+    this->integrator = 0;
+    this->Kp = Kp;
+    this->Ki = Ki;
+    this->Kd = Kd;
+    this->i_max = i_max;
+    this->last_d = NAN;
+    this->last_error = NAN;
 }
 
-float PID::Get_PID(float error) {
-	// ticks in us
-	timeval now;
-	gettimeofday(&now, NULL);
+float PID::Get_PID(float error)
+{
+    // ticks in us
+    timeval now;
+    gettimeofday(&now, NULL);
 
-	float dt = ((now.tv_sec - this->last_t.tv_sec) * 1000 + now.tv_usec - this->last_t.tv_usec) * 0.000001f;
-	float output = 0;
+    float dt = ((now.tv_sec - this->last_t.tv_sec) * 1000 + now.tv_usec - this->last_t.tv_usec) * 0.000001f;
+    float output = 0;
 
-	if (this->last_t.tv_sec == 0 || dt > 1000) {
-		this->integrator = 0;
-		dt = 0;
-	}
+    if (this->last_t.tv_sec == 0 || dt > 1000)
+    {
+        this->integrator = 0;
+        dt = 0;
+    }
 
-	this->last_t = now;
+    this->last_t = now;
 
-	// proportional component
-	output += error * this->Kp;
+    // proportional component
+    output += error * this->Kp;
 
-	// integral component
-	if (this->Ki != 0 && dt > 0) {
-		this->integrator += error * this->Ki * dt;
+    // integral component
+    if (this->Ki != 0 && dt > 0)
+    {
+        this->integrator += error * this->Ki * dt;
 
-		if (this->integrator < -this->i_max)
-			this->integrator = -this->i_max;
-		if (this->integrator > this->i_max)
-			this->integrator = this->i_max;
+        if (this->integrator < -this->i_max)
+            this->integrator = -this->i_max;
+        if (this->integrator > this->i_max)
+            this->integrator = this->i_max;
 
-		output += this->integrator;
-	}
+        output += this->integrator;
+    }
 
-	// derivative component
-	if (this->Kd != 0 && dt > 0) {
-		float derivative;
+    // derivative component
+    if (this->Kd != 0 && dt > 0)
+    {
+        float derivative;
 
-		if (std::isnan(this->last_d)) {
-			derivative = 0;
-			this->last_d = 0;
-		}
-		else
-			derivative = (error - this->last_error) / dt;
+        if (std::isnan(this->last_d))
+        {
+            derivative = 0;
+            this->last_d = 0;
+        } else
+            derivative = (error - this->last_error) / dt;
 
-		// apply 20 Hz biquad LPF
-		derivative = this->d_term_lpf.Apply_Filter(derivative);
+        // apply 20 Hz biquad LPF
+        derivative = this->d_term_lpf.Apply_Filter(derivative);
 
-		this->last_error = error;
-		this->last_d = derivative;
+        this->last_error = error;
+        this->last_d = derivative;
 
-		output += derivative * this->Kd;
-	}
+        output += derivative * this->Kd;
+    }
 
-	return output;
+    return output;
 }
 
-void PID::Set_Kp(float Kp) {
-	this->Kp = Kp;
+void PID::Set_Kp(float Kp)
+{
+    this->Kp = Kp;
 }
 
-void PID::Set_Ki(float Ki) {
-	this->Ki = Ki;
+void PID::Set_Ki(float Ki)
+{
+    this->Ki = Ki;
 }
 
-void PID::Set_Kd(float Kd) {
-	this->Kd = Kd;
+void PID::Set_Kd(float Kd)
+{
+    this->Kd = Kd;
 }
 
-void PID::Set_I_Max(float i_max) {
-	this->i_max = i_max;
+void PID::Set_I_Max(float i_max)
+{
+    this->i_max = i_max;
 }
 
 } /* namespace flyhero */

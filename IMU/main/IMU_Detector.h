@@ -6,13 +6,17 @@
 
 #include <driver/i2c.h>
 #include <driver/spi_master.h>
+
 #include "IMU.h"
 #include "MPU6050.h"
 #include "MPU9250.h"
 
-namespace flyhero {
 
-class IMU_Detector {
+namespace flyhero
+{
+
+class IMU_Detector
+{
 private:
     static spi_device_handle_t spi;
 

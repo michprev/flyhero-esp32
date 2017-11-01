@@ -23,15 +23,19 @@
 
 #define FUSION_ALGORITHMS_USED 2
 
-namespace flyhero {
+namespace flyhero
+{
 
-class WiFi_Controller {
+class WiFi_Controller
+{
 public:
-    struct __attribute__((__packed__)) In_Datagram_Data {
+    struct __attribute__((__packed__)) In_Datagram_Data
+    {
         uint16_t throttle;
     };
 
-    struct __attribute__((__packed__)) Out_Datagram_Data {
+    struct __attribute__((__packed__)) Out_Datagram_Data
+    {
         uint16_t free_time;
 
         IMU::Euler_Angles euler[FUSION_ALGORITHMS_USED];
@@ -39,16 +43,18 @@ public:
 
 private:
     WiFi_Controller();
-    WiFi_Controller(WiFi_Controller const&);
-    WiFi_Controller& operator=(WiFi_Controller const&);
+    WiFi_Controller(WiFi_Controller const &);
+    WiFi_Controller &operator=(WiFi_Controller const &);
 
     static const uint8_t IN_DATAGRAM_LENGTH = 5;
     static const uint8_t OUT_DATAGRAM_LENGTH = 1 + 2 + 12 * FUSION_ALGORITHMS_USED + 2;
 
-    union in_datagram {
+    union in_datagram
+    {
         uint8_t raw_data[IN_DATAGRAM_LENGTH];
 
-        struct __attribute__((__packed__)) {
+        struct __attribute__((__packed__))
+        {
             uint8_t datagram_length;
 
             In_Datagram_Data datagram_contents;
@@ -58,10 +64,12 @@ private:
         } data;
     };
 
-    union out_datagram {
+    union out_datagram
+    {
         uint8_t raw_data[OUT_DATAGRAM_LENGTH];
 
-        struct __attribute__((__packed__)) {
+        struct __attribute__((__packed__))
+        {
             uint8_t datagram_length;
 
             Out_Datagram_Data datagram_contents;
@@ -71,24 +79,24 @@ private:
         } data;
     };
 
-	const uint16_t UDP_PORT = 4789;
+    const uint16_t UDP_PORT = 4789;
 
-	int socket_handle;
-	sockaddr_in client;
-	uint32_t client_socket_length;
-	bool client_connected;
+    int socket_handle;
+    sockaddr_in client;
+    uint32_t client_socket_length;
+    bool client_connected;
 
-	void ap_init();
-	esp_err_t udp_server_start();
+    void ap_init();
+    esp_err_t udp_server_start();
 
 public:
-	static WiFi_Controller& Instance();
+    static WiFi_Controller &Instance();
 
-	void Init();
-	bool Receive(In_Datagram_Data& datagram_data);
-	bool Send(Out_Datagram_Data datagram_data);
-	void Client_Connected_Callback();
-	void Client_Disconnected_Callback();
+    void Init();
+    bool Receive(In_Datagram_Data &datagram_data);
+    bool Send(Out_Datagram_Data datagram_data);
+    void Client_Connected_Callback();
+    void Client_Disconnected_Callback();
 
 };
 
