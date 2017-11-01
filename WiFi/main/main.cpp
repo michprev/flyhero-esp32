@@ -22,16 +22,12 @@ extern "C" void app_main(void)
 
 	wifi.Init();
 
-	uint8_t buffer[200];
-	uint8_t read;
+    WiFi_Controller::In_Datagram_Data data;
 
 	while (true) {
-		if (wifi.Receive(buffer, 200, read)) {
-			buffer[read] = '\0';
+		if (wifi.Receive(data)) {
 
-			std::cout << buffer << std::endl;
+			std::cout << data.throttle << std::endl;
 		}
-
-		vTaskDelay(500 / portTICK_RATE_MS);
 	}
 }

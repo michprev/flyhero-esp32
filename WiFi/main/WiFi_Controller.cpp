@@ -101,27 +101,46 @@ void WiFi_Controller::Init() {
 	ESP_ERROR_CHECK(this->udp_server_start());
 }
 
-bool WiFi_Controller::Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t& received_length) {
+bool WiFi_Controller::Receive(In_Datagram_Data& datagram_data) {
+    in_datagram datagram;
 	int len;
 
-	if ( (len = recvfrom(this->socket_handle, buffer, buffer_length, 0, (sockaddr*)(&this->client), &this->client_socket_length)) < 0)
+	if ( (len = recvfrom(this->socket_handle, datagram.raw_data, IN_DATAGRAM_LENGTH,
+                         0, (sockaddr*)(&this->client), &this->client_socket_length)) < 0)
 		return false;
 
-	received_length = len;
+    if (len != IN_DATAGRAM_LENGTH)
+        return false;
+
+    if (datagram.data.datagram_length != IN_DATAGRAM_LENGTH)
+        return false;
+
+    if (datagram.data.crc !=
+            CRC::CRC16(datagram.raw_data, IN_DATAGRAM_LENGTH - 2))
+        return false;
+
+    datagram_data = datagram.data.datagram_contents;
 
 	return true;
 }
 
-bool WiFi_Controller::Send(uint8_t *data, uint8_t data_length) {
+bool WiFi_Controller::Send(Out_Datagram_Data datagram_data) {
 	if (!this->client_connected)
 		return false;
 
+    out_datagram datagram;
+
+    datagram.data.datagram_length = OUT_DATAGRAM_LENGTH;
+    datagram.data.datagram_contents = datagram_data;
+    datagram.data.crc = CRC::CRC16(datagram.raw_data, OUT_DATAGRAM_LENGTH - 2);
+
 	int len;
 
-	if ( (len = sendto(this->socket_handle, data, data_length, 0, (sockaddr*)&this->client, this->client_socket_length)) < 0)
+	if ( (len = sendto(this->socket_handle, datagram.raw_data, OUT_DATAGRAM_LENGTH,
+                       0, (sockaddr*)&this->client, this->client_socket_length)) < 0)
 		return false;
 
-	if (len != data_length)
+	if (len != datagram.data.datagram_length)
 		return false;
 
 	return true;

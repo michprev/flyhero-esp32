@@ -21,7 +21,7 @@ public:
 		float x, y, z;
 	};
 
-	struct Euler_Angles {
+	struct __attribute__((__packed__)) Euler_Angles {
 		float roll, pitch, yaw;
 	};
 

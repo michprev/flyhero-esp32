@@ -57,33 +57,15 @@ void imu_task(void *args) {
 }
 
 void wifi_task(void *args) {
-    const uint8_t BUFFER_SIZE = 200;
-
     WiFi_Controller& wifi = WiFi_Controller::Instance();
-    uint8_t buffer[BUFFER_SIZE];
-    uint8_t received_length;
 
     wifi.Init();
 
+    WiFi_Controller::In_Datagram_Data datagram_data;
+
     while (true) {
-        if (wifi.Receive(buffer, BUFFER_SIZE, received_length)) {
-            // wrong length
-            if (buffer[0] != received_length)
-                continue;
-
-            uint16_t crc;
-            crc = buffer[received_length - 1] << 8;
-            crc |= buffer[received_length - 2];
-
-            // wrong crc
-            if (crc != CRC::CRC16(buffer, received_length - 2))
-                continue;
-
-            uint16_t throttle;
-            throttle = buffer[2] << 8;
-            throttle |= buffer[1];
-
-            motors_controller.Set_Throttle(throttle);
+        if (wifi.Receive(datagram_data)) {
+            motors_controller.Set_Throttle(datagram_data.throttle);
             motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
             motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
         }

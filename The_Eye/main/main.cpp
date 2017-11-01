@@ -12,22 +12,11 @@
 
 using namespace flyhero;
 
-const uint8_t FUSION_ALGORITHMS_USED = 2;
-
-struct wifi_log_data {
-    IMU::Euler_Angles euler[FUSION_ALGORITHMS_USED];
-    uint16_t free_time;
-};
-
 Motors_Controller& motors_controller = Motors_Controller::Instance();
 QueueHandle_t wifi_log_data_queue;
 
 void wifi_task(void *args);
 void imu_task(void *args);
-
-
-void wifi_parser(uint8_t *buffer, uint8_t received_length);
-
 
 extern "C" void app_main(void) {
     // Initialize NVS
@@ -42,7 +31,7 @@ extern "C" void app_main(void) {
 
 	LEDs::Init();
 
-	wifi_log_data_queue = xQueueCreate(20, sizeof(wifi_log_data));
+	wifi_log_data_queue = xQueueCreate(20, sizeof(WiFi_Controller::Out_Datagram_Data));
 
 	xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
@@ -63,7 +52,7 @@ void imu_task(void *args) {
 	motors_controller.Init();
 	imu->Init();
 
-    wifi_log_data log_data;
+    WiFi_Controller::Out_Datagram_Data log_data;
 
 	timeval start, end;
 	uint8_t i = 0;
@@ -97,81 +86,22 @@ void imu_task(void *args) {
 }
 
 void wifi_task(void *args) {
-	const uint8_t BUFFER_SIZE = 200;
-
 	WiFi_Controller& wifi = WiFi_Controller::Instance();
-	uint8_t buffer[BUFFER_SIZE];
-	uint8_t received_length;
 
-    wifi_log_data datagram_data;
+    WiFi_Controller::In_Datagram_Data in_datagram_data;
+    WiFi_Controller::Out_Datagram_Data out_datagram_data;
 
 	wifi.Init();
 
 	while (true) {
-		if (wifi.Receive(buffer, BUFFER_SIZE, received_length)) {
-			// wrong length
-			if (buffer[0] != received_length)
-				continue;
-
-			uint16_t crc;
-			crc = buffer[received_length - 1] << 8;
-			crc |= buffer[received_length - 2];
-
-			// wrong crc
-			if (crc != CRC::CRC16(buffer, received_length - 2))
-                continue;
-
-			wifi_parser(buffer, received_length);
+		if (wifi.Receive(in_datagram_data)) {
+            motors_controller.Set_Throttle(in_datagram_data.throttle);
+            motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
+            motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
 		}
 
-		if (xQueueReceive(wifi_log_data_queue, &datagram_data, 0) == pdTRUE) {
-			uint8_t *roll, *pitch, *yaw;
-
-            // 1 (data size) + 2 (free time) + 12 * #_fusion_algorithms_used + 2 (crc)
-            const uint8_t DATA_SIZE = 5 + 12 * FUSION_ALGORITHMS_USED;
-            uint8_t data[DATA_SIZE];
-
-            data[0] = DATA_SIZE;
-            data[1] = datagram_data.free_time & 0xFF;
-            data[2] = datagram_data.free_time >> 8;
-
-            for (uint8_t i = 0; i < FUSION_ALGORITHMS_USED; i++) {
-                roll = (uint8_t *) &(datagram_data.euler[i].roll);
-                pitch = (uint8_t *) &(datagram_data.euler[i].pitch);
-                yaw = (uint8_t *) &(datagram_data.euler[i].yaw);
-
-                data[3 + i * 12] = roll[3];
-                data[4 + i * 12] = roll[2];
-                data[5 + i * 12] = roll[1];
-                data[6 + i * 12] = roll[0];
-                data[7 + i * 12] = pitch[3];
-                data[8 + i * 12] = pitch[2];
-                data[9 + i * 12] = pitch[1];
-                data[10 + i * 12] = pitch[0];
-                data[11 + i * 12] = yaw[3];
-                data[12 + i * 12] = yaw[2];
-                data[13 + i * 12] = yaw[1];
-                data[14 + i * 12] = yaw[0];
-            }
-
-			uint16_t crc = CRC::CRC16(data, DATA_SIZE - 2);
-
-            data[DATA_SIZE - 2] = crc & 0xFF;
-			data[DATA_SIZE - 1] = crc >> 8;
-
-			wifi.Send(data, DATA_SIZE);
+		if (xQueueReceive(wifi_log_data_queue, &out_datagram_data, 0) == pdTRUE) {
+            wifi.Send(out_datagram_data);
 		}
 	}
-}
-
-void wifi_parser(uint8_t *buffer, uint8_t received_length) {
-    uint16_t throttle;
-    throttle = buffer[2] << 8;
-    throttle |= buffer[1];
-
-    printf("t %d\n", throttle);
-
-    motors_controller.Set_Throttle(throttle);
-    motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
-    motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
 }
