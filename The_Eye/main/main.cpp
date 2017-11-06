@@ -33,10 +33,12 @@ extern "C" void app_main(void)
 
     LEDs::Init();
 
-    wifi_log_data_queue = xQueueCreate(20, sizeof(WiFi_Controller::Out_Datagram_Data));
+    motors_controller.Init();
 
-    xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
+    wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
+
+    xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
 
     while (true);
 }
@@ -52,7 +54,6 @@ void imu_task(void *args)
     Mahony_Filter mahony(2, 0.1f, 1000);
     Complementary_Filter complementary(0.995f, 1000);
 
-    motors_controller.Init();
     imu->Init();
 
     WiFi_Controller::Out_Datagram_Data log_data;

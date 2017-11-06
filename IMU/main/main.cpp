@@ -5,9 +5,24 @@
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 
+
 using namespace flyhero;
 
 QueueHandle_t data_queue;
+
+void imu_task(void *args);
+void log_task(void *args);
+
+
+extern "C" void app_main(void)
+{
+
+    data_queue = xQueueCreate(10, sizeof(IMU::Euler_Angles));
+
+    xTaskCreatePinnedToCore(log_task, "Log task", 4096, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
+
+}
 
 void imu_task(void *args)
 {
@@ -44,19 +59,10 @@ void imu_task(void *args)
             }
         }
     }
-
-    std::cout << "exited" << std::endl;
-
-    vTaskDelete(NULL);
 }
 
-extern "C" void app_main(void)
+void log_task(void *args)
 {
-
-    data_queue = xQueueCreate(10, sizeof(IMU::Euler_Angles));
-
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 1, NULL, 1);
-
     IMU::Euler_Angles euler;
 
     while (true)
@@ -64,5 +70,4 @@ extern "C" void app_main(void)
         if (xQueueReceive(data_queue, &euler, 0) == pdTRUE)
             std::cout << euler.roll << " " << euler.pitch << " " << euler.yaw << std::endl;
     }
-
 }
