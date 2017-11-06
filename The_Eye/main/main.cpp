@@ -7,7 +7,6 @@
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
-#include "CRC.h"
 
 
 using namespace flyhero;
@@ -51,8 +50,8 @@ void imu_task(void *args)
     IMU *imu;
     ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
 
-    Mahony_Filter mahony(2, 0.1f, 1000);
-    Complementary_Filter complementary(0.995f, 1000);
+    Mahony_Filter mahony(2, 0.1f, imu->Get_Sample_Rate());
+    Complementary_Filter complementary(0.995f, imu->Get_Sample_Rate());
 
     imu->Init();
 

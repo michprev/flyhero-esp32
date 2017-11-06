@@ -24,19 +24,19 @@ MPU6050 &MPU6050::Instance()
 }
 
 MPU6050::MPU6050()
-        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10),
-          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10),
-          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10),
-          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60),
-          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60),
-          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
+          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
+          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
+          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
+          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
+          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60)
 {
     this->g_fsr = GYRO_FSR_NOT_SET;
     this->g_mult = 0;
     this->a_mult = 0;
     this->a_fsr = ACCEL_FSR_NOT_SET;
     this->lpf = LPF_NOT_SET;
-    this->sample_rate = -1;
+    this->sample_rate = 0;
     this->accel_offsets[0] = 0;
     this->accel_offsets[1] = 0;
     this->accel_offsets[2] = 0;
@@ -374,8 +374,8 @@ void MPU6050::Init()
     // set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
     ESP_ERROR_CHECK(this->set_lpf(LPF_188HZ));
 
-    // set sample rate to 1 kHz
-    ESP_ERROR_CHECK(this->set_sample_rate(1000));
+    // set sample rate
+    ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
 
     ESP_ERROR_CHECK(this->set_interrupt(true));
 
@@ -494,6 +494,11 @@ void MPU6050::Calibrate()
     this->gyro_offsets[0] /= -500;
     this->gyro_offsets[1] /= -500;
     this->gyro_offsets[2] /= -500;
+}
+
+uint16_t MPU6050::Get_Sample_Rate()
+{
+    return this->SAMPLE_RATE;
 }
 
 void MPU6050::Read_Raw(Raw_Data &accel, Raw_Data &gyro)

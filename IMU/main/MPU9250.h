@@ -111,6 +111,7 @@ private:
     } REGISTERS;
 
     const uint8_t ADC_BITS = 16;
+    const uint16_t SAMPLE_RATE = 1000;
 
     Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
     Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
@@ -143,6 +144,7 @@ public:
 
     void Init() override;
     void Calibrate() override;
+    uint16_t Get_Sample_Rate() override;
     void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) override;
     void Read_Data(Sensor_Data &accel, Sensor_Data &gyro) override;
     void Data_Ready_Callback() override;

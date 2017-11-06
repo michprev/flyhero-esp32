@@ -57,6 +57,7 @@ private:
     };
 
     const uint8_t ADC_BITS = 16;
+    const uint16_t SAMPLE_RATE = 500;
     const uint8_t I2C_ADDRESS_WRITE = (0x68 << 1);
     const uint8_t I2C_ADDRESS_READ = ((0x68 << 1) | 0x01);
     const uint16_t I2C_TIMEOUT = 500;
@@ -115,6 +116,7 @@ public:
 
     void Init() override;
     void Calibrate() override;
+    uint16_t Get_Sample_Rate() override;
     void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) override;
     void Read_Data(Sensor_Data &accel, Sensor_Data &gyro) override;
     void Data_Ready_Callback() override;

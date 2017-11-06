@@ -24,12 +24,12 @@ MPU9250 &MPU9250::Instance()
 }
 
 MPU9250::MPU9250()
-        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10),
-          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10),
-          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 10),
-          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60),
-          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60),
-          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, 1000, 60)
+        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
+          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
+          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
+          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
+          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
+          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60)
 {
     this->spi = NULL;
     this->a_fsr = ACCEL_FSR_NOT_SET;
@@ -359,7 +359,7 @@ void MPU9250::Init()
     ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
     ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
 
-    ESP_ERROR_CHECK(this->set_sample_rate(1000));
+    ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
 
     ESP_ERROR_CHECK(this->set_interrupt(true));
 
@@ -414,6 +414,11 @@ void MPU9250::Calibrate()
     this->gyro_offsets[0] /= -500;
     this->gyro_offsets[1] /= -500;
     this->gyro_offsets[2] /= -500;
+}
+
+uint16_t MPU9250::Get_Sample_Rate()
+{
+    return this->SAMPLE_RATE;
 }
 
 void MPU9250::Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro)

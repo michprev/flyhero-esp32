@@ -21,7 +21,6 @@ extern "C" void app_main(void)
 
     xTaskCreatePinnedToCore(log_task, "Log task", 4096, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
-
 }
 
 void imu_task(void *args)
@@ -31,8 +30,8 @@ void imu_task(void *args)
 
     imu->Init();
 
-    //Mahony_Filter mahony(2, 0.1f, 1000);
-    Complementary_Filter complementary(0.995f, 1000);
+    //Mahony_Filter mahony(2, 0.1f, imu->Get_Sample_Rate());
+    Complementary_Filter complementary(0.995f, imu->Get_Sample_Rate());
 
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles euler;
