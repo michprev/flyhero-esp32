@@ -77,7 +77,13 @@ void imu_task(void *args)
             {
                 log_data.euler[0] = mahony_euler;
                 log_data.euler[1] = complementary_euler;
-                log_data.free_time = end.tv_usec - start.tv_usec;
+
+
+                long int delta = (end.tv_usec > start.tv_usec ? end.tv_usec - start.tv_usec
+                                                    : 1000000 - end.tv_usec + start.tv_usec);
+
+                log_data.free_time = delta * imu->Get_Sample_Rate() * 0.01f;
+
 
                 xQueueSend(wifi_log_data_queue, &log_data, 0);
                 i = 0;
