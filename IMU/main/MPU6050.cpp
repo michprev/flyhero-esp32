@@ -96,22 +96,27 @@ esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t data)
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     if ((state = i2c_master_start(cmd)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, reg, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, data, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_stop(cmd)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-    return state;
+        goto i2c_error;
 
     i2c_cmd_link_delete(cmd);
 
     return ESP_OK;
+
+    i2c_error:
+
+    i2c_cmd_link_delete(cmd);
+    return state;
 }
 
 esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t *data, uint8_t data_size)
@@ -121,22 +126,27 @@ esp_err_t MPU6050::i2c_write(uint8_t reg, uint8_t *data, uint8_t data_size)
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     if ((state = i2c_master_start(cmd)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, reg, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write(cmd, data, data_size, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_stop(cmd)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-    return state;
+        goto i2c_error;
 
     i2c_cmd_link_delete(cmd);
 
     return ESP_OK;
+
+    i2c_error:
+
+    i2c_cmd_link_delete(cmd);
+    return state;
 }
 
 esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data)
@@ -146,27 +156,32 @@ esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data)
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     if ((state = i2c_master_start(cmd)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, reg, true)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_start(cmd)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_read_byte(cmd, data, 0x01)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_stop(cmd)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-    return state;
+        goto i2c_error;
 
     i2c_cmd_link_delete(cmd);
 
     return ESP_OK;
+
+    i2c_error:
+
+    i2c_cmd_link_delete(cmd);
+    return state;
 }
 
 esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size)
@@ -176,32 +191,37 @@ esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size)
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     if ((state = i2c_master_start(cmd)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_WRITE, true)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, reg, true)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_start(cmd)))
-        return state;
+        goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_read(cmd, data, data_size - 1, 0x00)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_read_byte(cmd, data + data_size - 1, 0x01)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_stop(cmd)))
-        return state;
+        goto i2c_error;
 
     if ((state = i2c_master_cmd_begin(I2C_NUM_0, cmd, this->I2C_TIMEOUT / portTICK_RATE_MS)))
-    return state;
+        goto i2c_error;
 
     i2c_cmd_link_delete(cmd);
 
     return ESP_OK;
+
+    i2c_error:
+
+    i2c_cmd_link_delete(cmd);
+    return state;
 }
 
 esp_err_t MPU6050::set_gyro_fsr(gyro_fsr fsr)
