@@ -4,11 +4,14 @@
 
 #include "IMU_Detector.h"
 
-namespace flyhero {
+
+namespace flyhero
+{
 
 spi_device_handle_t IMU_Detector::spi = NULL;
 
-bool IMU_Detector::i2c_init() {
+bool IMU_Detector::i2c_init()
+{
     // init i2c peripheral
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
@@ -26,11 +29,13 @@ bool IMU_Detector::i2c_init() {
     return true;
 }
 
-void IMU_Detector::i2c_deinit() {
+void IMU_Detector::i2c_deinit()
+{
     i2c_driver_delete(I2C_NUM_0);
 }
 
-bool IMU_Detector::spi_init() {
+bool IMU_Detector::spi_init()
+{
     //Initialize the SPI bus
     spi_bus_config_t buscfg;
     buscfg.miso_io_num = GPIO_NUM_16;
@@ -64,13 +69,15 @@ bool IMU_Detector::spi_init() {
     return true;
 }
 
-void IMU_Detector::spi_deinit() {
+void IMU_Detector::spi_deinit()
+{
     spi_bus_remove_device(IMU_Detector::spi);
     spi_bus_free(HSPI_HOST);
 }
 
 bool IMU_Detector::try_i2c_imu(const uint8_t DEVICE_ADDRESS_WRITE, const uint8_t DEVICE_ADDRESS_READ,
-                 const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE) {
+                               const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE)
+{
     // read WHO_AM_I register
     uint8_t who_am_i;
 
@@ -93,14 +100,15 @@ bool IMU_Detector::try_i2c_imu(const uint8_t DEVICE_ADDRESS_WRITE, const uint8_t
         return false;
 
     if (i2c_master_cmd_begin(I2C_NUM_0, cmd, 500 / portTICK_RATE_MS) != ESP_OK)
-        return false;
+    return false;
 
     i2c_cmd_link_delete(cmd);
 
     return who_am_i == EXPECTED_VALUE;
 }
 
-bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE) {
+bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE)
+{
     // read WHO_AM_I register
     uint8_t who_am_i;
 
@@ -121,7 +129,8 @@ bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EX
     return who_am_i == EXPECTED_VALUE;
 }
 
-esp_err_t IMU_Detector::Detect_IMU(IMU **imu) {
+esp_err_t IMU_Detector::Detect_IMU(IMU **imu)
+{
     if (IMU_Detector::i2c_init()) {
 
         if (IMU_Detector::try_i2c_imu(0x68 << 1, (0x68 << 1) | 1, 0x75, 0x68)) {
@@ -134,15 +143,17 @@ esp_err_t IMU_Detector::Detect_IMU(IMU **imu) {
         IMU_Detector::i2c_deinit();
     }
 
-    if (IMU_Detector::spi_init()) {
+    if (IMU_Detector::spi_init())
+    {
 
-        if (IMU_Detector::try_spi_imu(0x75, 0x71)) {
+        if (IMU_Detector::try_spi_imu(0x75, 0x71))
+        {
             *imu = &MPU9250::Instance();
             IMU_Detector::spi_deinit();
 
             return ESP_OK;
-        }
-        else if (IMU_Detector::try_spi_imu(0x75, 0x73)) {
+        } else if (IMU_Detector::try_spi_imu(0x75, 0x73))
+        {
             *imu = &MPU9250::Instance();
             IMU_Detector::spi_deinit();
 

@@ -1,25 +1,37 @@
 #include <iostream>
+#include <nvs_flash.h>
+
 #include "WiFi_Controller.h"
+
 
 using namespace flyhero;
 
 extern "C" void app_main(void)
 {
-	WiFi_Controller& wifi = WiFi_Controller::Instance();
-	LEDs::Init();
+    // Initialize NVS
+    esp_err_t nvs_status = nvs_flash_init();
 
-	wifi.Init();
+    if (nvs_status == ESP_ERR_NVS_NO_FREE_PAGES)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_status = nvs_flash_init();
+    }
 
-	uint8_t buffer[200];
-	uint8_t read;
+    ESP_ERROR_CHECK(nvs_status);
 
-	while (true) {
-		if (wifi.Receive(buffer, 200, read)) {
-			buffer[read] = '\0';
+    WiFi_Controller &wifi = WiFi_Controller::Instance();
+    LEDs::Init();
 
-			std::cout << buffer << std::endl;
-		}
+    wifi.Init();
 
-		vTaskDelay(500 / portTICK_RATE_MS);
-	}
+    WiFi_Controller::In_Datagram_Data data;
+
+    while (true)
+    {
+        if (wifi.Receive(data))
+        {
+
+            std::cout << data.throttle << std::endl;
+        }
+    }
 }
