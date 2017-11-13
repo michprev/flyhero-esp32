@@ -28,7 +28,7 @@ private:
 
     static bool try_i2c_imu(const uint8_t DEVICE_ADDRESS_WRITE, const uint8_t DEVICE_ADDRESS_READ,
                             const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE);
-    static bool try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE);
+    static bool try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE, const gpio_num_t CS_NUM);
 
 public:
     static esp_err_t Detect_IMU(IMU **imu);

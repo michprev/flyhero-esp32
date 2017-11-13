@@ -53,9 +53,9 @@ esp_err_t MPU6000::spi_init()
     esp_err_t ret;
 
     spi_bus_config_t buscfg;
-    buscfg.miso_io_num = GPIO_NUM_25;
-    buscfg.mosi_io_num = GPIO_NUM_23;
-    buscfg.sclk_io_num = GPIO_NUM_19;
+    buscfg.miso_io_num = GPIO_NUM_16;
+    buscfg.mosi_io_num = GPIO_NUM_5;
+    buscfg.sclk_io_num = GPIO_NUM_18;
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
@@ -69,7 +69,7 @@ esp_err_t MPU6000::spi_init()
     devcfg.cs_ena_pretrans = 0;
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 1000000;
-    devcfg.spics_io_num = GPIO_NUM_22;
+    devcfg.spics_io_num = GPIO_NUM_17;
     devcfg.flags = 0;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
@@ -90,7 +90,7 @@ esp_err_t MPU6000::int_init()
     esp_err_t state;
 
     gpio_config_t conf;
-    conf.pin_bit_mask = GPIO_SEL_13;
+    conf.pin_bit_mask = GPIO_SEL_4;
     conf.mode = GPIO_MODE_INPUT;
     conf.pull_up_en = GPIO_PULLUP_DISABLE;
     conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
@@ -101,7 +101,7 @@ esp_err_t MPU6000::int_init()
 
     if ((state = gpio_install_isr_service(0)))
         return state;
-    if ((state = gpio_isr_handler_add(GPIO_NUM_13, int_handler, NULL)))
+    if ((state = gpio_isr_handler_add(GPIO_NUM_4, int_handler, NULL)))
         return state;
 
     return ESP_OK;
@@ -336,7 +336,7 @@ void MPU6000::Init()
     devcfg.cs_ena_pretrans = 0;
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 20000000;
-    devcfg.spics_io_num = GPIO_NUM_22;
+    devcfg.spics_io_num = GPIO_NUM_17;
     devcfg.flags = 0;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
