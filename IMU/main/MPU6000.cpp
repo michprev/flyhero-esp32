@@ -342,6 +342,8 @@ void MPU6000::Init()
 
     ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
 
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
     this->Calibrate();
 
     this->ready = true;

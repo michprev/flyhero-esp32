@@ -397,6 +397,8 @@ void MPU6050::Init()
 
     ESP_ERROR_CHECK(this->set_interrupt(true));
 
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
     this->Calibrate();
 
     this->ready = true;
