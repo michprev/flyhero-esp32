@@ -327,7 +327,7 @@ void MPU9250::Init()
         this->spi_reg_read(this->REGISTERS.PWR_MGMT_1, tmp);
     } while (tmp & 0x80);
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     /* should not be needed
     this->spi_reg_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07);
@@ -393,8 +393,6 @@ void MPU9250::Init()
 void MPU9250::Calibrate()
 {
     Raw_Data accel, gyro;
-
-    vTaskDelay(1000 / portTICK_RATE_MS);
 
     for (uint16_t i = 0; i < 500; i++)
     {

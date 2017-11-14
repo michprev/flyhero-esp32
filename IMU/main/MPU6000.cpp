@@ -280,15 +280,13 @@ void MPU6000::Init()
         this->spi_reg_read(this->REGISTERS.PWR_MGMT_1, tmp);
     } while (tmp & 0x80);
 
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
     // reset analog devices - should not be needed
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07));
 
-    vTaskDelay(100 / portTICK_RATE_MS);
-
     // wake up, set clock source PLL with Z gyro axis
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.PWR_MGMT_1, 0x03));
-
-    vTaskDelay(50 / portTICK_RATE_MS);
 
     // do not disable any sensor
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.PWR_MGMT_2, 0x00));
@@ -354,8 +352,6 @@ void MPU6000::Calibrate()
 {
     Raw_Data accel, gyro;
 
-    vTaskDelay(1000 / portTICK_RATE_MS);
-
     for (uint16_t i = 0; i < 500; i++)
     {
         this->Read_Raw(accel, gyro);
@@ -366,8 +362,6 @@ void MPU6000::Calibrate()
         this->gyro_offsets[0] += gyro.x;
         this->gyro_offsets[1] += gyro.y;
         this->gyro_offsets[2] += gyro.z;
-
-        vTaskDelay(1 / portTICK_RATE_MS);
     }
 
     this->accel_offsets[0] /= -500;

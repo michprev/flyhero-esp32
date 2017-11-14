@@ -356,15 +356,13 @@ void MPU6050::Init()
         this->i2c_read(this->REGISTERS.PWR_MGMT_1, &tmp);
     } while (tmp & 0x80);
 
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
     // reset analog devices - should not be needed
     ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07));
 
-    vTaskDelay(100 / portTICK_RATE_MS);
-
     // wake up, set clock source PLL with Z gyro axis
     ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.PWR_MGMT_1, 0x03));
-
-    vTaskDelay(50 / portTICK_RATE_MS);
 
     // do not disable any sensor
     ESP_ERROR_CHECK(this->i2c_write(this->REGISTERS.PWR_MGMT_2, 0x00));
@@ -490,7 +488,6 @@ void MPU6050::Calibrate()
     this->set_gyro_fsr(prev_g_fsr);
     this->set_accel_fsr(prev_a_fsr);
 
-    vTaskDelay(5000 / portTICK_RATE_MS);
 
     // lets measure offsets again to be applied on STM
     this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
