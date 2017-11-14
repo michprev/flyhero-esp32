@@ -1,6 +1,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <nvs_flash.h>
+#include <esp_task_wdt.h>
 
 #include "Motors_Controller.h"
 #include "IMU_Detector.h"
@@ -27,14 +28,28 @@ extern "C" void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_erase());
         nvs_status = nvs_flash_init();
     }
-
     ESP_ERROR_CHECK(nvs_status);
 
+
     LEDs::Init();
-
     motors_controller.Init();
-
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
+
+    // Initialize watchdog with 5 sec timeout
+    if (esp_task_wdt_init(5, true) != ESP_OK)
+    {
+        while (true)
+        {
+            LEDs::Turn_On(LEDs::WARNING);
+
+            vTaskDelay(250 / portTICK_RATE_MS);
+
+            LEDs::Turn_Off(LEDs::WARNING);
+
+            vTaskDelay(250 / portTICK_RATE_MS);
+        }
+    }
+
 
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
@@ -44,10 +59,17 @@ extern "C" void app_main(void)
 
 void imu_task(void *args)
 {
+    WiFi_Controller::Out_Datagram_Data log_data;
+    timeval start, end;
+    uint8_t i = 0;
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles mahony_euler, complementary_euler;
-
     IMU *imu;
+
+    // Subscribe IMU task to watchdog
+    if (esp_task_wdt_add(NULL) != ESP_OK)
+        vTaskDelete(NULL);
+
     ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
 
     Mahony_Filter mahony(2, 0.1f, imu->Get_Sample_Rate());
@@ -55,15 +77,12 @@ void imu_task(void *args)
 
     imu->Init();
 
-    WiFi_Controller::Out_Datagram_Data log_data;
-
-    timeval start, end;
-    uint8_t i = 0;
-
     while (true)
     {
         if (imu->Data_Ready())
         {
+            esp_task_wdt_reset();
+
             gettimeofday(&end, NULL);
 
             imu->Read_Data(accel, gyro);
@@ -100,9 +119,9 @@ void imu_task(void *args)
 void wifi_task(void *args)
 {
     WiFi_Controller &wifi = WiFi_Controller::Instance();
-
     WiFi_Controller::In_Datagram_Data in_datagram_data;
     WiFi_Controller::Out_Datagram_Data out_datagram_data;
+    bool connected = false;
 
     wifi.Init();
 
@@ -110,6 +129,17 @@ void wifi_task(void *args)
     {
         if (wifi.Receive(in_datagram_data))
         {
+            if (!connected)
+            {
+                // Subscribe WiFi task to watchdog
+                if (esp_task_wdt_add(NULL) != ESP_OK)
+                    vTaskDelete(NULL);
+
+                connected = true;
+            }
+
+            esp_task_wdt_reset();
+
             motors_controller.Set_Throttle(in_datagram_data.throttle);
             motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
             motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
