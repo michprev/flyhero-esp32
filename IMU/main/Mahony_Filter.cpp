@@ -18,9 +18,9 @@ Mahony_Filter::Mahony_Filter(float kp, float ki, uint16_t sample_rate)
     this->quaternion.q1 = 0;
     this->quaternion.q2 = 0;
     this->quaternion.q3 = 0;
-    this->mahony_integral.x = 0;
-    this->mahony_integral.y = 0;
-    this->mahony_integral.z = 0;
+    this->error_integral.x = 0;
+    this->error_integral.y = 0;
+    this->error_integral.z = 0;
 }
 
 // expects gyro data in deg/s, accel data in multiples of g
@@ -33,7 +33,7 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     gyro_rad.y = gyro.y * Math::DEG_TO_RAD;
     gyro_rad.z = gyro.z * Math::DEG_TO_RAD;
 
-    IMU::Sensor_Data half_v, half_e;
+    IMU::Sensor_Data v, error;
 
     // normalise accelerometer measurement
     recip_norm = Math::Inv_Sqrt(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z);
@@ -42,43 +42,48 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     accel.z *= recip_norm;
 
     // estimated direction of gravity and vector perpendicular to magnetic flux
-    half_v.x = this->quaternion.q1 * this->quaternion.q3 - this->quaternion.q0 * this->quaternion.q2;
-    half_v.y = this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3;
-    half_v.z = this->quaternion.q0 * this->quaternion.q0 - 0.5f + this->quaternion.q3 * this->quaternion.q3;
+    v.x = 2 * (this->quaternion.q1 * this->quaternion.q3
+             - this->quaternion.q0 * this->quaternion.q2);
+    v.y = 2 * (this->quaternion.q0 * this->quaternion.q1
+             + this->quaternion.q2 * this->quaternion.q3);
+    v.z = + this->quaternion.q0 * this->quaternion.q0
+          - this->quaternion.q1 * this->quaternion.q1
+          - this->quaternion.q2 * this->quaternion.q2
+          + this->quaternion.q3 * this->quaternion.q3;
 
     // error is sum of cross product between estimated and measured direction of gravity
-    half_e.x = (accel.y * half_v.z - accel.z * half_v.y);
-    half_e.y = (accel.z * half_v.x - accel.x * half_v.z);
-    half_e.z = (accel.x * half_v.y - accel.y * half_v.x);
+    error.x = (accel.y * v.z - accel.z * v.y);
+    error.y = (accel.z * v.x - accel.x * v.z);
+    error.z = (accel.x * v.y - accel.y * v.x);
 
     if (this->MAHONY_KI > 0)
     {
-        this->mahony_integral.x += 2 * this->MAHONY_KI * half_e.x * this->DELTA_T;
-        this->mahony_integral.y += 2 * this->MAHONY_KI * half_e.y * this->DELTA_T;
-        this->mahony_integral.z += 2 * this->MAHONY_KI * half_e.z * this->DELTA_T;
-
-        gyro_rad.x += this->mahony_integral.x;
-        gyro_rad.y += this->mahony_integral.y;
-        gyro_rad.z += this->mahony_integral.z;
+        this->error_integral.x += error.x * this->DELTA_T;
+        this->error_integral.y += error.y * this->DELTA_T;
+        this->error_integral.z += error.z * this->DELTA_T;
+    } else
+    {
+        this->error_integral.x = 0;
+        this->error_integral.y = 0;
+        this->error_integral.z = 0;
     }
 
-    gyro_rad.x += 2 * this->MAHONY_KP * half_e.x;
-    gyro_rad.y += 2 * this->MAHONY_KP * half_e.y;
-    gyro_rad.z += 2 * this->MAHONY_KP * half_e.z;
-
-    // integrate rate of change of quaternion
-    gyro_rad.x *= 0.5f * this->DELTA_T;        // pre-multiply common factors
-    gyro_rad.y *= 0.5f * this->DELTA_T;
-    gyro_rad.z *= 0.5f * this->DELTA_T;
+    gyro_rad.x += this->MAHONY_KP * error.x + this->MAHONY_KI * error_integral.x;
+    gyro_rad.y += this->MAHONY_KP * error.y + this->MAHONY_KI * error_integral.y;
+    gyro_rad.z += this->MAHONY_KP * error.z + this->MAHONY_KI * error_integral.z;
 
     float qa = this->quaternion.q0;
     float qb = this->quaternion.q1;
     float qc = this->quaternion.q2;
 
-    this->quaternion.q0 += (-qb * gyro_rad.x - qc * gyro_rad.y - this->quaternion.q3 * gyro_rad.z);
-    this->quaternion.q1 += (qa * gyro_rad.x + qc * gyro_rad.z - this->quaternion.q3 * gyro_rad.y);
-    this->quaternion.q2 += (qa * gyro_rad.y - qb * gyro_rad.z + this->quaternion.q3 * gyro_rad.x);
-    this->quaternion.q3 += (qa * gyro_rad.z + qb * gyro_rad.y - qc * gyro_rad.x);
+    this->quaternion.q0 += 0.5f * this->DELTA_T * (-qb * gyro_rad.x - qc * gyro_rad.y
+                                                   - this->quaternion.q3 * gyro_rad.z);
+    this->quaternion.q1 += 0.5f * this->DELTA_T * (qa * gyro_rad.x + qc * gyro_rad.z
+                                                   - this->quaternion.q3 * gyro_rad.y);
+    this->quaternion.q2 += 0.5f * this->DELTA_T * (qa * gyro_rad.y - qb * gyro_rad.z
+                                                   + this->quaternion.q3 * gyro_rad.x);
+    this->quaternion.q3 += 0.5f * this->DELTA_T * (qa * gyro_rad.z + qb * gyro_rad.y
+                                                   - qc * gyro_rad.x);
 
     // normalise quaternion
     recip_norm = Math::Inv_Sqrt(this->quaternion.q0 * this->quaternion.q0 +
@@ -118,9 +123,9 @@ void Mahony_Filter::Reset()
     this->quaternion.q2 = 0;
     this->quaternion.q3 = 0;
 
-    this->mahony_integral.x = 0;
-    this->mahony_integral.y = 0;
-    this->mahony_integral.z = 0;
+    this->error_integral.x = 0;
+    this->error_integral.y = 0;
+    this->error_integral.z = 0;
 }
 
 } /* namespace flyhero */

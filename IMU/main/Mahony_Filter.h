@@ -22,7 +22,7 @@ private:
     IMU::Quaternion quaternion;
     const float MAHONY_KP, MAHONY_KI;
     const float DELTA_T;
-    IMU::Sensor_Data mahony_integral;
+    IMU::Sensor_Data error_integral;
 
 public:
     Mahony_Filter(float kp, float ki, uint16_t sample_rate);
