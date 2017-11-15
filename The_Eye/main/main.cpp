@@ -30,6 +30,7 @@ extern "C" void app_main(void)
     }
     ESP_ERROR_CHECK(nvs_status);
 
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     LEDs::Init();
     motors_controller.Init();

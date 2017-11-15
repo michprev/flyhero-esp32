@@ -18,6 +18,23 @@ PWM_Generator &PWM_Generator::Instance()
     return instance;
 }
 
+PWM_Generator::PWM_Generator()
+{
+    gpio_config_t conf;
+    conf.intr_type = GPIO_INTR_DISABLE;
+    conf.mode = GPIO_MODE_OUTPUT;
+    conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    conf.pin_bit_mask = GPIO_SEL_14 | GPIO_SEL_25 | GPIO_SEL_26 | GPIO_SEL_27;
+
+    gpio_config(&conf);
+
+    gpio_set_level(GPIO_NUM_25, 0);
+    gpio_set_level(GPIO_NUM_26, 0);
+    gpio_set_level(GPIO_NUM_27, 0);
+    gpio_set_level(GPIO_NUM_14, 0);
+}
+
 void PWM_Generator::Init()
 {
     ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, GPIO_NUM_25));

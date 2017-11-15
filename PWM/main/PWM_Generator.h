@@ -18,7 +18,7 @@ namespace flyhero
 class PWM_Generator
 {
 private:
-    PWM_Generator() {};
+    PWM_Generator();
     PWM_Generator(PWM_Generator const &);
     PWM_Generator &operator=(PWM_Generator const &);
 
