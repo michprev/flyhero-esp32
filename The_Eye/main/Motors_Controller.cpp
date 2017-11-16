@@ -87,6 +87,9 @@ void Motors_Controller::Set_PID_Constants(Axis axis, float Kp, float Ki, float K
 
 void Motors_Controller::Set_Throttle(uint16_t throttle)
 {
+    if (throttle > 1000)
+        return;
+
     while (xSemaphoreTake(this->throttle_semaphore, 0) != pdTRUE);
 
     this->throttle = throttle;
