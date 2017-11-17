@@ -65,27 +65,32 @@ bool IMU_Detector::try_i2c_imu(const uint8_t DEVICE_ADDRESS_WRITE, const uint8_t
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 
     if (i2c_master_start(cmd) != ESP_OK)
-        return false;
+        goto i2c_error;
     if (i2c_master_write_byte(cmd, DEVICE_ADDRESS_WRITE, true) != ESP_OK)
-        return false;
+        goto i2c_error;
     if (i2c_master_write_byte(cmd, WHO_AM_I_REGISTER, true) != ESP_OK)
-        return false;
+        goto i2c_error;
 
     if (i2c_master_start(cmd) != ESP_OK)
-        return false;
+        goto i2c_error;
     if (i2c_master_write_byte(cmd, DEVICE_ADDRESS_READ, true) != ESP_OK)
-        return false;
+        goto i2c_error;
     if (i2c_master_read_byte(cmd, &who_am_i, 0x01) != ESP_OK)
-        return false;
+        goto i2c_error;
     if (i2c_master_stop(cmd) != ESP_OK)
-        return false;
+        goto i2c_error;
 
     if (i2c_master_cmd_begin(I2C_NUM_0, cmd, 500 / portTICK_RATE_MS) != ESP_OK)
-        return false;
+        goto i2c_error;
 
     i2c_cmd_link_delete(cmd);
 
     return who_am_i == EXPECTED_VALUE;
+
+    i2c_error:
+
+    i2c_cmd_link_delete(cmd);
+    return false;
 }
 
 bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE, const gpio_num_t CS_NUM)
