@@ -30,8 +30,8 @@ void imu_task(void *args)
 
     imu->Init();
 
-    //Mahony_Filter mahony(2, 0.1f, imu->Get_Sample_Rate());
-    Complementary_Filter complementary(0.995f, imu->Get_Sample_Rate());
+    //Mahony_Filter mahony(100, 0);
+    Complementary_Filter complementary(0.98f);
 
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles euler;

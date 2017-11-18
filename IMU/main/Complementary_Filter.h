@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <sys/time.h>
+
 #include "Fusion_Filter.h"
 #include "Math.h"
 
@@ -18,11 +20,11 @@ class Complementary_Filter : public Fusion_Filter
 {
 private:
     IMU::Euler_Angles euler;
+    timeval last_time;
     const float COMPLEMENTARY_COEFFICIENT;
-    const float DELTA_T;
 
 public:
-    Complementary_Filter(float coeff, uint16_t sample_rate);
+    Complementary_Filter(float coeff);
     ~Complementary_Filter() override = default;
 
     void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles &euler) override;

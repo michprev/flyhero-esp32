@@ -11,9 +11,11 @@
 namespace flyhero
 {
 
-Mahony_Filter::Mahony_Filter(float kp, float ki, uint16_t sample_rate)
-        : MAHONY_KP(kp), MAHONY_KI(ki), DELTA_T(1.0f / sample_rate)
+Mahony_Filter::Mahony_Filter(float kp, float ki)
+        : MAHONY_KP(kp), MAHONY_KI(ki)
 {
+    this->last_time.tv_sec = 0;
+    this->last_time.tv_usec = 0;
     this->quaternion.q0 = 1;
     this->quaternion.q1 = 0;
     this->quaternion.q2 = 0;
@@ -26,6 +28,28 @@ Mahony_Filter::Mahony_Filter(float kp, float ki, uint16_t sample_rate)
 // expects gyro data in deg/s, accel data in multiples of g
 void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles &euler)
 {
+    float delta_t;
+
+    if (this->last_time.tv_sec == 0 && this->last_time.tv_usec == 0)
+    {
+        delta_t = 0;
+
+        gettimeofday(&this->last_time, NULL);
+    }
+    else
+    {
+        timeval tmp;
+
+        gettimeofday(&tmp, NULL);
+
+        delta_t = (tmp.tv_usec > this->last_time.tv_usec ?
+                   tmp.tv_usec - this->last_time.tv_usec :
+                   1000000 - tmp.tv_usec + this->last_time.tv_usec);
+        delta_t *= 0.000001f;
+
+        this->last_time = tmp;
+    }
+
     float recip_norm;
 
     IMU::Sensor_Data gyro_rad;
@@ -58,9 +82,9 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
     if (this->MAHONY_KI > 0)
     {
-        this->error_integral.x += error.x * this->DELTA_T;
-        this->error_integral.y += error.y * this->DELTA_T;
-        this->error_integral.z += error.z * this->DELTA_T;
+        this->error_integral.x += error.x * delta_t;
+        this->error_integral.y += error.y * delta_t;
+        this->error_integral.z += error.z * delta_t;
     } else
     {
         this->error_integral.x = 0;
@@ -76,13 +100,13 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     float qb = this->quaternion.q1;
     float qc = this->quaternion.q2;
 
-    this->quaternion.q0 += 0.5f * this->DELTA_T * (-qb * gyro_rad.x - qc * gyro_rad.y
+    this->quaternion.q0 += 0.5f * delta_t * (-qb * gyro_rad.x - qc * gyro_rad.y
                                                    - this->quaternion.q3 * gyro_rad.z);
-    this->quaternion.q1 += 0.5f * this->DELTA_T * (qa * gyro_rad.x + qc * gyro_rad.z
+    this->quaternion.q1 += 0.5f * delta_t * (qa * gyro_rad.x + qc * gyro_rad.z
                                                    - this->quaternion.q3 * gyro_rad.y);
-    this->quaternion.q2 += 0.5f * this->DELTA_T * (qa * gyro_rad.y - qb * gyro_rad.z
+    this->quaternion.q2 += 0.5f * delta_t * (qa * gyro_rad.y - qb * gyro_rad.z
                                                    + this->quaternion.q3 * gyro_rad.x);
-    this->quaternion.q3 += 0.5f * this->DELTA_T * (qa * gyro_rad.z + qb * gyro_rad.y
+    this->quaternion.q3 += 0.5f * delta_t * (qa * gyro_rad.z + qb * gyro_rad.y
                                                    - qc * gyro_rad.x);
 
     // normalise quaternion
@@ -118,6 +142,9 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
 void Mahony_Filter::Reset()
 {
+    this->last_time.tv_sec = 0;
+    this->last_time.tv_usec = 0;
+
     this->quaternion.q0 = 1;
     this->quaternion.q1 = 0;
     this->quaternion.q2 = 0;

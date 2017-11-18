@@ -73,8 +73,8 @@ void imu_task(void *args)
 
     ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
 
-    Mahony_Filter mahony(2, 0.1f, imu->Get_Sample_Rate());
-    Complementary_Filter complementary(0.995f, imu->Get_Sample_Rate());
+    Mahony_Filter mahony(100, 0);
+    Complementary_Filter complementary(0.98f);
 
     imu->Init();
 
@@ -110,7 +110,7 @@ void imu_task(void *args)
             }
 
 
-            motors_controller.Update_Motors(mahony_euler);
+            motors_controller.Update_Motors(complementary_euler);
 
             gettimeofday(&start, NULL);
         }
