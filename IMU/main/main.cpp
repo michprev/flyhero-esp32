@@ -25,10 +25,9 @@ extern "C" void app_main(void)
 
 void imu_task(void *args)
 {
-    IMU *imu = NULL;
-    ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
+    IMU& imu = IMU_Detector::Detect_IMU();
 
-    imu->Init();
+    imu.Init();
 
     //Mahony_Filter mahony(100, 0);
     Complementary_Filter complementary(0.98f);
@@ -40,9 +39,9 @@ void imu_task(void *args)
 
     while (true)
     {
-        if (imu->Data_Ready())
+        if (imu.Data_Ready())
         {
-            imu->Read_Data(accel, gyro);
+            imu.Read_Data(accel, gyro);
 
             //mahony.Compute(accel, gyro, euler);
             complementary.Compute(accel, gyro, euler);

@@ -65,28 +65,28 @@ void imu_task(void *args)
     uint8_t i = 0;
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles mahony_euler, complementary_euler;
-    IMU *imu;
+
 
     // Subscribe IMU task to watchdog
     if (esp_task_wdt_add(NULL) != ESP_OK)
         vTaskDelete(NULL);
 
-    ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
+    IMU& imu = IMU_Detector::Detect_IMU();
 
     Mahony_Filter mahony(100, 0);
     Complementary_Filter complementary(0.98f);
 
-    imu->Init();
+    imu.Init();
 
     while (true)
     {
-        if (imu->Data_Ready())
+        if (imu.Data_Ready())
         {
             esp_task_wdt_reset();
 
             gettimeofday(&end, NULL);
 
-            imu->Read_Data(accel, gyro);
+            imu.Read_Data(accel, gyro);
 
             mahony.Compute(accel, gyro, mahony_euler);
             complementary.Compute(accel, gyro, complementary_euler);
@@ -102,7 +102,7 @@ void imu_task(void *args)
                 long int delta = (end.tv_usec > start.tv_usec ? end.tv_usec - start.tv_usec
                                                     : 1000000 - end.tv_usec + start.tv_usec);
 
-                log_data.free_time = delta * imu->Get_Sample_Rate() * 0.01f;
+                log_data.free_time = delta * imu.Get_Sample_Rate() * 0.01f;
 
 
                 xQueueSend(wifi_log_data_queue, &log_data, 0);

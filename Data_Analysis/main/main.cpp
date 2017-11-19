@@ -43,16 +43,15 @@ void imu_task(void *args)
     euler.pitch = 0;
     euler.yaw = 0;
 
-    IMU *imu;
-    ESP_ERROR_CHECK(IMU_Detector::Detect_IMU(&imu));
+    IMU& imu = IMU_Detector::Detect_IMU();
 
-    imu->Init();
+    imu.Init();
 
     while (true)
     {
-        if (imu->Data_Ready())
+        if (imu.Data_Ready())
         {
-            imu->Read_Data(accel, gyro);
+            imu.Read_Data(accel, gyro);
 
             motors_controller.Update_Motors(euler);
 

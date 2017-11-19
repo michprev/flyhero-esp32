@@ -31,7 +31,7 @@ private:
     static bool try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE, const gpio_num_t CS_NUM);
 
 public:
-    static esp_err_t Detect_IMU(IMU **imu);
+    static IMU& Detect_IMU();
 
 };
 

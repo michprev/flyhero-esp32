@@ -138,15 +138,14 @@ bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EX
     return who_am_i == EXPECTED_VALUE;
 }
 
-esp_err_t IMU_Detector::Detect_IMU(IMU **imu)
+IMU& IMU_Detector::Detect_IMU()
 {
     if (IMU_Detector::i2c_init()) {
 
         if (IMU_Detector::try_i2c_imu(0x68 << 1, (0x68 << 1) | 1, 0x75, 0x68)) {
-            *imu = &MPU6050::Instance();
             IMU_Detector::i2c_deinit();
 
-            return ESP_OK;
+            return MPU6050::Instance();
         }
 
         IMU_Detector::i2c_deinit();
@@ -154,31 +153,27 @@ esp_err_t IMU_Detector::Detect_IMU(IMU **imu)
 
     if (IMU_Detector::spi_init())
     {
-
         if (IMU_Detector::try_spi_imu(0x75, 0x71, GPIO_NUM_13))
         {
-            *imu = &MPU9250::Instance();
             IMU_Detector::spi_deinit();
 
-            return ESP_OK;
+            return MPU9250::Instance();
         } else if (IMU_Detector::try_spi_imu(0x75, 0x73, GPIO_NUM_13))
         {
-            *imu = &MPU9250::Instance();
             IMU_Detector::spi_deinit();
 
-            return ESP_OK;
+            return MPU9250::Instance();
         }
         else if (IMU_Detector::try_spi_imu(0x75, 0x68, GPIO_NUM_17)) {
-            *imu = &MPU6000::Instance();
             IMU_Detector::spi_deinit();
 
-            return ESP_OK;
+            return MPU6000::Instance();
         }
 
         IMU_Detector::spi_deinit();
     }
 
-    return ESP_FAIL;
+    assert(0);
 }
 
 }
