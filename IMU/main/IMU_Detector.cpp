@@ -9,6 +9,8 @@ namespace flyhero
 {
 
 spi_device_handle_t IMU_Detector::spi = NULL;
+IMU *IMU_Detector::imu = NULL;
+bool IMU_Detector::detected = false;
 
 bool IMU_Detector::i2c_init()
 {
@@ -140,12 +142,18 @@ bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EX
 
 IMU& IMU_Detector::Detect_IMU()
 {
+    if (IMU_Detector::detected)
+        return *IMU_Detector::imu;
+
     if (IMU_Detector::i2c_init()) {
 
         if (IMU_Detector::try_i2c_imu(0x68 << 1, (0x68 << 1) | 1, 0x75, 0x68)) {
             IMU_Detector::i2c_deinit();
 
-            return MPU6050::Instance();
+            IMU_Detector::imu = &MPU6050::Instance();
+            IMU_Detector::detected = true;
+
+            return *IMU_Detector::imu;
         }
 
         IMU_Detector::i2c_deinit();
@@ -157,17 +165,26 @@ IMU& IMU_Detector::Detect_IMU()
         {
             IMU_Detector::spi_deinit();
 
-            return MPU9250::Instance();
+            IMU_Detector::imu = &MPU9250::Instance();
+            IMU_Detector::detected = true;
+
+            return *IMU_Detector::imu;
         } else if (IMU_Detector::try_spi_imu(0x75, 0x73, GPIO_NUM_13))
         {
             IMU_Detector::spi_deinit();
 
-            return MPU9250::Instance();
+            IMU_Detector::imu = &MPU9250::Instance();
+            IMU_Detector::detected = true;
+
+            return *IMU_Detector::imu;
         }
         else if (IMU_Detector::try_spi_imu(0x75, 0x68, GPIO_NUM_17)) {
             IMU_Detector::spi_deinit();
 
-            return MPU6000::Instance();
+            IMU_Detector::imu = &MPU6000::Instance();
+            IMU_Detector::detected = true;
+
+            return *IMU_Detector::imu;
         }
 
         IMU_Detector::spi_deinit();

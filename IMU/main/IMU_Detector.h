@@ -20,6 +20,8 @@ class IMU_Detector
 {
 private:
     static spi_device_handle_t spi;
+    static IMU *imu;
+    static bool detected;
 
     static bool i2c_init();
     static void i2c_deinit();
