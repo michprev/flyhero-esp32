@@ -60,7 +60,9 @@ void PWM_Generator::Set_Pulse(Motor_Type motor, uint16_t us)
 {
     if (us > 1000)
         return;
-    
+
+    us += 1000;
+
     if (motor & MOTOR_FL)
         ESP_ERROR_CHECK(mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, us));
     if (motor & MOTOR_BL)
