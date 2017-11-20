@@ -25,10 +25,6 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
     this->motor_BR = 0;
     this->motor_BL = 0;
 
-    this->roll_PID.Set_I_Max(50);
-    this->pitch_PID.Set_I_Max(50);
-    this->yaw_PID.Set_I_Max(50);
-
     this->invert_yaw = false;
     this->throttle = 0;
 
@@ -41,6 +37,16 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
 
 void Motors_Controller::Init()
 {
+    float sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
+
+    this->roll_PID = new PID(sample_rate);
+    this->pitch_PID = new PID(sample_rate);
+    this->yaw_PID = new PID(sample_rate);
+
+    this->roll_PID->Set_I_Max(50);
+    this->pitch_PID->Set_I_Max(50);
+    this->yaw_PID->Set_I_Max(50);
+
     xSemaphoreGive(this->roll_PID_semaphore);
     xSemaphoreGive(this->pitch_PID_semaphore);
     xSemaphoreGive(this->yaw_PID_semaphore);
@@ -58,27 +64,27 @@ void Motors_Controller::Set_PID_Constants(Axis axis, float Kp, float Ki, float K
         case Roll:
             while (xSemaphoreTake(this->roll_PID_semaphore, 0) != pdTRUE);
 
-            this->roll_PID.Set_Kp(Kp);
-            this->roll_PID.Set_Ki(Ki);
-            this->roll_PID.Set_Kd(Kd);
+            this->roll_PID->Set_Kp(Kp);
+            this->roll_PID->Set_Ki(Ki);
+            this->roll_PID->Set_Kd(Kd);
 
             xSemaphoreGive(this->roll_PID_semaphore);
             break;
         case Pitch:
             while (xSemaphoreTake(this->pitch_PID_semaphore, 0) != pdTRUE);
 
-            this->pitch_PID.Set_Kp(Kp);
-            this->pitch_PID.Set_Ki(Ki);
-            this->pitch_PID.Set_Kd(Kd);
+            this->pitch_PID->Set_Kp(Kp);
+            this->pitch_PID->Set_Ki(Ki);
+            this->pitch_PID->Set_Kd(Kd);
 
             xSemaphoreGive(this->pitch_PID_semaphore);
             break;
         case Yaw:
             while (xSemaphoreTake(this->yaw_PID_semaphore, 0) != pdTRUE);
 
-            this->yaw_PID.Set_Kp(Kp);
-            this->yaw_PID.Set_Ki(Ki);
-            this->yaw_PID.Set_Kd(Kd);
+            this->yaw_PID->Set_Kp(Kp);
+            this->yaw_PID->Set_Ki(Ki);
+            this->yaw_PID->Set_Kd(Kd);
 
             xSemaphoreGive(this->yaw_PID_semaphore);
             break;
@@ -121,15 +127,15 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler)
         float pitch_correction, roll_correction, yaw_correction;
 
         while (xSemaphoreTake(this->roll_PID_semaphore, 0) != pdTRUE);
-        roll_correction = this->roll_PID.Get_PID(0 - euler.roll);
+        roll_correction = this->roll_PID->Get_PID(0 - euler.roll);
         xSemaphoreGive(this->roll_PID_semaphore);
 
         while (xSemaphoreTake(this->pitch_PID_semaphore, 0) != pdTRUE);
-        pitch_correction = this->pitch_PID.Get_PID(0 - euler.pitch);
+        pitch_correction = this->pitch_PID->Get_PID(0 - euler.pitch);
         xSemaphoreGive(this->pitch_PID_semaphore);
 
         while (xSemaphoreTake(this->yaw_PID_semaphore, 0) != pdTRUE);
-        yaw_correction = this->yaw_PID.Get_PID(0 - euler.yaw);
+        yaw_correction = this->yaw_PID->Get_PID(0 - euler.yaw);
         xSemaphoreGive(this->yaw_PID_semaphore);
 
         while (xSemaphoreTake(this->invert_yaw_semaphore, 0) != pdTRUE);

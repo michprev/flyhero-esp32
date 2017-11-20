@@ -13,6 +13,7 @@
 #include "PID.h"
 #include "IMU.h"
 #include "PWM_Generator.h"
+#include "IMU_Detector.h"
 
 
 namespace flyhero
@@ -31,7 +32,7 @@ private:
     Motors_Controller &operator=(Motors_Controller const &);
 
     PWM_Generator &pwm;
-    PID roll_PID, pitch_PID, yaw_PID;
+    PID *roll_PID, *pitch_PID, *yaw_PID;
     int16_t motor_FL, motor_FR, motor_BL, motor_BR;
     uint16_t throttle;
     bool invert_yaw;

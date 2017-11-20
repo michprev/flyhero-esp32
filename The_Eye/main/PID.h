@@ -28,7 +28,7 @@ private:
     float last_error;
 
 public:
-    PID(float i_max = 0, float Kp = 0, float Ki = 0, float Kd = 0);
+    PID(float update_rate, float i_max = 0, float Kp = 0, float Ki = 0, float Kd = 0);
 
     float Get_PID(float error);
     void Set_Kp(float Kp);

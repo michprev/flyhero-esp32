@@ -5,15 +5,15 @@
  *      Author: michp
  */
 
+#include <cstdlib>
 #include "PID.h"
 
 
 namespace flyhero
 {
 
-// assume that PID will be computed at 1 kHz
-PID::PID(float i_max, float Kp, float Ki, float Kd)
-        : d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, 1000, 20)
+PID::PID(float update_rate, float i_max, float Kp, float Ki, float Kd)
+        : d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, update_rate, 20)
 {
     this->last_t.tv_sec = 0;
     this->last_t.tv_usec = 0;
@@ -28,17 +28,17 @@ PID::PID(float i_max, float Kp, float Ki, float Kd)
 
 float PID::Get_PID(float error)
 {
-    // ticks in us
     timeval now;
     gettimeofday(&now, NULL);
 
-    float dt = ((now.tv_sec - this->last_t.tv_sec) * 1000 + now.tv_usec - this->last_t.tv_usec) * 0.000001f;
+    float delta_t = now.tv_sec - this->last_t.tv_sec
+               + (now.tv_usec - this->last_t.tv_usec) * 0.000001f;
     float output = 0;
 
-    if (this->last_t.tv_sec == 0 || dt > 1000)
+    if (this->last_t.tv_sec == 0 || delta_t > 1)
     {
         this->integrator = 0;
-        dt = 0;
+        delta_t = 0;
     }
 
     this->last_t = now;
@@ -47,9 +47,9 @@ float PID::Get_PID(float error)
     output += error * this->Kp;
 
     // integral component
-    if (this->Ki != 0 && dt > 0)
+    if (this->Ki != 0 && delta_t > 0)
     {
-        this->integrator += error * this->Ki * dt;
+        this->integrator += error * this->Ki * delta_t;
 
         if (this->integrator < -this->i_max)
             this->integrator = -this->i_max;
@@ -60,7 +60,7 @@ float PID::Get_PID(float error)
     }
 
     // derivative component
-    if (this->Kd != 0 && dt > 0)
+    if (this->Kd != 0 && delta_t > 0)
     {
         float derivative;
 
@@ -69,7 +69,7 @@ float PID::Get_PID(float error)
             derivative = 0;
             this->last_d = 0;
         } else
-            derivative = (error - this->last_error) / dt;
+            derivative = (error - this->last_error) / delta_t;
 
         // apply 20 Hz biquad LPF
         derivative = this->d_term_lpf.Apply_Filter(derivative);
