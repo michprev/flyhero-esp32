@@ -39,7 +39,7 @@ void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro
 
         delta_t = (tmp.tv_usec > this->last_time.tv_usec ?
                    tmp.tv_usec - this->last_time.tv_usec :
-                   1000000 - tmp.tv_usec + this->last_time.tv_usec);
+                   1000000 + tmp.tv_usec - this->last_time.tv_usec);
         delta_t *= 0.000001f;
 
         this->last_time = tmp;

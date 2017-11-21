@@ -101,7 +101,7 @@ void imu_task(void *args)
 
 
                 long int delta = (end.tv_usec > start.tv_usec ? end.tv_usec - start.tv_usec
-                                                    : 1000000 - end.tv_usec + start.tv_usec);
+                                                    : 1000000 + end.tv_usec - start.tv_usec);
 
                 log_data.free_time = delta * imu.Get_Sample_Rate() * 0.01f;
 
