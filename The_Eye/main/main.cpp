@@ -8,6 +8,7 @@
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
+#include "../../Data_Analysis/main/WiFi_Controller.h"
 
 
 using namespace flyhero;
@@ -142,8 +143,9 @@ void wifi_task(void *args)
             esp_task_wdt_reset();
 
             motors_controller.Set_Throttle(in_datagram_data.throttle);
-            motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
-            motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
+            motors_controller.Set_PID_Constants(Roll, in_datagram_data.roll_kp * 0.01f, 0, 0);
+            motors_controller.Set_PID_Constants(Pitch, in_datagram_data.pitch_kp * 0.01f, 0, 0);
+            motors_controller.Set_PID_Constants(Yaw, in_datagram_data.yaw_kp * 0.01f, 0, 0);
         }
 
         if (xQueueReceive(wifi_log_data_queue, &out_datagram_data, 0) == pdTRUE)

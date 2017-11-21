@@ -31,7 +31,7 @@ extern "C" void app_main(void)
         if (wifi.Receive(data))
         {
 
-            std::cout << data.throttle << std::endl;
+            std::cout << data.throttle << " " << data.roll_kp << " " << data.pitch_kp << " " << data.yaw_kp << std::endl;
         }
     }
 }

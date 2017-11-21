@@ -73,8 +73,9 @@ void wifi_task(void *args)
         if (wifi.Receive(datagram_data))
         {
             motors_controller.Set_Throttle(datagram_data.throttle);
-            motors_controller.Set_PID_Constants(Roll, 1, 0, 0);
-            motors_controller.Set_PID_Constants(Pitch, 1, 0, 0);
+            motors_controller.Set_PID_Constants(Roll, datagram_data.roll_kp * 0.01f, 0, 0);
+            motors_controller.Set_PID_Constants(Pitch, datagram_data.pitch_kp * 0.01f, 0, 0);
+            motors_controller.Set_PID_Constants(Yaw, datagram_data.yaw_kp * 0.01f, 0, 0);
         }
     }
 }

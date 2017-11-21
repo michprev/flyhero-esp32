@@ -32,6 +32,9 @@ public:
     struct __attribute__((__packed__)) In_Datagram_Data
     {
         uint16_t throttle;
+        uint16_t roll_kp;
+        uint16_t pitch_kp;
+        uint16_t yaw_kp;
     };
 
     struct __attribute__((__packed__)) Out_Datagram_Data
@@ -46,7 +49,7 @@ private:
     WiFi_Controller(WiFi_Controller const &);
     WiFi_Controller &operator=(WiFi_Controller const &);
 
-    static const uint8_t IN_DATAGRAM_LENGTH = 5;
+    static const uint8_t IN_DATAGRAM_LENGTH = 11;
     static const uint8_t OUT_DATAGRAM_LENGTH = 1 + 2 + 12 * FUSION_ALGORITHMS_USED + 2;
 
     union in_datagram
