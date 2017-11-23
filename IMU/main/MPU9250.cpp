@@ -396,6 +396,9 @@ void MPU9250::Calibrate()
 {
     Raw_Data accel, gyro;
 
+    this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
+    this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
+
     for (uint16_t i = 0; i < 500; i++)
     {
         this->Read_Raw(accel, gyro);
