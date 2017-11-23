@@ -37,8 +37,8 @@ extern "C" void app_main(void)
     motors_controller.Init();
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
 
-    // Initialize watchdog with 1 sec timeout
-    if (esp_task_wdt_init(1, true) != ESP_OK)
+    // Initialize watchdog with 5 sec timeout
+    if (esp_task_wdt_init(5, true) != ESP_OK)
     {
         while (true)
         {
