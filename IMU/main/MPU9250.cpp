@@ -493,12 +493,12 @@ void MPU9250::Data_Ready_Callback()
 {
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 
-    vTaskEnterCritical(&mutex);
+    portENTER_CRITICAL(&mutex);
 
     if (this->ready)
         this->data_ready = true;
 
-    vTaskExitCritical(&mutex);
+    portEXIT_CRITICAL(&mutex);
 }
 
 bool MPU9250::Data_Ready()
