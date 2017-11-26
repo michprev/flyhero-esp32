@@ -45,8 +45,13 @@ WiFi_Controller &WiFi_Controller::Instance()
 
 WiFi_Controller::WiFi_Controller()
 {
-    this->socket_handle = -1;
-    this->client_socket_length = sizeof(this->client);
+    this->udp_server_fd = -1;
+    this->udp_client_socket_length = sizeof(this->udp_client_socket);
+
+    this->tcp_server_fd = -1;
+    this->tcp_client_fd = -1;
+    this->tcp_client_address_length = sizeof(this->tcp_client_address);
+
     this->client_connected = false;
 }
 
@@ -75,53 +80,109 @@ void WiFi_Controller::ap_init()
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-esp_err_t WiFi_Controller::udp_server_start()
+void WiFi_Controller::Init()
 {
-    this->socket_handle = socket(PF_INET, SOCK_DGRAM, 0);
+    this->ap_init();
+}
 
-    // TODO show error using getsockopt
-    if (this->socket_handle < 0)
+esp_err_t WiFi_Controller::UDP_Server_Start()
+{
+    this->udp_server_fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (this->udp_server_fd < 0)
         return ESP_FAIL;
 
-    sockaddr_in server;
-    server.sin_addr.s_addr = htonl(INADDR_ANY);
-    server.sin_port = htons(this->UDP_PORT);
-    server.sin_family = AF_INET;
+    sockaddr_in udp_server_address;
+    udp_server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    udp_server_address.sin_port = htons(this->UDP_PORT);
+    udp_server_address.sin_family = AF_INET;
 
-    // set socket operations non-blocking
-    // TODO show error using getsockopt
-    if (fcntl(this->socket_handle, F_SETFL, O_NONBLOCK) < 0)
+    if (bind(this->udp_server_fd, (sockaddr *)&udp_server_address, sizeof(udp_server_address)) < 0)
     {
-        closesocket(this->socket_handle);
-    }
-
-    // TODO show error using getsockopt
-    if (bind(this->socket_handle, (sockaddr *) &server, sizeof(server)) < 0)
-    {
-        closesocket(this->socket_handle);
+        closesocket(this->udp_server_fd);
+        this->udp_server_fd = -1;
         return ESP_FAIL;
     }
 
     return ESP_OK;
 }
 
-void WiFi_Controller::Init()
+esp_err_t WiFi_Controller::UDP_Server_Stop()
 {
-    this->ap_init();
+    if (this->udp_server_fd < 0)
+        return ESP_FAIL;
 
-    ESP_ERROR_CHECK(this->udp_server_start());
+    closesocket(this->udp_server_fd);
+    this->udp_server_fd = -1;
+    return ESP_OK;
 }
 
-bool WiFi_Controller::Receive(In_Datagram_Data &datagram_data)
+esp_err_t WiFi_Controller::TCP_Server_Start()
+{
+    this->tcp_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (this->tcp_server_fd < 0)
+        return ESP_FAIL;
+
+    sockaddr_in tcp_server_address;
+    tcp_server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    tcp_server_address.sin_port = htons(this->TCP_PORT);
+    tcp_server_address.sin_family = AF_INET;
+
+    if (bind(this->tcp_server_fd, (sockaddr *)&tcp_server_address, sizeof(tcp_server_address)) < 0)
+    {
+        closesocket(this->tcp_server_fd);
+        this->tcp_server_fd = -1;
+        return ESP_FAIL;
+    }
+
+    if (listen(this->tcp_server_fd, 1) < 0)
+    {
+        closesocket(this->tcp_server_fd);
+        this->tcp_server_fd = -1;
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t WiFi_Controller::TCP_Server_Stop()
+{
+    if (this->tcp_server_fd < 0)
+        return ESP_FAIL;
+
+    closesocket(this->tcp_server_fd);
+    this->tcp_server_fd = -1;
+    return ESP_OK;
+}
+
+esp_err_t WiFi_Controller::TCP_Wait_For_Client()
+{
+    if (this->tcp_server_fd < 0)
+        return ESP_FAIL;
+
+    this->tcp_client_fd =
+            accept(this->tcp_server_fd,
+                   (sockaddr *)&this->tcp_client_address,
+                   &this->tcp_client_address_length);
+
+    if (this->tcp_client_fd < 0)
+    {
+        closesocket(this->tcp_server_fd);
+        this->tcp_server_fd = -1;
+
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+bool WiFi_Controller::UDP_Receive(In_Datagram_Data &datagram_data)
 {
     in_datagram datagram;
-    int len;
 
-    if ((len = recvfrom(this->socket_handle, datagram.raw_data, IN_DATAGRAM_LENGTH,
-                        0, (sockaddr *) (&this->client), &this->client_socket_length)) < 0)
-        return false;
-
-    if (len != IN_DATAGRAM_LENGTH)
+    if (recvfrom(this->udp_server_fd, datagram.raw_data, IN_DATAGRAM_LENGTH, MSG_DONTWAIT,
+                 (sockaddr *) (&this->udp_client_socket), &this->udp_client_socket_length) != IN_DATAGRAM_LENGTH)
         return false;
 
     if (datagram.data.datagram_length != IN_DATAGRAM_LENGTH)
@@ -136,7 +197,7 @@ bool WiFi_Controller::Receive(In_Datagram_Data &datagram_data)
     return true;
 }
 
-bool WiFi_Controller::Send(Out_Datagram_Data datagram_data)
+bool WiFi_Controller::UDP_Send(Out_Datagram_Data datagram_data)
 {
     if (!this->client_connected)
         return false;
@@ -147,13 +208,38 @@ bool WiFi_Controller::Send(Out_Datagram_Data datagram_data)
     datagram.data.datagram_contents = datagram_data;
     datagram.data.crc = CRC::CRC16(datagram.raw_data, OUT_DATAGRAM_LENGTH - 2);
 
-    int len;
-
-    if ((len = sendto(this->socket_handle, datagram.raw_data, OUT_DATAGRAM_LENGTH,
-                      0, (sockaddr *) &this->client, this->client_socket_length)) < 0)
+    if (sendto(this->udp_server_fd, datagram.raw_data, OUT_DATAGRAM_LENGTH, 0,
+               (sockaddr *) &this->udp_client_socket, this->udp_client_socket_length)
+        != datagram.data.datagram_length)
         return false;
 
-    if (len != datagram.data.datagram_length)
+    return true;
+}
+
+bool WiFi_Controller::TCP_Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t *received_length)
+{
+    int len;
+
+    if ((len = recv(this->tcp_client_fd, buffer, buffer_length, MSG_DONTWAIT)) < 2)
+        return false;
+
+    uint16_t expected_crc = buffer[len - 1] << 8;
+    expected_crc |= buffer[len - 2];
+
+    if (expected_crc != CRC::CRC16(buffer, len - 2))
+        return false;
+
+    *received_length = len;
+
+    return true;
+}
+
+bool WiFi_Controller::TCP_Send(uint8_t *data, uint8_t data_length)
+{
+    if (!this->client_connected)
+        return false;
+
+    if (send(this->tcp_client_fd, data, data_length, 0) != data_length)
         return false;
 
     return true;

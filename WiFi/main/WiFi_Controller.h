@@ -83,21 +83,37 @@ private:
     };
 
     const uint16_t UDP_PORT = 4789;
+    const uint16_t TCP_PORT = 4821;
 
-    int socket_handle;
-    sockaddr_in client;
-    uint32_t client_socket_length;
+    int udp_server_fd;
+    int tcp_server_fd;
+    int tcp_client_fd;
+
+    sockaddr_in udp_client_socket;
+    sockaddr_in tcp_client_address;
+
+    uint32_t udp_client_socket_length;
+    uint32_t tcp_client_address_length;
+
     bool client_connected;
 
     void ap_init();
-    esp_err_t udp_server_start();
 
 public:
     static WiFi_Controller &Instance();
 
     void Init();
-    bool Receive(In_Datagram_Data &datagram_data);
-    bool Send(Out_Datagram_Data datagram_data);
+    esp_err_t UDP_Server_Start();
+    esp_err_t UDP_Server_Stop();
+    esp_err_t TCP_Server_Start();
+    esp_err_t TCP_Server_Stop();
+    esp_err_t TCP_Wait_For_Client();
+
+    bool UDP_Receive(In_Datagram_Data &datagram_data);
+    bool UDP_Send(Out_Datagram_Data datagram_data);
+    bool TCP_Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t *received_length);
+    bool TCP_Send(uint8_t *data, uint8_t data_length);
+
     void Client_Connected_Callback();
     void Client_Disconnected_Callback();
 

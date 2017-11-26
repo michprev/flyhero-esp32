@@ -126,10 +126,11 @@ void wifi_task(void *args)
     bool connected = false;
 
     wifi.Init();
+    ESP_ERROR_CHECK(wifi.UDP_Server_Start());
 
     while (true)
     {
-        if (wifi.Receive(in_datagram_data))
+        if (wifi.UDP_Receive(in_datagram_data))
         {
             if (!connected)
             {
@@ -150,7 +151,7 @@ void wifi_task(void *args)
 
         if (xQueueReceive(wifi_log_data_queue, &out_datagram_data, 0) == pdTRUE)
         {
-            wifi.Send(out_datagram_data);
+            wifi.UDP_Send(out_datagram_data);
         }
     }
 }
