@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <nvs_flash.h>
 #include <esp_task_wdt.h>
 
@@ -15,6 +16,7 @@ using namespace flyhero;
 
 Motors_Controller &motors_controller = Motors_Controller::Instance();
 QueueHandle_t wifi_log_data_queue;
+SemaphoreHandle_t imu_task_semaphore;
 
 void wifi_task(void *args);
 void imu_task(void *args);
@@ -27,15 +29,15 @@ extern "C" void app_main(void)
     if (nvs_status == ESP_ERR_NVS_NO_FREE_PAGES)
     {
         ESP_ERROR_CHECK(nvs_flash_erase());
-        nvs_status = nvs_flash_init();
+        ESP_ERROR_CHECK(nvs_flash_init());
     }
-    ESP_ERROR_CHECK(nvs_status);
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     LEDs::Init();
     motors_controller.Init();
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
+    imu_task_semaphore = xSemaphoreCreateBinary();
 
     // Initialize watchdog with 5 sec timeout
     if (esp_task_wdt_init(5, true) != ESP_OK)
@@ -52,8 +54,11 @@ extern "C" void app_main(void)
         }
     }
 
-
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 1);
+
+    vTaskDelay(100 / portTICK_RATE_MS);
+    while (xSemaphoreTake(imu_task_semaphore, 0) != pdTRUE);
+
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
 
     while (true);
@@ -66,7 +71,6 @@ void imu_task(void *args)
     uint8_t i = 0;
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles mahony_euler, complementary_euler;
-
 
     // Subscribe IMU task to watchdog
     if (esp_task_wdt_add(NULL) != ESP_OK)
@@ -120,12 +124,38 @@ void imu_task(void *args)
 
 void wifi_task(void *args)
 {
+    xSemaphoreTake(imu_task_semaphore, 0);
+
     WiFi_Controller &wifi = WiFi_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
     WiFi_Controller::Out_Datagram_Data out_datagram_data;
     bool connected = false;
 
+    const uint8_t TCP_BUFFER_LENGTH = 50;
+    char TCP_buffer[TCP_BUFFER_LENGTH];
+    uint8_t received_length = 0;
+    bool process_tcp = true;
+
     wifi.Init();
+
+    ESP_ERROR_CHECK(wifi.TCP_Server_Start());
+    ESP_ERROR_CHECK(wifi.TCP_Wait_For_Client());
+
+    while (process_tcp)
+    {
+        if (wifi.TCP_Receive(TCP_buffer, TCP_BUFFER_LENGTH, &received_length))
+        {
+            if (strncmp((const char*)TCP_buffer, "start", 5) == 0)
+            {
+                wifi.TCP_Send("yup", 3);
+                process_tcp = false;
+            } else
+                wifi.TCP_Send("nah", 3);
+        }
+    }
+
+    xSemaphoreGive(imu_task_semaphore);
+    ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
     ESP_ERROR_CHECK(wifi.UDP_Server_Start());
 
     while (true)
