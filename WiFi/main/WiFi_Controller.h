@@ -82,6 +82,9 @@ private:
         } data;
     };
 
+    static const uint8_t TCP_BUFFER_LENGTH = 50;
+    uint8_t tcp_buffer[TCP_BUFFER_LENGTH];
+
     const uint16_t UDP_PORT = 4789;
     const uint16_t TCP_PORT = 4821;
 
@@ -111,8 +114,8 @@ public:
 
     bool UDP_Receive(In_Datagram_Data &datagram_data);
     bool UDP_Send(Out_Datagram_Data datagram_data);
-    bool TCP_Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t *received_length);
-    bool TCP_Send(uint8_t *data, uint8_t data_length);
+    bool TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *received_length);
+    bool TCP_Send(const char *data, uint8_t data_length);
 
     void Client_Connected_Callback();
     void Client_Disconnected_Callback();

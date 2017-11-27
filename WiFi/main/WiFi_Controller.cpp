@@ -216,7 +216,7 @@ bool WiFi_Controller::UDP_Send(Out_Datagram_Data datagram_data)
     return true;
 }
 
-bool WiFi_Controller::TCP_Receive(uint8_t *buffer, uint8_t buffer_length, uint8_t *received_length)
+bool WiFi_Controller::TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *received_length)
 {
     int len;
 
@@ -226,7 +226,7 @@ bool WiFi_Controller::TCP_Receive(uint8_t *buffer, uint8_t buffer_length, uint8_
     uint16_t expected_crc = buffer[len - 1] << 8;
     expected_crc |= buffer[len - 2];
 
-    if (expected_crc != CRC::CRC16(buffer, len - 2))
+    if (expected_crc != CRC::CRC16((uint8_t*)buffer, len - 2))
         return false;
 
     *received_length = len;
@@ -234,12 +234,21 @@ bool WiFi_Controller::TCP_Receive(uint8_t *buffer, uint8_t buffer_length, uint8_
     return true;
 }
 
-bool WiFi_Controller::TCP_Send(uint8_t *data, uint8_t data_length)
+bool WiFi_Controller::TCP_Send(const char *data, uint8_t data_length)
 {
+    if (data_length > this->TCP_BUFFER_LENGTH - 2)
+        return false;
+
+    std::strncpy((char*)this->tcp_buffer, data, data_length);
+
+    uint16_t crc = CRC::CRC16((uint8_t*)data, data_length);
+    this->tcp_buffer[data_length] = crc >> 8;
+    this->tcp_buffer[data_length + 1] = crc & 0xFF;
+
     if (!this->client_connected)
         return false;
 
-    if (send(this->tcp_client_fd, data, data_length, 0) != data_length)
+    if (send(this->tcp_client_fd, this->tcp_buffer, data_length + 2, 0) != data_length + 2)
         return false;
 
     return true;

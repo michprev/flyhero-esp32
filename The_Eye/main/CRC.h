@@ -19,11 +19,11 @@ private:
     CRC() {};
 
 public:
-    static inline uint16_t CRC16(uint8_t *data, uint8_t length);
+    static inline uint16_t CRC16(const uint8_t *data, uint8_t length);
 
 };
 
-inline uint16_t CRC::CRC16(uint8_t *data, uint8_t length)
+inline uint16_t CRC::CRC16(const uint8_t *data, uint8_t length)
 {
     const uint16_t CRC_POLYNOME = 0x1021;
     uint16_t crc = 0;
