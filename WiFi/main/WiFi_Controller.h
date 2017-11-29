@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <lwip/sockets.h>
 #include <cstring>
+#include <errno.h>
 
 #include "LEDs.h"
 #include "CRC.h"

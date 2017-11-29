@@ -97,7 +97,14 @@ esp_err_t WiFi_Controller::UDP_Server_Start()
     udp_server_address.sin_port = htons(this->UDP_PORT);
     udp_server_address.sin_family = AF_INET;
 
-    if (bind(this->udp_server_fd, (sockaddr *)&udp_server_address, sizeof(udp_server_address)) < 0)
+    if (fcntl(this->udp_server_fd, F_SETFL, O_NONBLOCK) != 0)
+    {
+        closesocket(this->udp_server_fd);
+        this->udp_server_fd = -1;
+        return ESP_FAIL;
+    }
+
+    if (bind(this->udp_server_fd, (sockaddr *) &udp_server_address, sizeof(udp_server_address)) < 0)
     {
         closesocket(this->udp_server_fd);
         this->udp_server_fd = -1;
@@ -129,7 +136,14 @@ esp_err_t WiFi_Controller::TCP_Server_Start()
     tcp_server_address.sin_port = htons(this->TCP_PORT);
     tcp_server_address.sin_family = AF_INET;
 
-    if (bind(this->tcp_server_fd, (sockaddr *)&tcp_server_address, sizeof(tcp_server_address)) < 0)
+    if (fcntl(this->tcp_server_fd, F_SETFL, O_NONBLOCK) != 0)
+    {
+        closesocket(this->tcp_server_fd);
+        this->tcp_server_fd = -1;
+        return ESP_FAIL;
+    }
+
+    if (bind(this->tcp_server_fd, (sockaddr *) &tcp_server_address, sizeof(tcp_server_address)) < 0)
     {
         closesocket(this->tcp_server_fd);
         this->tcp_server_fd = -1;
@@ -161,10 +175,14 @@ esp_err_t WiFi_Controller::TCP_Wait_For_Client()
     if (this->tcp_server_fd < 0)
         return ESP_FAIL;
 
-    this->tcp_client_fd =
-            accept(this->tcp_server_fd,
-                   (sockaddr *)&this->tcp_client_address,
-                   &this->tcp_client_address_length);
+    do
+    {
+        this->tcp_client_fd =
+                accept(this->tcp_server_fd,
+                       (sockaddr *) &this->tcp_client_address,
+                       &this->tcp_client_address_length);
+
+    } while (this->tcp_client_fd < 0 && (errno == EAGAIN || errno == EWOULDBLOCK));
 
     if (this->tcp_client_fd < 0)
     {
@@ -181,7 +199,7 @@ bool WiFi_Controller::UDP_Receive(In_Datagram_Data &datagram_data)
 {
     in_datagram datagram;
 
-    if (recvfrom(this->udp_server_fd, datagram.raw_data, IN_DATAGRAM_LENGTH, MSG_DONTWAIT,
+    if (recvfrom(this->udp_server_fd, datagram.raw_data, IN_DATAGRAM_LENGTH, 0,
                  (sockaddr *) (&this->udp_client_socket), &this->udp_client_socket_length) != IN_DATAGRAM_LENGTH)
         return false;
 
@@ -218,15 +236,23 @@ bool WiFi_Controller::UDP_Send(Out_Datagram_Data datagram_data)
 
 bool WiFi_Controller::TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *received_length)
 {
+    // in case that client reconnected
+    int tmp_fd = accept(this->tcp_server_fd,
+                        (sockaddr *) &this->tcp_client_address,
+                        &this->tcp_client_address_length);
+    if (tmp_fd >= 0)
+        this->tcp_client_fd = tmp_fd;
+
+
     int len;
 
-    if ((len = recv(this->tcp_client_fd, buffer, buffer_length, MSG_DONTWAIT)) < 2)
+    if ((len = recv(this->tcp_client_fd, buffer, buffer_length, 0)) < 2)
         return false;
 
     uint16_t expected_crc = buffer[len - 1] << 8;
     expected_crc |= buffer[len - 2];
 
-    if (expected_crc != CRC::CRC16((uint8_t*)buffer, len - 2))
+    if (expected_crc != CRC::CRC16((uint8_t *) buffer, len - 2))
         return false;
 
     *received_length = len;
@@ -239,11 +265,11 @@ bool WiFi_Controller::TCP_Send(const char *data, uint8_t data_length)
     if (data_length > this->TCP_BUFFER_LENGTH - 2)
         return false;
 
-    std::strncpy((char*)this->tcp_buffer, data, data_length);
+    std::strncpy((char *) this->tcp_buffer, data, data_length);
 
-    uint16_t crc = CRC::CRC16((uint8_t*)data, data_length);
-    this->tcp_buffer[data_length] = crc >> 8;
-    this->tcp_buffer[data_length + 1] = crc & 0xFF;
+    uint16_t crc = CRC::CRC16((uint8_t *) data, data_length);
+    this->tcp_buffer[data_length] = crc & 0xFF;
+    this->tcp_buffer[data_length + 1] = crc >> 8;
 
     if (!this->client_connected)
         return false;
