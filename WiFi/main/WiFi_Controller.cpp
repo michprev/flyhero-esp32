@@ -246,7 +246,7 @@ bool WiFi_Controller::TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *
 
     int len;
 
-    if ((len = recv(this->tcp_client_fd, buffer, buffer_length, 0)) < 2)
+    if ((len = recv(this->tcp_client_fd, buffer, buffer_length, MSG_DONTWAIT)) < 2)
         return false;
 
     uint16_t expected_crc = buffer[len - 1] << 8;
