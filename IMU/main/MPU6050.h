@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+#include <nvs_flash.h>
 #include <driver/i2c.h>
 
 #include "Biquad_Filter.h"
@@ -110,11 +111,13 @@ private:
     esp_err_t set_lpf(lpf_bandwidth lpf);
     esp_err_t set_sample_rate(uint16_t rate);
     esp_err_t set_interrupt(bool enable);
+    esp_err_t load_offsets();
 
 public:
     static MPU6050 &Instance();
 
     void Init() override;
+    bool Start() override;
     void Calibrate() override;
     uint16_t Get_Sample_Rate() override;
     void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) override;

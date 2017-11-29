@@ -1,5 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <iostream>
 
 #include "IMU_Detector.h"
 #include "Mahony_Filter.h"
@@ -16,6 +17,14 @@ void log_task(void *args);
 
 extern "C" void app_main(void)
 {
+    // Initialize NVS
+    esp_err_t nvs_status = nvs_flash_init();
+
+    if (nvs_status == ESP_ERR_NVS_NO_FREE_PAGES)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ESP_ERROR_CHECK(nvs_flash_init());
+    }
 
     data_queue = xQueueCreate(10, sizeof(IMU::Euler_Angles));
 
@@ -28,6 +37,12 @@ void imu_task(void *args)
     IMU& imu = IMU_Detector::Detect_IMU();
 
     imu.Init();
+
+    while (!imu.Start())
+    {
+        std::cout << "Calibrating..." << std::endl;
+        imu.Calibrate();
+    }
 
     //Mahony_Filter mahony(100, 0);
     Complementary_Filter complementary(0.98f);

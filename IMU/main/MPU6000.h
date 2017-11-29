@@ -9,6 +9,8 @@
 
 #include <driver/spi_master.h>
 #include <freertos/task.h>
+#include <nvs_flash.h>
+
 #include "Biquad_Filter.h"
 #include "IMU.h"
 
@@ -105,11 +107,13 @@ private:
     esp_err_t set_lpf(lpf_bandwidth lpf);
     esp_err_t set_sample_rate(uint16_t rate);
     esp_err_t set_interrupt(bool enable);
+    esp_err_t load_offsets();
 
 public:
     static MPU6000 &Instance();
 
     void Init() override;
+    bool Start() override;
     void Calibrate() override;
     uint16_t Get_Sample_Rate() override;
     void Read_Raw(Raw_Data &accel, Raw_Data &gyro) override;

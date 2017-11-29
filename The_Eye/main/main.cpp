@@ -39,6 +39,9 @@ extern "C" void app_main(void)
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
     imu_task_semaphore = xSemaphoreCreateBinary();
 
+    IMU& imu = IMU_Detector::Detect_IMU();
+    imu.Init();
+
     // Initialize watchdog with 5 sec timeout
     if (esp_task_wdt_init(5, true) != ESP_OK)
     {
@@ -80,8 +83,6 @@ void imu_task(void *args)
 
     Mahony_Filter mahony(100, 0);
     Complementary_Filter complementary(0.98f);
-
-    imu.Init();
 
     while (true)
     {
@@ -147,9 +148,19 @@ void wifi_task(void *args)
         {
             if (strncmp((const char*)TCP_buffer, "start", 5) == 0)
             {
+                if (IMU_Detector::Detect_IMU().Start())
+                {
+                    wifi.TCP_Send("yup", 3);
+                    process_tcp = false;
+                } else
+                    wifi.TCP_Send("nah", 3);
+
+            } else if (strncmp((const char*)TCP_buffer, "calibrate", 9) == 0)
+            {
+                IMU_Detector::Detect_IMU().Calibrate();
                 wifi.TCP_Send("yup", 3);
-                process_tcp = false;
-            } else
+            }
+            else
                 wifi.TCP_Send("nah", 3);
         }
     }

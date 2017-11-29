@@ -37,6 +37,7 @@ public:
     };
 
     virtual void Init() = 0;
+    virtual bool Start() = 0;
     virtual void Calibrate() = 0;
     virtual uint16_t Get_Sample_Rate() = 0;
     virtual void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) = 0;

@@ -45,6 +45,9 @@ void imu_task(void *args)
 
     imu.Init();
 
+    while (!imu.Start())
+        imu.Calibrate();
+
     while (true)
     {
         if (imu.Data_Ready())

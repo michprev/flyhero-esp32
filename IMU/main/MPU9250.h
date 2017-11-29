@@ -12,21 +12,10 @@
 #include <esp_err.h>
 #include <freertos/task.h>
 #include <cmath>
+#include <nvs_flash.h>
 
 #include "Biquad_Filter.h"
 #include "IMU.h"
-
-
-extern "C" {
-
-#include <esp_heap_caps.h>
-
-}
-
-// debug
-#include <iostream>
-#include <sys/time.h>
-#include <unistd.h>
 
 
 namespace flyhero
@@ -138,11 +127,14 @@ private:
     esp_err_t set_accel_lpf(accel_lpf lpf);
     esp_err_t set_sample_rate(uint16_t rate);
     esp_err_t set_interrupt(bool enable);
+    esp_err_t load_offsets();
+
 
 public:
     static MPU9250 &Instance();
 
     void Init() override;
+    bool Start() override;
     void Calibrate() override;
     uint16_t Get_Sample_Rate() override;
     void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) override;

@@ -338,6 +338,51 @@ esp_err_t MPU6050::set_interrupt(bool enable)
     return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
 }
 
+esp_err_t MPU6050::load_offsets()
+{
+    esp_err_t ret;
+
+    nvs_handle handle;
+
+    if ((ret = nvs_open("MPU6050", NVS_READONLY, &handle)) != ESP_OK)
+        return ret;
+
+    union
+    {
+        uint32_t uint32_value;
+        float float_value;
+    } uint32_float_converter;
+
+    if ((ret = nvs_get_u32(handle, "accel_x_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+        goto nvs_error;
+    this->accel_offsets[0] = uint32_float_converter.float_value;
+
+    if ((ret = nvs_get_u32(handle, "accel_y_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+        goto nvs_error;
+    this->accel_offsets[1] = uint32_float_converter.float_value;
+
+    if ((ret = nvs_get_u32(handle, "accel_z_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+        goto nvs_error;
+    this->accel_offsets[2] = uint32_float_converter.float_value;
+
+    if ((ret = nvs_get_u32(handle, "gyro_x_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+        goto nvs_error;
+    this->gyro_offsets[0] = uint32_float_converter.float_value;
+
+    if ((ret = nvs_get_u32(handle, "gyro_y_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+        goto nvs_error;
+    this->gyro_offsets[1] = uint32_float_converter.float_value;
+
+    if ((ret = nvs_get_u32(handle, "gyro_z_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+        goto nvs_error;
+    this->gyro_offsets[2] = uint32_float_converter.float_value;
+
+    nvs_error:
+
+    nvs_close(handle);
+    return ret;
+}
+
 void MPU6050::Init()
 {
     // init I2C bus including DMA peripheral
@@ -395,13 +440,18 @@ void MPU6050::Init()
     // set sample rate
     ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
 
-    ESP_ERROR_CHECK(this->set_interrupt(true));
-
     vTaskDelay(100 / portTICK_PERIOD_MS);
+}
 
-    this->Calibrate();
+bool MPU6050::Start()
+{
+    if (this->load_offsets() != ESP_OK)
+        return false;
 
+    ESP_ERROR_CHECK(this->set_interrupt(true));
     this->ready = true;
+
+    return true;
 }
 
 void MPU6050::Calibrate()
@@ -429,6 +479,37 @@ void MPU6050::Calibrate()
     this->gyro_offsets[0] /= -500;
     this->gyro_offsets[1] /= -500;
     this->gyro_offsets[2] /= -500;
+
+    nvs_handle handle;
+
+    if (nvs_open("MPU6050", NVS_READWRITE, &handle) != ESP_OK)
+        return;
+
+    union
+    {
+        uint32_t uint32_value;
+        float float_value;
+    } float_uint32_converter;
+
+    float_uint32_converter.float_value = this->accel_offsets[0];
+    nvs_set_u32(handle, "accel_x_offset", float_uint32_converter.uint32_value);
+
+    float_uint32_converter.float_value = this->accel_offsets[1];
+    nvs_set_u32(handle, "accel_y_offset", float_uint32_converter.uint32_value);
+
+    float_uint32_converter.float_value = this->accel_offsets[2];
+    nvs_set_u32(handle, "accel_z_offset", float_uint32_converter.uint32_value);
+
+    float_uint32_converter.float_value = this->gyro_offsets[0];
+    nvs_set_u32(handle, "gyro_x_offset", float_uint32_converter.uint32_value);
+
+    float_uint32_converter.float_value = this->gyro_offsets[1];
+    nvs_set_u32(handle, "gyro_y_offset", float_uint32_converter.uint32_value);
+
+    float_uint32_converter.float_value = this->gyro_offsets[2];
+    nvs_set_u32(handle, "gyro_z_offset", float_uint32_converter.uint32_value);
+
+    nvs_close(handle);
 }
 
 uint16_t MPU6050::Get_Sample_Rate()
