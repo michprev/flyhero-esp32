@@ -99,7 +99,7 @@ void imu_task(void *args)
 
             i++;
 
-            if (i == 100)
+            if (i == imu.Get_Sample_Rate() / 10)
             {
                 log_data.euler[0] = mahony_euler;
                 log_data.euler[1] = complementary_euler;
