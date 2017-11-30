@@ -42,8 +42,8 @@ extern "C" void app_main(void)
     IMU& imu = IMU_Detector::Detect_IMU();
     imu.Init();
 
-    // Initialize watchdog with 5 sec timeout
-    if (esp_task_wdt_init(5, true) != ESP_OK)
+    // Initialize watchdog with 1 sec timeout
+    if (esp_task_wdt_init(1, true) != ESP_OK)
     {
         while (true)
         {
