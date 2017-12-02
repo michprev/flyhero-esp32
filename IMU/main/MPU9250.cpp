@@ -528,8 +528,8 @@ void MPU9250::Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro)
     raw_accel.y = (rx_data[0] << 8) | rx_data[1];
     raw_accel.z = (rx_data[4] << 8) | rx_data[5];
 
-    raw_gyro.x = (rx_data[10] << 8) | rx_data[11];
-    raw_gyro.y = (rx_data[8] << 8) | rx_data[9];
+    raw_gyro.x = -((rx_data[8] << 8) | rx_data[9]);
+    raw_gyro.y = -((rx_data[10] << 8) | rx_data[11]);
     raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
 }
 
@@ -559,8 +559,8 @@ void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
     raw_accel.y = (rx_data[0] << 8) | rx_data[1];
     raw_accel.z = (rx_data[4] << 8) | rx_data[5];
 
-    raw_gyro.x = (rx_data[10] << 8) | rx_data[11];
-    raw_gyro.y = (rx_data[8] << 8) | rx_data[9];
+    raw_gyro.x = -((rx_data[8] << 8) | rx_data[9]);
+    raw_gyro.y = -((rx_data[10] << 8) | rx_data[11]);
     raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
 
     accel.x = this->accel_x_filter.Apply_Filter((raw_accel.x + this->accel_offsets[0]) * this->a_mult);

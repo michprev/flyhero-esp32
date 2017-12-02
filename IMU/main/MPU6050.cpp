@@ -527,8 +527,8 @@ void MPU6050::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
     accel.y = (data[0] << 8) | data[1];
     accel.z = (data[4] << 8) | data[5];
 
-    gyro.x = (data[10] << 8) | data[11];
-    gyro.y = (data[8] << 8) | data[9];
+    gyro.x = -((data[8] << 8) | data[9]);
+    gyro.y = -((data[10] << 8) | data[11]);
     gyro.z = (data[12] << 8) | data[13];
 }
 
@@ -544,8 +544,8 @@ void MPU6050::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
     raw_accel.y = (data[0] << 8) | data[1];
     raw_accel.z = (data[4] << 8) | data[5];
 
-    raw_gyro.x = (data[10] << 8) | data[11];
-    raw_gyro.y = (data[8] << 8) | data[9];
+    raw_gyro.x = -((data[8] << 8) | data[9]);
+    raw_gyro.y = -((data[10] << 8) | data[11]);
     raw_gyro.z = (data[12] << 8) | data[13];
 
     accel.x = this->accel_x_filter.Apply_Filter((raw_accel.x + this->accel_offsets[0]) * this->a_mult);
