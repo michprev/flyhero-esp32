@@ -63,7 +63,7 @@ void imu_task(void *args)
 
             i++;
 
-            if (i % 100 == 0)
+            if (i == imu.Get_Sample_Rate() / 10)
             {
                 i = 0;
 
