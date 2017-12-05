@@ -37,7 +37,7 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
 
 void Motors_Controller::Init()
 {
-    float sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
+    double sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
 
     this->roll_PID = new PID(sample_rate);
     this->pitch_PID = new PID(sample_rate);
@@ -57,7 +57,7 @@ void Motors_Controller::Init()
     this->pwm.Arm();
 }
 
-void Motors_Controller::Set_PID_Constants(Axis axis, float Kp, float Ki, float Kd)
+void Motors_Controller::Set_PID_Constants(Axis axis, double Kp, double Ki, double Kd)
 {
     switch (axis)
     {
@@ -124,7 +124,7 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler)
 
     if (throttle > 0)
     {
-        float pitch_correction, roll_correction, yaw_correction;
+        double pitch_correction, roll_correction, yaw_correction;
 
         while (xSemaphoreTake(this->roll_PID_semaphore, 0) != pdTRUE);
         roll_correction = this->roll_PID->Get_PID(0 - euler.roll);

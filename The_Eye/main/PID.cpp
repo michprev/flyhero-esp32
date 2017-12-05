@@ -12,7 +12,7 @@
 namespace flyhero
 {
 
-PID::PID(float update_rate, float i_max, float Kp, float Ki, float Kd)
+PID::PID(double update_rate, double i_max, double Kp, double Ki, double Kd)
         : d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, update_rate, 20)
 {
     this->last_t.tv_sec = 0;
@@ -26,14 +26,14 @@ PID::PID(float update_rate, float i_max, float Kp, float Ki, float Kd)
     this->last_error = NAN;
 }
 
-float PID::Get_PID(float error)
+double PID::Get_PID(double error)
 {
     timeval now;
     gettimeofday(&now, NULL);
 
-    float delta_t = now.tv_sec - this->last_t.tv_sec
-               + (now.tv_usec - this->last_t.tv_usec) * 0.000001f;
-    float output = 0;
+    double delta_t = now.tv_sec - this->last_t.tv_sec
+               + (now.tv_usec - this->last_t.tv_usec) * 0.000001;
+    double output = 0;
 
     if (this->last_t.tv_sec == 0 || delta_t > 1)
     {
@@ -62,7 +62,7 @@ float PID::Get_PID(float error)
     // derivative component
     if (this->Kd != 0 && delta_t > 0)
     {
-        float derivative;
+        double derivative;
 
         if (std::isnan(this->last_d))
         {
@@ -83,22 +83,22 @@ float PID::Get_PID(float error)
     return output;
 }
 
-void PID::Set_Kp(float Kp)
+void PID::Set_Kp(double Kp)
 {
     this->Kp = Kp;
 }
 
-void PID::Set_Ki(float Ki)
+void PID::Set_Ki(double Ki)
 {
     this->Ki = Ki;
 }
 
-void PID::Set_Kd(float Kd)
+void PID::Set_Kd(double Kd)
 {
     this->Kd = Kd;
 }
 
-void PID::Set_I_Max(float i_max)
+void PID::Set_I_Max(double i_max)
 {
     this->i_max = i_max;
 }

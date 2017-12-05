@@ -21,20 +21,20 @@ class PID
 private:
     Biquad_Filter d_term_lpf;
     timeval last_t;
-    float Kp, Ki, Kd;
-    float integrator;
-    float i_max;
-    float last_d;
-    float last_error;
+    double Kp, Ki, Kd;
+    double integrator;
+    double i_max;
+    double last_d;
+    double last_error;
 
 public:
-    PID(float update_rate, float i_max = 0, float Kp = 0, float Ki = 0, float Kd = 0);
+    PID(double update_rate, double i_max = 0, double Kp = 0, double Ki = 0, double Kd = 0);
 
-    float Get_PID(float error);
-    void Set_Kp(float Kp);
-    void Set_Ki(float Ki);
-    void Set_Kd(float Kd);
-    void Set_I_Max(float i_max);
+    double Get_PID(double error);
+    void Set_Kp(double Kp);
+    void Set_Ki(double Ki);
+    void Set_Kd(double Kd);
+    void Set_I_Max(double i_max);
 };
 
 } /* namespace flyhero */

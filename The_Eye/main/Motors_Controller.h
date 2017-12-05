@@ -45,7 +45,7 @@ public:
 
     // to be called from CORE 0
     void Init();
-    void Set_PID_Constants(Axis axis, float Kp, float Ki, float Kd);
+    void Set_PID_Constants(Axis axis, double Kp, double Ki, double Kd);
     void Set_Throttle(uint16_t throttle);
     void Set_Invert_Yaw(bool invert);
 

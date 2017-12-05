@@ -11,7 +11,7 @@
 namespace flyhero
 {
 
-Complementary_Filter::Complementary_Filter(float coeff)
+Complementary_Filter::Complementary_Filter(double coeff)
         : COMPLEMENTARY_COEFFICIENT(coeff)
 {
     this->last_time.tv_sec = 0;
@@ -23,7 +23,7 @@ Complementary_Filter::Complementary_Filter(float coeff)
 
 void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles &euler)
 {
-    float delta_t;
+    double delta_t;
 
     if (this->last_time.tv_sec == 0 && this->last_time.tv_usec == 0)
     {
@@ -37,18 +37,15 @@ void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro
 
         gettimeofday(&tmp, NULL);
 
-        delta_t = (tmp.tv_usec > this->last_time.tv_usec ?
-                   tmp.tv_usec - this->last_time.tv_usec :
-                   1000000 + tmp.tv_usec - this->last_time.tv_usec);
-        delta_t *= 0.000001f;
+        delta_t = tmp.tv_sec - this->last_time.tv_sec + (tmp.tv_usec - this->last_time.tv_usec) * 0.000001;
 
         this->last_time = tmp;
     }
 
-    float accel_roll = Math::Atan2(accel.y, accel.z);
+    double accel_roll = std::atan2(accel.y, accel.z) * Math::RAD_TO_DEG;
 
-    float accel_pitch =
-            Math::Atan2(-accel.x, std::sqrt((float) (accel.y * accel.y + accel.z * accel.z)));
+    double accel_pitch =
+            std::atan2(-accel.x, std::sqrt(accel.y * accel.y + accel.z * accel.z)) * Math::RAD_TO_DEG;
 
     this->euler.roll = this->COMPLEMENTARY_COEFFICIENT * (this->euler.roll + gyro.y * delta_t)
                        + (1 - this->COMPLEMENTARY_COEFFICIENT) * accel_roll;

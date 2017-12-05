@@ -51,7 +51,7 @@ private:
     WiFi_Controller &operator=(WiFi_Controller const &);
 
     static const uint8_t IN_DATAGRAM_LENGTH = 11;
-    static const uint8_t OUT_DATAGRAM_LENGTH = 1 + 2 + 12 * FUSION_ALGORITHMS_USED + 2;
+    static const uint8_t OUT_DATAGRAM_LENGTH = 1 + 2 + 3 * sizeof(IMU::Euler_Angles::roll) * FUSION_ALGORITHMS_USED + 2;
 
     union in_datagram
     {
