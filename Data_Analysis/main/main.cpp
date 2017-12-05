@@ -4,6 +4,8 @@
 #include "CRC.h"
 #include "WiFi_Controller.h"
 #include "Motors_Controller.h"
+#include "Complementary_Filter.h"
+#include "Mahony_Filter.h"
 
 
 using namespace flyhero;
@@ -41,6 +43,10 @@ void imu_task(void *args)
     euler.pitch = 0;
     euler.yaw = 0;
 
+    IMU::Euler_Angles complementary_euler, mahony_euler;
+    Complementary_Filter complementary_filter(0.97);
+    Mahony_Filter mahony_filter(25, 0);
+
     IMU& imu = IMU_Detector::Detect_IMU();
 
     imu.Init();
@@ -54,9 +60,13 @@ void imu_task(void *args)
         {
             imu.Read_Data(accel, gyro);
 
+            complementary_filter.Compute(accel, gyro, complementary_euler);
+            mahony_filter.Compute(accel, gyro, mahony_euler);
+
             motors_controller.Update_Motors(euler);
 
-            printf("%f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
+            printf("%f %f %f %f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z,
+                   (float)mahony_euler.roll, (float)mahony_euler.pitch, (float)mahony_euler.yaw);
         }
     }
 }
