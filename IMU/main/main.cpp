@@ -28,8 +28,8 @@ extern "C" void app_main(void)
 
     data_queue = xQueueCreate(10, sizeof(IMU::Euler_Angles));
 
-    xTaskCreatePinnedToCore(log_task, "Log task", 4096, NULL, 2, NULL, 1);
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(log_task, "Log task", 4096, NULL, 2, NULL, 0);
 }
 
 void imu_task(void *args)

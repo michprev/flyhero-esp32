@@ -15,7 +15,6 @@ using namespace flyhero;
 
 Motors_Controller &motors_controller = Motors_Controller::Instance();
 QueueHandle_t wifi_log_data_queue;
-SemaphoreHandle_t imu_task_semaphore;
 
 void wifi_task(void *args);
 void imu_task(void *args);
@@ -36,7 +35,6 @@ extern "C" void app_main(void)
     LEDs::Init();
     motors_controller.Init();
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
-    imu_task_semaphore = xSemaphoreCreateBinary();
 
     IMU& imu = IMU_Detector::Detect_IMU();
     imu.Init();
@@ -56,12 +54,7 @@ extern "C" void app_main(void)
         }
     }
 
-    xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 1);
-
-    vTaskDelay(100 / portTICK_RATE_MS);
-    while (xSemaphoreTake(imu_task_semaphore, 0) != pdTRUE);
-
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 0);
+    xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
 
     while (true);
 }
@@ -120,8 +113,6 @@ void imu_task(void *args)
 
 void wifi_task(void *args)
 {
-    xSemaphoreTake(imu_task_semaphore, 0);
-
     WiFi_Controller &wifi = WiFi_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
     WiFi_Controller::Out_Datagram_Data out_datagram_data;
@@ -160,7 +151,7 @@ void wifi_task(void *args)
         }
     }
 
-    xSemaphoreGive(imu_task_semaphore);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
     ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
     ESP_ERROR_CHECK(wifi.UDP_Server_Start());
 
