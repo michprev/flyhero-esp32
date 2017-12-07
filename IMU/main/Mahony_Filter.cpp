@@ -14,8 +14,7 @@ namespace flyhero
 Mahony_Filter::Mahony_Filter(double kp, double ki)
         : MAHONY_KP(kp), MAHONY_KI(ki)
 {
-    this->last_time.tv_sec = 0;
-    this->last_time.tv_usec = 0;
+    this->last_time = 0;
     this->quaternion.q0 = 1;
     this->quaternion.q1 = 0;
     this->quaternion.q2 = 0;
@@ -30,19 +29,16 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 {
     double delta_t;
 
-    if (this->last_time.tv_sec == 0 && this->last_time.tv_usec == 0)
+    if (this->last_time == 0)
     {
         delta_t = 0;
 
-        gettimeofday(&this->last_time, NULL);
+        this->last_time = esp_timer_get_time();
     }
     else
     {
-        timeval tmp;
-
-        gettimeofday(&tmp, NULL);
-
-        delta_t = tmp.tv_sec - this->last_time.tv_sec + (tmp.tv_usec - this->last_time.tv_usec) * 0.000001;
+        int64_t tmp = esp_timer_get_time();
+        delta_t = (tmp - this->last_time) * 0.000001;
 
         this->last_time = tmp;
     }
@@ -139,8 +135,7 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
 void Mahony_Filter::Reset()
 {
-    this->last_time.tv_sec = 0;
-    this->last_time.tv_usec = 0;
+    this->last_time = 0;
 
     this->quaternion.q0 = 1;
     this->quaternion.q1 = 0;

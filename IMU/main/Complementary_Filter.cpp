@@ -14,8 +14,7 @@ namespace flyhero
 Complementary_Filter::Complementary_Filter(double coeff)
         : COMPLEMENTARY_COEFFICIENT(coeff)
 {
-    this->last_time.tv_sec = 0;
-    this->last_time.tv_usec = 0;
+    this->last_time = 0;
     this->euler.roll = 0;
     this->euler.pitch = 0;
     this->euler.yaw = 0;
@@ -25,19 +24,16 @@ void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro
 {
     double delta_t;
 
-    if (this->last_time.tv_sec == 0 && this->last_time.tv_usec == 0)
+    if (this->last_time == 0)
     {
         delta_t = 0;
 
-        gettimeofday(&this->last_time, NULL);
+        this->last_time = esp_timer_get_time();
     }
     else
     {
-        timeval tmp;
-
-        gettimeofday(&tmp, NULL);
-
-        delta_t = tmp.tv_sec - this->last_time.tv_sec + (tmp.tv_usec - this->last_time.tv_usec) * 0.000001;
+        int64_t tmp = esp_timer_get_time();
+        delta_t = (tmp - this->last_time) * 0.000001;
 
         this->last_time = tmp;
     }
@@ -65,8 +61,7 @@ void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro
 
 void Complementary_Filter::Reset()
 {
-    this->last_time.tv_sec = 0;
-    this->last_time.tv_usec = 0;
+    this->last_time = 0;
 
     this->euler.roll = 0;
     this->euler.pitch = 0;

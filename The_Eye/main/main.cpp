@@ -9,7 +9,6 @@
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
-#include "../../Data_Analysis/main/WiFi_Controller.h"
 
 
 using namespace flyhero;
@@ -70,7 +69,7 @@ extern "C" void app_main(void)
 void imu_task(void *args)
 {
     WiFi_Controller::Out_Datagram_Data log_data;
-    timeval start, end;
+    int64_t start = esp_timer_get_time(), end;
     uint8_t i = 0;
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles mahony_euler, complementary_euler;
@@ -88,9 +87,9 @@ void imu_task(void *args)
     {
         if (imu.Data_Ready())
         {
-            esp_task_wdt_reset();
+            end = esp_timer_get_time();
 
-            gettimeofday(&end, NULL);
+            esp_task_wdt_reset();
 
             imu.Read_Data(accel, gyro);
 
@@ -104,11 +103,7 @@ void imu_task(void *args)
                 log_data.euler[0] = mahony_euler;
                 log_data.euler[1] = complementary_euler;
 
-
-                long int delta = (end.tv_usec > start.tv_usec ? end.tv_usec - start.tv_usec
-                                                    : 1000000 + end.tv_usec - start.tv_usec);
-
-                log_data.free_time = delta * imu.Get_Sample_Rate() * 0.01f;
+                log_data.free_time = (end - start) * imu.Get_Sample_Rate() * 0.01f;
 
 
                 xQueueSend(wifi_log_data_queue, &log_data, 0);
@@ -118,7 +113,7 @@ void imu_task(void *args)
 
             motors_controller.Update_Motors(complementary_euler);
 
-            gettimeofday(&start, NULL);
+            start = esp_timer_get_time();
         }
     }
 }

@@ -8,7 +8,7 @@
 #pragma once
 
 #include <cmath>
-#include <sys/time.h>
+#include <esp_timer.h>
 
 #include "Fusion_Filter.h"
 #include "Math.h"
@@ -22,7 +22,7 @@ class Mahony_Filter : public Fusion_Filter
 private:
     IMU::Quaternion quaternion;
     const double MAHONY_KP, MAHONY_KI;
-    timeval last_time;
+    int64_t last_time;
     IMU::Sensor_Data error_integral;
 
 public:

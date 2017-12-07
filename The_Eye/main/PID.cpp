@@ -15,8 +15,7 @@ namespace flyhero
 PID::PID(double update_rate, double i_max, double Kp, double Ki, double Kd)
         : d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, update_rate, 20)
 {
-    this->last_t.tv_sec = 0;
-    this->last_t.tv_usec = 0;
+    this->last_t = 0;
     this->integrator = 0;
     this->Kp = Kp;
     this->Ki = Ki;
@@ -28,20 +27,19 @@ PID::PID(double update_rate, double i_max, double Kp, double Ki, double Kd)
 
 double PID::Get_PID(double error)
 {
-    timeval now;
-    gettimeofday(&now, NULL);
+    int64_t now = esp_timer_get_time();
 
-    double delta_t = now.tv_sec - this->last_t.tv_sec
-               + (now.tv_usec - this->last_t.tv_usec) * 0.000001;
-    double output = 0;
+    double delta_t = (now - this->last_t) * 0.000001;
 
-    if (this->last_t.tv_sec == 0 || delta_t > 1)
+    if (this->last_t == 0 || delta_t > 1)
     {
         this->integrator = 0;
         delta_t = 0;
     }
 
     this->last_t = now;
+
+    double output = 0;
 
     // proportional component
     output += error * this->Kp;

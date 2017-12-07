@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <sys/time.h>
+#include <esp_timer.h>
 #include <cmath>
 
 #include "Biquad_Filter.h"
@@ -20,7 +20,7 @@ class PID
 {
 private:
     Biquad_Filter d_term_lpf;
-    timeval last_t;
+    int64_t last_t;
     double Kp, Ki, Kd;
     double integrator;
     double i_max;

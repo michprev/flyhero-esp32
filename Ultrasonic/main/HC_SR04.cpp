@@ -63,19 +63,18 @@ void HC_SR04::Init()
 
 void HC_SR04::Trigger()
 {
-    timeval start, end;
+    int64_t start, end;
 
     // we should not get errors here so no need to check
     gpio_set_level(this->trigg_pin, 1);
-    gettimeofday(&start, NULL);
+    start = esp_timer_get_time();
 
     uint32_t delta;
 
     do
     {
-        gettimeofday(&end, NULL);
-        delta = (end.tv_sec - start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec;
-    } while (delta < 10);
+        end = esp_timer_get_time();
+    } while (end - start < 10);
 
     gpio_set_level(this->trigg_pin, 0);
 }

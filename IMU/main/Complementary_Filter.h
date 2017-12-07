@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <sys/time.h>
+#include <esp_timer.h>
 
 #include "Fusion_Filter.h"
 #include "Math.h"
@@ -20,7 +20,7 @@ class Complementary_Filter : public Fusion_Filter
 {
 private:
     IMU::Euler_Angles euler;
-    timeval last_time;
+    int64_t last_time;
     const double COMPLEMENTARY_COEFFICIENT;
 
 public:
