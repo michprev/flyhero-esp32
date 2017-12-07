@@ -22,7 +22,7 @@
 #include "IMU.h"
 
 
-#define FUSION_ALGORITHMS_USED 2
+#define FUSION_ALGORITHMS_USED 1
 
 namespace flyhero
 {
