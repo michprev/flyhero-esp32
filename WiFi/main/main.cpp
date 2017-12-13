@@ -36,10 +36,13 @@ extern "C" void app_main(void)
         {
             printf("Command: %.*s\n", received_length - 2, TCP_buffer);
 
-            if (strncmp((const char*)TCP_buffer, "start", 5) == 0)
+            if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
             {
                 wifi.TCP_Send("yup", 3);
                 process_tcp = false;
+            } else if (strncmp((const char *) TCP_buffer, "calibrate", 9) == 0)
+            {
+                wifi.TCP_Send("yup", 3);
             } else
                 wifi.TCP_Send("nah", 3);
         }
