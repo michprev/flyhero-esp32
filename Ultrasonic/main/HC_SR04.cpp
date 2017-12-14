@@ -69,8 +69,6 @@ void HC_SR04::Trigger()
     gpio_set_level(this->trigg_pin, 1);
     start = esp_timer_get_time();
 
-    uint32_t delta;
-
     do
     {
         end = esp_timer_get_time();
@@ -96,15 +94,14 @@ void HC_SR04::Echo_Callback()
     this->level_high = !this->level_high;
 
     if (this->level_high)
-        gettimeofday(&this->start, NULL);
+        this->start = esp_timer_get_time();
     else
     {
-        timeval end;
-        gettimeofday(&end, NULL);
+        int64_t end = esp_timer_get_time();
 
         while (xSemaphoreTake(this->distance_semaphore, 0) != pdTRUE);
 
-        this->distance = (end.tv_sec - this->start.tv_sec + (end.tv_usec - this->start.tv_usec) * 0.000001) * 334 * 0.5;
+        this->distance = (end - this->start) * 0.000001 * 334 * 0.5;
 
         xSemaphoreGive(this->distance_semaphore);
     }

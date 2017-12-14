@@ -11,6 +11,7 @@
 #include <freertos/semphr.h>
 #include <driver/gpio.h>
 #include <esp_err.h>
+#include <esp_timer.h>
 
 
 namespace flyhero
@@ -23,7 +24,7 @@ private:
     const gpio_num_t echo_pin;
     const gpio_isr_t echo_handler;
 
-    timeval start;
+    int64_t start;
     bool level_high;
     double distance;
     SemaphoreHandle_t distance_semaphore;
