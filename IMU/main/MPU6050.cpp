@@ -434,8 +434,8 @@ void MPU6050::Init()
     // set accel full scale range
     ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
 
-    // set low pass filter to 188 Hz (both acc and gyro sample at 1 kHz)
-    ESP_ERROR_CHECK(this->set_lpf(LPF_188HZ));
+    // set low pass filter to 20 Hz (both acc and gyro sample at 1 kHz)
+    ESP_ERROR_CHECK(this->set_lpf(LPF_20HZ));
 
     // set sample rate
     ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));

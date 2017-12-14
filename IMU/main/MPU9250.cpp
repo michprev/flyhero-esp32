@@ -399,10 +399,10 @@ void MPU9250::Init()
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10));
 
     ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_2000));
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_184HZ));
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_20HZ));
 
     ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_21HZ));
 
     ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
 
