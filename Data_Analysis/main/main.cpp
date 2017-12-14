@@ -63,7 +63,7 @@ void imu_task(void *args)
             complementary_filter.Compute(accel, gyro, complementary_euler);
             mahony_filter.Compute(accel, gyro, mahony_euler);
 
-            motors_controller.Update_Motors(euler);
+            motors_controller.Update_Motors(euler, gyro);
 
             printf("%f %f %f %f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z,
                    (float)mahony_euler.roll, (float)mahony_euler.pitch, (float)mahony_euler.yaw);
@@ -108,9 +108,14 @@ void wifi_task(void *args)
         if (wifi.UDP_Receive(datagram_data))
         {
             motors_controller.Set_Throttle(datagram_data.throttle);
-            motors_controller.Set_PID_Constants(Roll, datagram_data.roll_kp * 0.01f, 0, 0);
-            motors_controller.Set_PID_Constants(Pitch, datagram_data.pitch_kp * 0.01f, 0, 0);
-            motors_controller.Set_PID_Constants(Yaw, datagram_data.yaw_kp * 0.01f, 0, 0);
+
+            double parameters[3][3] = {
+                    { datagram_data.roll_kp * 0.01, datagram_data.roll_ki * 0.01, 0 },
+                    { datagram_data.pitch_kp * 0.01, datagram_data.pitch_ki * 0.01, 0 },
+                    { datagram_data.yaw_kp * 0.01, datagram_data.yaw_ki * 0.01, 0 }
+            };
+
+            motors_controller.Set_PID_Constants(Motors_Controller::RATE, parameters);
         }
     }
 }

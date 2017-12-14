@@ -57,7 +57,10 @@ extern "C" void app_main(void)
     {
         if (wifi.UDP_Receive(data))
         {
-            std::cout << data.throttle << " " << data.roll_kp << " " << data.pitch_kp << " " << data.yaw_kp << std::endl;
+            std::cout << data.throttle << " "
+                      << (uint16_t)data.roll_kp << " " << (uint16_t)data.roll_ki << " "
+                      << (uint16_t)data.pitch_kp << " " << (uint16_t)data.pitch_ki << " "
+                      << (uint16_t)data.yaw_kp << " " << (uint16_t)data.yaw_ki << std::endl;
         }
     }
 }

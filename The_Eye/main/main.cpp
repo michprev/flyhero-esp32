@@ -100,7 +100,7 @@ void imu_task(void *args)
             }
 
 
-            motors_controller.Update_Motors(complementary_euler);
+            motors_controller.Update_Motors(complementary_euler, gyro);
 
             start = esp_timer_get_time();
         }
@@ -166,10 +166,14 @@ void wifi_task(void *args)
 
             esp_task_wdt_reset();
 
+            double parameters[3][3] = {
+                    { in_datagram_data.roll_kp * 0.01, in_datagram_data.roll_ki * 0.01, 0 },
+                    { in_datagram_data.pitch_kp * 0.01, in_datagram_data.pitch_ki * 0.01, 0 },
+                    { in_datagram_data.yaw_kp * 0.01, in_datagram_data.yaw_ki * 0.01, 0 }
+            };
+
             motors_controller.Set_Throttle(in_datagram_data.throttle);
-            motors_controller.Set_PID_Constants(Roll, in_datagram_data.roll_kp * 0.01, 0, 0);
-            motors_controller.Set_PID_Constants(Pitch, in_datagram_data.pitch_kp * 0.01, 0, 0);
-            motors_controller.Set_PID_Constants(Yaw, in_datagram_data.yaw_kp * 0.01, 0, 0);
+            motors_controller.Set_PID_Constants(Motors_Controller::RATE, parameters);
         }
 
         if (xQueueReceive(wifi_log_data_queue, &out_datagram_data, 0) == pdTRUE)
