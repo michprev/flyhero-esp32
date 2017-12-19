@@ -574,14 +574,8 @@ void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 
 void MPU9250::Data_Ready_Callback()
 {
-    portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
-
-    portENTER_CRITICAL_ISR(&mutex);
-
     if (this->ready)
         this->data_ready = true;
-
-    portEXIT_CRITICAL_ISR(&mutex);
 }
 
 bool MPU9250::Data_Ready()
