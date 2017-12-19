@@ -15,7 +15,6 @@
 #include <netinet/in.h>
 #include <lwip/sockets.h>
 #include <cstring>
-#include <errno.h>
 
 #include "LEDs.h"
 #include "CRC.h"
@@ -53,37 +52,33 @@ private:
     WiFi_Controller(WiFi_Controller const &);
     WiFi_Controller &operator=(WiFi_Controller const &);
 
-    static const uint8_t IN_DATAGRAM_LENGTH = 11;
-    static const uint8_t OUT_DATAGRAM_LENGTH = 1 + 2 + 3 * sizeof(IMU::Euler_Angles::roll) * FUSION_ALGORITHMS_USED + 2;
+    struct __attribute__((__packed__)) in_data
+    {
+        uint8_t datagram_length;
+        In_Datagram_Data datagram_contents;
+        uint16_t crc;
+    };
+
+    struct __attribute__((__packed__)) out_data
+    {
+        uint8_t datagram_length;
+        Out_Datagram_Data datagram_contents;
+        uint16_t crc;
+    };
+
+    static const uint8_t IN_DATAGRAM_LENGTH = sizeof(in_data);
+    static const uint8_t OUT_DATAGRAM_LENGTH = sizeof(out_data);
 
     union in_datagram
     {
         uint8_t raw_data[IN_DATAGRAM_LENGTH];
-
-        struct __attribute__((__packed__))
-        {
-            uint8_t datagram_length;
-
-            In_Datagram_Data datagram_contents;
-
-            uint16_t crc;
-
-        } data;
+        in_data data;
     };
 
     union out_datagram
     {
         uint8_t raw_data[OUT_DATAGRAM_LENGTH];
-
-        struct __attribute__((__packed__))
-        {
-            uint8_t datagram_length;
-
-            Out_Datagram_Data datagram_contents;
-
-            uint16_t crc;
-
-        } data;
+        out_data data;
     };
 
     static const uint8_t TCP_BUFFER_LENGTH = 50;
