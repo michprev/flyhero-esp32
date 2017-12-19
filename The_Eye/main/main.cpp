@@ -112,7 +112,6 @@ void wifi_task(void *args)
     WiFi_Controller &wifi = WiFi_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
     WiFi_Controller::Out_Datagram_Data out_datagram_data;
-    bool connected = false;
 
     const uint8_t TCP_BUFFER_LENGTH = 50;
     char TCP_buffer[TCP_BUFFER_LENGTH];
@@ -147,6 +146,10 @@ void wifi_task(void *args)
         }
     }
 
+    // Subscribe WiFi task to watchdog
+    if (esp_task_wdt_add(NULL) != ESP_OK)
+        vTaskDelete(NULL);
+
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
     ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
     ESP_ERROR_CHECK(wifi.UDP_Server_Start());
@@ -155,15 +158,6 @@ void wifi_task(void *args)
     {
         if (wifi.UDP_Receive(in_datagram_data))
         {
-            if (!connected)
-            {
-                // Subscribe WiFi task to watchdog
-                if (esp_task_wdt_add(NULL) != ESP_OK)
-                    vTaskDelete(NULL);
-
-                connected = true;
-            }
-
             esp_task_wdt_reset();
 
             double parameters[3][3] = {
