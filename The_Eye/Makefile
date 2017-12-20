@@ -3,7 +3,9 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := The_Eye
+PROJECT_NAME:= The_Eye
+EXTRA_COMPONENT_DIRS:= $(PWD)/../components
 
 include $(IDF_PATH)/make/project.mk
+
 

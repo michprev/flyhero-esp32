@@ -4,6 +4,7 @@
 #
 
 PROJECT_NAME := Data_Analysis
+EXTRA_COMPONENT_DIRS:= $(PWD)/../components
 
 include $(IDF_PATH)/make/project.mk
 

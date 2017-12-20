@@ -40,19 +40,7 @@ extern "C" void app_main(void)
     imu.Init();
 
     // Initialize watchdog with 1 sec timeout
-    if (esp_task_wdt_init(1, true) != ESP_OK)
-    {
-        while (true)
-        {
-            LEDs::Turn_On(LEDs::WARNING);
-
-            vTaskDelay(250 / portTICK_RATE_MS);
-
-            LEDs::Turn_Off(LEDs::WARNING);
-
-            vTaskDelay(250 / portTICK_RATE_MS);
-        }
-    }
+    ESP_ERROR_CHECK(esp_task_wdt_init(1, true));
 
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
 
@@ -68,11 +56,9 @@ void imu_task(void *args)
     IMU::Euler_Angles complementary_euler;
 
     // Subscribe IMU task to watchdog
-    if (esp_task_wdt_add(NULL) != ESP_OK)
-        vTaskDelete(NULL);
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     IMU& imu = IMU_Detector::Detect_IMU();
-
     Complementary_Filter complementary(0.98);
 
     while (true)
@@ -147,8 +133,7 @@ void wifi_task(void *args)
     }
 
     // Subscribe WiFi task to watchdog
-    if (esp_task_wdt_add(NULL) != ESP_OK)
-        vTaskDelete(NULL);
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
     ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
