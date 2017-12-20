@@ -14,8 +14,6 @@ using namespace flyhero;
 void imu_task(void *args);
 void wifi_task(void *args);
 
-Motors_Controller &motors_controller = Motors_Controller::Instance();
-
 extern "C" void app_main(void)
 {
     // Initialize NVS
@@ -29,7 +27,7 @@ extern "C" void app_main(void)
 
     LEDs::Init();
 
-    motors_controller.Init();
+    Motors_Controller::Instance().Init();
 
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
@@ -47,6 +45,7 @@ void imu_task(void *args)
     Complementary_Filter complementary_filter(0.97);
     Mahony_Filter mahony_filter(25, 0);
 
+    Motors_Controller& motors_controller = Motors_Controller::Instance();
     IMU& imu = IMU_Detector::Detect_IMU();
 
     imu.Init();
@@ -73,13 +72,13 @@ void imu_task(void *args)
 
 void wifi_task(void *args)
 {
-    WiFi_Controller &wifi = WiFi_Controller::Instance();
-
     const uint8_t TCP_BUFFER_LENGTH = 50;
     char TCP_buffer[TCP_BUFFER_LENGTH];
     uint8_t received_length = 0;
     bool process_tcp = true;
 
+    WiFi_Controller &wifi = WiFi_Controller::Instance();
+    Motors_Controller& motors_controller = Motors_Controller::Instance();
     wifi.Init();
 
     ESP_ERROR_CHECK(wifi.TCP_Server_Start());
