@@ -8,7 +8,7 @@
 namespace flyhero
 {
 
-Logger& Logger::Instance()
+Logger &Logger::Instance()
 {
     static Logger instance;
 
@@ -18,13 +18,13 @@ Logger& Logger::Instance()
 Logger::Logger()
 {
     this->partition = NULL;
-    this->can_write = true;
-    this->write_offset = 0;
 }
 
 bool Logger::Init()
 {
-    this->partition = esp_partition_find_first((esp_partition_type_t)0x40, (esp_partition_subtype_t)0x40, NULL);
+    this->partition = esp_partition_find_first((esp_partition_type_t) 0x40, (esp_partition_subtype_t) 0x40, NULL);
+    this->write_offset = 0;
+    this->read_offset = 0;
 
     return esp_partition_verify(this->partition) != NULL;
 }
@@ -34,18 +34,21 @@ bool Logger::Erase()
     return esp_partition_erase_range(this->partition, 0, this->partition->size) == ESP_OK;
 }
 
-bool Logger::Log(const void *data, size_t size)
+bool Logger::Log_Next(const void *data, size_t size)
 {
-    if (!this->can_write)
-        return false;
-
     if (esp_partition_write(this->partition, this->write_offset, data, size) != ESP_OK)
-    {
-        this->can_write = false;
         return false;
-    }
 
     this->write_offset += size;
+    return true;
+}
+
+bool Logger::Read_Next(void *data, size_t size)
+{
+    if (esp_partition_read(this->partition, this->read_offset, data, size) != ESP_OK)
+        return false;
+
+    this->read_offset += size;
     return true;
 }
 

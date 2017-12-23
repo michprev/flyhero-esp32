@@ -13,19 +13,24 @@ class Logger
 {
 private:
     Logger();
+
     Logger(Logger const &);
+
     Logger &operator=(Logger const &);
 
     const esp_partition_t *partition;
-    bool can_write;
-    size_t write_offset;
+    size_t write_offset, read_offset;
 
 public:
-    static Logger& Instance();
+    static Logger &Instance();
 
     bool Init();
+
     bool Erase();
-    bool Log(const void *data, size_t size);
+
+    bool Log_Next(const void *data, size_t size);
+
+    bool Read_Next(void *data, size_t size);
 };
 
 }
