@@ -71,9 +71,13 @@ void WiFi_Controller::ap_init()
     wifi_config.ap.beacon_interval = 100;
     wifi_config.ap.channel = 7;
     wifi_config.ap.max_connection = 1;
-    std::memcpy(wifi_config.ap.password, "dronjede", 9);
-    std::memcpy(wifi_config.ap.ssid, "DRON_WIFI", 10);
-    wifi_config.ap.ssid_hidden = 0; // TODO
+
+    assert(strlen(CONFIG_FLYHERO_WIFI_SSID) >= 1);
+    assert(strlen(CONFIG_FLYHERO_WIFI_WPA2_PASSPHRASE) >= 8);
+
+    std::strcpy((char *) wifi_config.ap.password, CONFIG_FLYHERO_WIFI_WPA2_PASSPHRASE);
+    std::strcpy((char *) wifi_config.ap.ssid, CONFIG_FLYHERO_WIFI_SSID);
+    wifi_config.ap.ssid_hidden = !CONFIG_FLYHERO_WIFI_SSID_VISIBLE;
     wifi_config.ap.ssid_len = 0;
 
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));

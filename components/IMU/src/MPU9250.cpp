@@ -24,12 +24,12 @@ MPU9250 &MPU9250::Instance()
 }
 
 MPU9250::MPU9250()
-        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
-          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
-          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
-          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
-          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
-          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60)
+        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
 {
     this->spi = NULL;
     this->a_fsr = ACCEL_FSR_NOT_SET;
@@ -261,7 +261,8 @@ esp_err_t MPU9250::set_gyro_lpf(gyro_lpf lpf)
     if ((ret = this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | Fchoice_b)))
         return ret;
 
-    if ((ret = this->spi_reg_write(this->REGISTERS.CONFIG, (lpf == GYRO_LPF_8800HZ || lpf == GYRO_LPF_3600Hz) ? 0x00 : lpf)))
+    if ((ret = this->spi_reg_write(this->REGISTERS.CONFIG,
+                                   (lpf == GYRO_LPF_8800HZ || lpf == GYRO_LPF_3600Hz) ? 0x00 : lpf)))
         return ret;
 
     this->g_lpf = lpf;
@@ -394,10 +395,30 @@ void MPU9250::Init()
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10));
 
     ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_2000));
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_20HZ));
-
     ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
+
+    // set low pass filter
+#if CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_184HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_92HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_99HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_42HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_41HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_45HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_20HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_20HZ));
     ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_21HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_10HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_10HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_10HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_5HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_5HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_5HZ));
+#else
+#error "Gyro hardware LPF not set"
+#endif
 
     ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
 

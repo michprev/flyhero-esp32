@@ -46,9 +46,9 @@ private:
     enum lpf_bandwidth
     {
         // 8 kHz
-                LPF_256HZ = 0x00,
+        LPF_256HZ = 0x00,
         // 1 kHz
-                LPF_188HZ = 0x01,
+        LPF_188HZ = 0x01,
         LPF_98HZ = 0x02,
         LPF_42HZ = 0x03,
         LPF_20HZ = 0x04,

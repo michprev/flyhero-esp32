@@ -24,12 +24,12 @@ MPU6000 &MPU6000::Instance()
 }
 
 MPU6000::MPU6000()
-        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
-          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
-          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 10),
-          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
-          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60),
-          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, 60)
+        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
 {
     this->g_fsr = GYRO_FSR_NOT_SET;
     this->g_mult = 0;
@@ -358,8 +358,22 @@ void MPU6000::Init()
     // set accel full scale range
     ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
 
-    // set low pass filter to 20 Hz (both acc and gyro sample at 1 kHz)
+    // set low pass filter
+#if CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
+    ESP_ERROR_CHECK(this->set_lpf(LPF_188HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ
+    ESP_ERROR_CHECK(this->set_lpf(LPF_98HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_42HZ
+    ESP_ERROR_CHECK(this->set_lpf(LPF_42HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_20HZ
     ESP_ERROR_CHECK(this->set_lpf(LPF_20HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_10HZ
+    ESP_ERROR_CHECK(this->set_lpf(LPF_10HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_5HZ
+    ESP_ERROR_CHECK(this->set_lpf(LPF_5HZ));
+#else
+#error "Gyro hardware LPF not set"
+#endif
 
     // set sample rate
     ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));

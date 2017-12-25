@@ -1,0 +1,32 @@
+menu "Flyhero IMU"
+
+	config FLYHERO_IMU_ACCEL_SOFT_LPF
+		int "Accelerometer software LPF"
+		range 1 1000
+		default 10
+
+	config FLYHERO_IMU_GYRO_SOFT_LPF
+		int "Gyroscope software LPF"
+		range 1 1000
+		default 60
+
+	choice FLYHERO_IMU_HARD_LPF
+		prompt "Hardware LPF"
+		default FLYHERO_IMU_HARD_LPF_20HZ
+
+		config FLYHERO_IMU_HARD_LPF_5HZ
+			bool "5 Hz"
+		config FLYHERO_IMU_HARD_LPF_10HZ
+			bool "10 Hz"
+		config FLYHERO_IMU_HARD_LPF_20HZ
+			bool "20 Hz"
+		config FLYHERO_IMU_HARD_LPF_42HZ
+			bool "42 Hz"
+		config FLYHERO_IMU_HARD_LPF_98HZ
+			bool "98 Hz"
+		config FLYHERO_IMU_HARD_LPF_188HZ
+			bool "188 Hz"
+
+	endchoice
+
+endmenu

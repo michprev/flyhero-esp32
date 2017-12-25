@@ -1,0 +1,23 @@
+menu "Flyhero WiFi"
+
+	config FLYHERO_WIFI_TCP_PORT
+		int "TCP port"
+		default 4821
+
+	config FLYHERO_WIFI_UDP_PORT
+		int "UDP port"
+		default 4789
+
+	config FLYHERO_WIFI_SSID
+		string "SSID"
+		default "DRONE WIFI"
+
+	config FLYHERO_WIFI_SSID_VISIBLE
+		bool "SSID visible"
+		default y
+
+	config FLYHERO_WIFI_WPA2_PASSPHRASE
+		string "WPA2 passphrase"
+		default flyhero
+
+endmenu
