@@ -261,7 +261,7 @@ esp_err_t MPU9250::set_gyro_lpf(gyro_lpf lpf)
     if ((ret = this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | Fchoice_b)))
         return ret;
 
-    if ((ret = this->spi_reg_write(this->REGISTERS.CONFIG, lpf)))
+    if ((ret = this->spi_reg_write(this->REGISTERS.CONFIG, (lpf == GYRO_LPF_8800HZ || lpf == GYRO_LPF_3600Hz) ? 0x00 : lpf)))
         return ret;
 
     this->g_lpf = lpf;
@@ -279,12 +279,7 @@ esp_err_t MPU9250::set_accel_lpf(accel_lpf lpf)
     if (lpf == this->a_lpf)
         return ESP_OK;
 
-    uint8_t accel_config2 = lpf;
-
-    if (lpf == ACCEL_LPF_1046HZ)
-        accel_config2 |= 0x08;
-
-    if ((ret = this->spi_reg_write(this->REGISTERS.ACCEL_CONFIG2, accel_config2)))
+    if ((ret = this->spi_reg_write(this->REGISTERS.ACCEL_CONFIG2, lpf)))
         return ret;
 
     this->a_lpf = lpf;
@@ -297,7 +292,7 @@ esp_err_t MPU9250::set_sample_rate(uint16_t rate)
     // setting SMPLRT_DIV won't be effective in cases:
     // 8800 Hz => sample at 32 kHz
     // 3600 Hz => sample at 32 kHz
-    // 250 Hz => should sample at 8 kHz, measured 32 kHz
+    // 250 Hz => sample at 8 kHz
     if (this->g_lpf == GYRO_LPF_8800HZ || this->g_lpf == GYRO_LPF_3600Hz || this->g_lpf == GYRO_LPF_250HZ)
         return ESP_OK;
 
