@@ -12,6 +12,7 @@ using namespace flyhero;
 
 
 void imu_task(void *args);
+
 void wifi_task(void *args);
 
 extern "C" void app_main(void)
@@ -45,8 +46,8 @@ void imu_task(void *args)
     Complementary_Filter complementary_filter(0.97);
     Mahony_Filter mahony_filter(25, 0);
 
-    Motors_Controller& motors_controller = Motors_Controller::Instance();
-    IMU& imu = IMU_Detector::Detect_IMU();
+    Motors_Controller &motors_controller = Motors_Controller::Instance();
+    IMU &imu = IMU_Detector::Detect_IMU();
 
     imu.Init();
 
@@ -65,7 +66,7 @@ void imu_task(void *args)
             motors_controller.Update_Motors(euler, gyro);
 
             printf("%f %f %f %f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z,
-                   (float)mahony_euler.roll, (float)mahony_euler.pitch, (float)mahony_euler.yaw);
+                   (float) mahony_euler.roll, (float) mahony_euler.pitch, (float) mahony_euler.yaw);
         }
     }
 }
@@ -78,7 +79,7 @@ void wifi_task(void *args)
     bool process_tcp = true;
 
     WiFi_Controller &wifi = WiFi_Controller::Instance();
-    Motors_Controller& motors_controller = Motors_Controller::Instance();
+    Motors_Controller &motors_controller = Motors_Controller::Instance();
     wifi.Init();
 
     ESP_ERROR_CHECK(wifi.TCP_Server_Start());
@@ -88,7 +89,7 @@ void wifi_task(void *args)
     {
         if (wifi.TCP_Receive(TCP_buffer, TCP_BUFFER_LENGTH, &received_length))
         {
-            if (strncmp((const char*)TCP_buffer, "start", 5) == 0)
+            if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
             {
                 wifi.TCP_Send("yup", 3);
                 process_tcp = false;
@@ -109,9 +110,9 @@ void wifi_task(void *args)
             motors_controller.Set_Throttle(datagram_data.throttle);
 
             double parameters[3][3] = {
-                    { datagram_data.roll_kp * 0.01, datagram_data.roll_ki * 0.01, 0 },
+                    { datagram_data.roll_kp * 0.01,  datagram_data.roll_ki * 0.01,  0 },
                     { datagram_data.pitch_kp * 0.01, datagram_data.pitch_ki * 0.01, 0 },
-                    { datagram_data.yaw_kp * 0.01, datagram_data.yaw_ki * 0.01, 0 }
+                    { datagram_data.yaw_kp * 0.01,   datagram_data.yaw_ki * 0.01,   0 }
             };
 
             motors_controller.Set_PID_Constants(Motors_Controller::RATE, parameters);

@@ -29,8 +29,7 @@ void Complementary_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro
         delta_t = 0;
 
         this->last_time = esp_timer_get_time();
-    }
-    else
+    } else
     {
         int64_t tmp = esp_timer_get_time();
         delta_t = (tmp - this->last_time) * 0.000001;

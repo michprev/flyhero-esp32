@@ -25,9 +25,11 @@ private:
 
 public:
     Complementary_Filter(double coeff);
+
     ~Complementary_Filter() override = default;
 
     void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles &euler) override;
+
     void Reset() override;
 };
 

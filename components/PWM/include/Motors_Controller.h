@@ -23,7 +23,9 @@ class Motors_Controller
 {
 private:
     Motors_Controller();
+
     Motors_Controller(Motors_Controller const &);
+
     Motors_Controller &operator=(Motors_Controller const &);
 
     enum axis
@@ -53,8 +55,11 @@ public:
 
     // to be called from CORE 0
     void Init();
+
     void Set_PID_Constants(PID_Type type, double parameters[3][3]);
+
     void Set_Throttle(uint16_t throttle);
+
     void Set_Invert_Yaw(bool invert);
 
     // to be called from CORE 1

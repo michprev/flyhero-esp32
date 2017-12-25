@@ -506,7 +506,7 @@ uint16_t MPU9250::Get_Sample_Rate()
 
 void MPU9250::Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro)
 {
-    static const uint8_t tx_data[14] = {0x00};
+    static const uint8_t tx_data[14] = { 0x00 };
     static uint8_t rx_data[14];
 
     spi_transaction_t trans;
@@ -535,7 +535,7 @@ void MPU9250::Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro)
 
 void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 {
-    static const uint8_t tx_data[14] = {0x00};
+    static const uint8_t tx_data[14] = { 0x00 };
     static uint8_t rx_data[14];
 
     spi_transaction_t trans;

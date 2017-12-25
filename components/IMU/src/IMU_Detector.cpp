@@ -140,14 +140,16 @@ bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EX
     return who_am_i == EXPECTED_VALUE;
 }
 
-IMU& IMU_Detector::Detect_IMU()
+IMU &IMU_Detector::Detect_IMU()
 {
     if (IMU_Detector::detected)
         return *IMU_Detector::imu;
 
-    if (IMU_Detector::i2c_init()) {
+    if (IMU_Detector::i2c_init())
+    {
 
-        if (IMU_Detector::try_i2c_imu(0x68 << 1, (0x68 << 1) | 1, 0x75, 0x68)) {
+        if (IMU_Detector::try_i2c_imu(0x68 << 1, (0x68 << 1) | 1, 0x75, 0x68))
+        {
             IMU_Detector::i2c_deinit();
 
             IMU_Detector::imu = &MPU6050::Instance();
@@ -177,8 +179,8 @@ IMU& IMU_Detector::Detect_IMU()
             IMU_Detector::detected = true;
 
             return *IMU_Detector::imu;
-        }
-        else if (IMU_Detector::try_spi_imu(0x75, 0x68, GPIO_NUM_17)) {
+        } else if (IMU_Detector::try_spi_imu(0x75, 0x68, GPIO_NUM_17))
+        {
             IMU_Detector::spi_deinit();
 
             IMU_Detector::imu = &MPU6000::Instance();

@@ -16,7 +16,8 @@ namespace flyhero
 class CRC
 {
 private:
-    CRC() {};
+    CRC()
+    {};
 
 public:
     static inline uint16_t CRC16(const uint8_t *data, uint8_t length);

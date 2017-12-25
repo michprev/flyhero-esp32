@@ -32,15 +32,20 @@ private:
     uint32_t d2;
 
     esp_err_t spi_init();
+
     esp_err_t reset();
+
     esp_err_t load_prom();
+
     esp_err_t read_d1();
+
     esp_err_t read_d2();
 
 public:
     static MS5611 &Instance();
 
     void Init();
+
     void Get_Data(int32_t &temperature, int32_t &pressure);
 };
 

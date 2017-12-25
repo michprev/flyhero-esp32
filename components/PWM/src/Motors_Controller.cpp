@@ -39,8 +39,8 @@ void Motors_Controller::Init()
 {
     double sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
 
-    this->stab_PIDs = new PID*[3];
-    this->rate_PIDs = new PID*[3];
+    this->stab_PIDs = new PID *[3];
+    this->rate_PIDs = new PID *[3];
 
     for (uint8_t i = ROLL; i <= YAW; i++)
     {

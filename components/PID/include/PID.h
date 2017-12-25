@@ -31,9 +31,13 @@ public:
     PID(double update_rate, double i_max = 0, double Kp = 0, double Ki = 0, double Kd = 0);
 
     double Get_PID(double error);
+
     void Set_Kp(double Kp);
+
     void Set_Ki(double Ki);
+
     void Set_Kd(double Kd);
+
     void Set_I_Max(double i_max);
 };
 

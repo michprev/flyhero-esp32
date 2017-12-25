@@ -30,14 +30,18 @@ private:
     SemaphoreHandle_t distance_semaphore;
 
     esp_err_t trigg_init();
+
     esp_err_t echo_init();
 
 public:
     HC_SR04(gpio_num_t trigg, gpio_num_t echo, gpio_isr_t isr_handler);
 
     void Init();
+
     void Trigger();
+
     double Get_Distance();
+
     void Echo_Callback();
 };
 

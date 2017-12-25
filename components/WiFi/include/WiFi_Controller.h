@@ -49,7 +49,9 @@ public:
 
 private:
     WiFi_Controller();
+
     WiFi_Controller(WiFi_Controller const &);
+
     WiFi_Controller &operator=(WiFi_Controller const &);
 
     struct __attribute__((__packed__)) in_data
@@ -105,18 +107,27 @@ public:
     static WiFi_Controller &Instance();
 
     void Init();
+
     esp_err_t UDP_Server_Start();
+
     esp_err_t UDP_Server_Stop();
+
     esp_err_t TCP_Server_Start();
+
     esp_err_t TCP_Server_Stop();
+
     esp_err_t TCP_Wait_For_Client();
 
     bool UDP_Receive(In_Datagram_Data &datagram_data);
+
     bool UDP_Send(Out_Datagram_Data datagram_data);
+
     bool TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *received_length);
+
     bool TCP_Send(const char *data, uint8_t data_length);
 
     void Client_Connected_Callback();
+
     void Client_Disconnected_Callback();
 
 };

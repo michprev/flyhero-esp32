@@ -22,7 +22,9 @@ class MPU6000 : public IMU
 {
 private:
     MPU6000();
+
     MPU6000(MPU6000 const &);
+
     MPU6000 &operator=(MPU6000 const &);
 
     enum gyro_fsr
@@ -99,26 +101,42 @@ private:
     bool data_ready;
 
     esp_err_t spi_init();
+
     esp_err_t int_init();
+
     esp_err_t spi_reg_write(uint8_t reg, uint8_t data);
+
     esp_err_t spi_reg_read(uint8_t reg, uint8_t &data);
+
     esp_err_t set_gyro_fsr(gyro_fsr fsr);
+
     esp_err_t set_accel_fsr(accel_fsr fsr);
+
     esp_err_t set_lpf(lpf_bandwidth lpf);
+
     esp_err_t set_sample_rate(uint16_t rate);
+
     esp_err_t set_interrupt(bool enable);
+
     esp_err_t load_offsets();
 
 public:
     static MPU6000 &Instance();
 
     void Init() override;
+
     bool Start() override;
+
     void Calibrate() override;
+
     uint16_t Get_Sample_Rate() override;
+
     void Read_Raw(Raw_Data &accel, Raw_Data &gyro) override;
+
     void Read_Data(Sensor_Data &accel, Sensor_Data &gyro) override;
+
     void Data_Ready_Callback() override;
+
     bool Data_Ready() override;
 };
 

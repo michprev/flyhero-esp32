@@ -34,8 +34,7 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
         delta_t = 0;
 
         this->last_time = esp_timer_get_time();
-    }
-    else
+    } else
     {
         int64_t tmp = esp_timer_get_time();
         delta_t = (tmp - this->last_time) * 0.000001;
@@ -60,10 +59,10 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
     // estimated direction of gravity and vector perpendicular to magnetic flux
     v.x = 2 * (this->quaternion.q1 * this->quaternion.q3
-             - this->quaternion.q0 * this->quaternion.q2);
+               - this->quaternion.q0 * this->quaternion.q2);
     v.y = 2 * (this->quaternion.q0 * this->quaternion.q1
-             + this->quaternion.q2 * this->quaternion.q3);
-    v.z = + this->quaternion.q0 * this->quaternion.q0
+               + this->quaternion.q2 * this->quaternion.q3);
+    v.z = +this->quaternion.q0 * this->quaternion.q0
           - this->quaternion.q1 * this->quaternion.q1
           - this->quaternion.q2 * this->quaternion.q2
           + this->quaternion.q3 * this->quaternion.q3;
@@ -94,19 +93,19 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     double qc = this->quaternion.q2;
 
     this->quaternion.q0 += 0.5 * delta_t * (-qb * gyro_rad.x - qc * gyro_rad.y
-                                                   - this->quaternion.q3 * gyro_rad.z);
+                                            - this->quaternion.q3 * gyro_rad.z);
     this->quaternion.q1 += 0.5 * delta_t * (qa * gyro_rad.x + qc * gyro_rad.z
-                                                   - this->quaternion.q3 * gyro_rad.y);
+                                            - this->quaternion.q3 * gyro_rad.y);
     this->quaternion.q2 += 0.5 * delta_t * (qa * gyro_rad.y - qb * gyro_rad.z
-                                                   + this->quaternion.q3 * gyro_rad.x);
+                                            + this->quaternion.q3 * gyro_rad.x);
     this->quaternion.q3 += 0.5 * delta_t * (qa * gyro_rad.z + qb * gyro_rad.y
-                                                   - qc * gyro_rad.x);
+                                            - qc * gyro_rad.x);
 
     // normalise quaternion
     recip_norm = 1 / std::sqrt(this->quaternion.q0 * this->quaternion.q0 +
-                                this->quaternion.q1 * this->quaternion.q1 +
-                                this->quaternion.q2 * this->quaternion.q2 +
-                                this->quaternion.q3 * this->quaternion.q3);
+                               this->quaternion.q1 * this->quaternion.q1 +
+                               this->quaternion.q2 * this->quaternion.q2 +
+                               this->quaternion.q3 * this->quaternion.q3);
 
     this->quaternion.q0 *= recip_norm;
     this->quaternion.q1 *= recip_norm;

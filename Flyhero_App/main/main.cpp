@@ -16,6 +16,7 @@ using namespace flyhero;
 QueueHandle_t wifi_log_data_queue;
 
 void wifi_task(void *args);
+
 void imu_task(void *args);
 
 extern "C" void app_main(void)
@@ -35,7 +36,7 @@ extern "C" void app_main(void)
     Motors_Controller::Instance().Init();
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
 
-    IMU& imu = IMU_Detector::Detect_IMU();
+    IMU &imu = IMU_Detector::Detect_IMU();
     imu.Init();
 
     // Initialize watchdog with 1 sec timeout
@@ -57,7 +58,7 @@ void imu_task(void *args)
     // Subscribe IMU task to watchdog
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
-    IMU& imu = IMU_Detector::Detect_IMU();
+    IMU &imu = IMU_Detector::Detect_IMU();
     Motors_Controller &motors_controller = Motors_Controller::Instance();
     Complementary_Filter complementary(0.98);
 
@@ -80,7 +81,7 @@ void imu_task(void *args)
                 log_data.euler[0] = complementary_euler;
 
                 log_data.free_time = (end - start) * imu.Get_Sample_Rate() * 0.01f;
-                
+
                 xQueueSend(wifi_log_data_queue, &log_data, 0);
                 i = 0;
             }
@@ -114,7 +115,7 @@ void wifi_task(void *args)
     {
         if (wifi.TCP_Receive(TCP_buffer, TCP_BUFFER_LENGTH, &received_length))
         {
-            if (strncmp((const char*)TCP_buffer, "start", 5) == 0)
+            if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
             {
                 if (IMU_Detector::Detect_IMU().Start())
                 {
@@ -123,12 +124,11 @@ void wifi_task(void *args)
                 } else
                     wifi.TCP_Send("nah", 3);
 
-            } else if (strncmp((const char*)TCP_buffer, "calibrate", 9) == 0)
+            } else if (strncmp((const char *) TCP_buffer, "calibrate", 9) == 0)
             {
                 IMU_Detector::Detect_IMU().Calibrate();
                 wifi.TCP_Send("yup", 3);
-            }
-            else
+            } else
                 wifi.TCP_Send("nah", 3);
         }
     }
@@ -147,9 +147,9 @@ void wifi_task(void *args)
             esp_task_wdt_reset();
 
             double parameters[3][3] = {
-                    { in_datagram_data.roll_kp * 0.01, in_datagram_data.roll_ki * 0.01, 0 },
+                    { in_datagram_data.roll_kp * 0.01,  in_datagram_data.roll_ki * 0.01,  0 },
                     { in_datagram_data.pitch_kp * 0.01, in_datagram_data.pitch_ki * 0.01, 0 },
-                    { in_datagram_data.yaw_kp * 0.01, in_datagram_data.yaw_ki * 0.01, 0 }
+                    { in_datagram_data.yaw_kp * 0.01,   in_datagram_data.yaw_ki * 0.01,   0 }
             };
 
             motors_controller.Set_Throttle(in_datagram_data.throttle);

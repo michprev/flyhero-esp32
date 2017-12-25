@@ -17,7 +17,8 @@ namespace flyhero
 class LEDs
 {
 private:
-    LEDs() {};
+    LEDs()
+    {};
 
 public:
     enum Color
@@ -26,7 +27,9 @@ public:
     };
 
     static void Init();
+
     static void Turn_On(Color color);
+
     static void Turn_Off(Color color);
 
 };

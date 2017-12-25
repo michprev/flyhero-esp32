@@ -464,7 +464,7 @@ uint16_t MPU6000::Get_Sample_Rate()
 
 void MPU6000::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
 {
-    const uint8_t tx_data[14] = {0x00};
+    const uint8_t tx_data[14] = { 0x00 };
     uint8_t rx_data[14];
 
     spi_transaction_t trans;
@@ -490,7 +490,7 @@ void MPU6000::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
 
 void MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 {
-    const uint8_t tx_data[14] = {0x00};
+    const uint8_t tx_data[14] = { 0x00 };
     uint8_t rx_data[14];
 
     spi_transaction_t trans;

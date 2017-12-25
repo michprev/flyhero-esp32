@@ -24,16 +24,20 @@ private:
     static bool detected;
 
     static bool i2c_init();
+
     static void i2c_deinit();
+
     static bool spi_init();
+
     static void spi_deinit();
 
     static bool try_i2c_imu(const uint8_t DEVICE_ADDRESS_WRITE, const uint8_t DEVICE_ADDRESS_READ,
                             const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE);
+
     static bool try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EXPECTED_VALUE, const gpio_num_t CS_NUM);
 
 public:
-    static IMU& Detect_IMU();
+    static IMU &Detect_IMU();
 
 };
 

@@ -27,9 +27,11 @@ private:
 
 public:
     Mahony_Filter(double kp, double ki);
+
     ~Mahony_Filter() override = default;
 
     void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles &euler) override;
+
     void Reset() override;
 
 };
