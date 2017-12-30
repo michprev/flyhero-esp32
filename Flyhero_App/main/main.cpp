@@ -13,6 +13,7 @@
 
 using namespace flyhero;
 
+Motors_Controller &motors_controller = Motors_Controller::Instance();
 QueueHandle_t wifi_log_data_queue;
 
 void wifi_task(void *args);
@@ -33,7 +34,7 @@ extern "C" void app_main(void)
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     LEDs::Init();
-    Motors_Controller::Instance().Init();
+    motors_controller.Init();
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
 
     IMU &imu = IMU_Detector::Detect_IMU();
@@ -59,7 +60,6 @@ void imu_task(void *args)
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     IMU &imu = IMU_Detector::Detect_IMU();
-    Motors_Controller &motors_controller = Motors_Controller::Instance();
     Complementary_Filter complementary(0.98);
 
     while (true)
@@ -97,7 +97,6 @@ void imu_task(void *args)
 void wifi_task(void *args)
 {
     WiFi_Controller &wifi = WiFi_Controller::Instance();
-    Motors_Controller &motors_controller = Motors_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
     WiFi_Controller::Out_Datagram_Data out_datagram_data;
 
