@@ -37,6 +37,7 @@ private:
 
     PWM_Generator &pwm;
     PID **stab_PIDs, **rate_PIDs;
+    Biquad_Filter *roll_filter, *pitch_filter, *yaw_filter;
     int16_t motor_FL, motor_FR, motor_BL, motor_BR;
     uint16_t throttle;
     bool invert_yaw;

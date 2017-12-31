@@ -41,6 +41,9 @@ void Motors_Controller::Init()
 
     this->stab_PIDs = new PID *[3];
     this->rate_PIDs = new PID *[3];
+    this->roll_filter = new Biquad_Filter(Biquad_Filter::FILTER_LOW_PASS, sample_rate, 100);
+    this->pitch_filter = new Biquad_Filter(Biquad_Filter::FILTER_LOW_PASS, sample_rate, 100);
+    this->yaw_filter = new Biquad_Filter(Biquad_Filter::FILTER_LOW_PASS, sample_rate, 100);
 
     for (uint8_t i = ROLL; i <= YAW; i++)
     {
@@ -144,12 +147,12 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data 
 
         while (xSemaphoreTake(this->rate_PIDs_semaphore, 0) != pdTRUE);
 
-        rate_corrections[ROLL] =
-                this->rate_PIDs[ROLL]->Get_PID(stab_corrections[ROLL] - gyro.y);
-        rate_corrections[PITCH] =
-                this->rate_PIDs[PITCH]->Get_PID(stab_corrections[PITCH] - gyro.x);
-        rate_corrections[YAW] =
-                this->rate_PIDs[YAW]->Get_PID(stab_corrections[YAW] - gyro.z);
+        rate_corrections[ROLL] = this->roll_filter->Apply_Filter(
+                this->rate_PIDs[ROLL]->Get_PID(stab_corrections[ROLL] - gyro.y));
+        rate_corrections[PITCH] = this->pitch_filter->Apply_Filter(
+                this->rate_PIDs[PITCH]->Get_PID(stab_corrections[PITCH] - gyro.x));
+        rate_corrections[YAW] = this->yaw_filter->Apply_Filter(
+                this->rate_PIDs[YAW]->Get_PID(stab_corrections[YAW] - gyro.z));
 
         xSemaphoreGive(this->rate_PIDs_semaphore);
 
