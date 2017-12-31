@@ -86,8 +86,8 @@ private:
     static const uint8_t TCP_BUFFER_LENGTH = 50;
     uint8_t tcp_buffer[TCP_BUFFER_LENGTH];
 
-    const uint16_t UDP_PORT = 4789;
-    const uint16_t TCP_PORT = 4821;
+    const uint16_t UDP_PORT = CONFIG_FLYHERO_WIFI_UDP_PORT;
+    const uint16_t TCP_PORT = CONFIG_FLYHERO_WIFI_TCP_PORT;
 
     int udp_server_fd;
     int tcp_server_fd;
