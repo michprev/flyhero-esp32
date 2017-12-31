@@ -108,15 +108,21 @@ void wifi_task(void *args)
     {
         if (wifi.UDP_Receive(datagram_data))
         {
-            motors_controller.Set_Throttle(datagram_data.throttle);
-
-            double parameters[3][3] = {
-                    { datagram_data.roll_kp * 0.01,  datagram_data.roll_ki * 0.01,  0 },
-                    { datagram_data.pitch_kp * 0.01, datagram_data.pitch_ki * 0.01, 0 },
-                    { datagram_data.yaw_kp * 0.01,   datagram_data.yaw_ki * 0.01,   0 }
+            double rate_parameters[3][3] = {
+                    { datagram_data.rate_roll_kp * 0.01,  0, 0 },
+                    { datagram_data.rate_pitch_kp * 0.01, 0, 0 },
+                    { datagram_data.rate_yaw_kp * 0.01,   0, 0 }
             };
 
-            motors_controller.Set_PID_Constants(Motors_Controller::RATE, parameters);
+            double stab_parameters[3][3] = {
+                    { datagram_data.stab_roll_kp * 0.01,  0, 0 },
+                    { datagram_data.stab_pitch_kp * 0.01, 0, 0 },
+                    { datagram_data.stab_yaw_kp * 0.01,   0, 0 }
+            };
+
+            motors_controller.Set_Throttle(datagram_data.throttle);
+            motors_controller.Set_PID_Constants(Motors_Controller::RATE, rate_parameters);
+            motors_controller.Set_PID_Constants(Motors_Controller::STABILIZE, stab_parameters);
         }
     }
 }
