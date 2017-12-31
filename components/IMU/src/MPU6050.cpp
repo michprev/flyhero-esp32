@@ -24,12 +24,14 @@ MPU6050 &MPU6050::Instance()
 }
 
 MPU6050::MPU6050()
+#if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
         : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
           accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
           accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
           gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
           gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
           gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
+#endif
 {
     this->g_fsr = GYRO_FSR_NOT_SET;
     this->g_mult = 0;
@@ -562,13 +564,23 @@ void MPU6050::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
     raw_gyro.y = -((data[10] << 8) | data[11]);
     raw_gyro.z = (data[12] << 8) | data[13];
 
-    accel.x = this->accel_x_filter.Apply_Filter((raw_accel.x + this->accel_offsets[0]) * this->a_mult);
-    accel.y = this->accel_y_filter.Apply_Filter((raw_accel.y + this->accel_offsets[1]) * this->a_mult);
-    accel.z = this->accel_z_filter.Apply_Filter((raw_accel.z + this->accel_offsets[2]) * this->a_mult);
+    accel.x = (raw_accel.x + this->accel_offsets[0]) * this->a_mult;
+    accel.y = (raw_accel.y + this->accel_offsets[1]) * this->a_mult;
+    accel.z = (raw_accel.z + this->accel_offsets[2]) * this->a_mult;
 
-    gyro.x = this->gyro_x_filter.Apply_Filter((raw_gyro.x + this->gyro_offsets[0]) * this->g_mult);
-    gyro.y = this->gyro_y_filter.Apply_Filter((raw_gyro.y + this->gyro_offsets[1]) * this->g_mult);
-    gyro.z = this->gyro_z_filter.Apply_Filter((raw_gyro.z + this->gyro_offsets[2]) * this->g_mult);
+    gyro.x = (raw_gyro.x + this->gyro_offsets[0]) * this->g_mult;
+    gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
+    gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
+
+#if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
+    accel.x = this->accel_x_filter.Apply_Filter(accel.x);
+    accel.y = this->accel_y_filter.Apply_Filter(accel.y);
+    accel.z = this->accel_z_filter.Apply_Filter(accel.z);
+
+    gyro.x = this->gyro_x_filter.Apply_Filter(gyro.x);
+    gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
+    gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
+#endif
 }
 
 void MPU6050::Data_Ready_Callback()

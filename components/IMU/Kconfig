@@ -1,14 +1,20 @@
 menu "Flyhero IMU"
 
+	config FLYHERO_IMU_USE_SOFT_LPF
+		bool "Use software LPF"
+		default y
+
 	config FLYHERO_IMU_ACCEL_SOFT_LPF
 		int "Accelerometer software LPF"
 		range 1 1000
 		default 10
+		depends on FLYHERO_IMU_USE_SOFT_LPF
 
 	config FLYHERO_IMU_GYRO_SOFT_LPF
 		int "Gyroscope software LPF"
 		range 1 1000
 		default 60
+		depends on FLYHERO_IMU_USE_SOFT_LPF
 
 	choice FLYHERO_IMU_HARD_LPF
 		prompt "Hardware LPF"

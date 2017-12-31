@@ -104,8 +104,11 @@ private:
     const uint8_t ADC_BITS = 16;
     const uint16_t SAMPLE_RATE = 1000;
 
+#if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
     Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
     Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
+#endif
+
     gyro_fsr g_fsr;
     accel_fsr a_fsr;
     gyro_lpf g_lpf;

@@ -86,8 +86,10 @@ private:
         uint8_t WHO_AM_I = 0x75;
     } REGISTERS;
 
+#if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
     Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
     Biquad_Filter gyro_x_filter, gyro_y_filter, gyro_z_filter;
+#endif
 
     gyro_fsr g_fsr;
     float g_mult;
