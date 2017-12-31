@@ -16,12 +16,12 @@ namespace flyhero
 class IMU
 {
 public:
-    struct Raw_Data
+    struct __attribute__((__packed__)) Raw_Data
     {
         int16_t x, y, z;
     };
 
-    struct Sensor_Data
+    struct __attribute__((__packed__)) Sensor_Data
     {
         double x, y, z;
     };
@@ -31,7 +31,7 @@ public:
         double roll, pitch, yaw;
     };
 
-    struct Quaternion
+    struct __attribute__((__packed__)) Quaternion
     {
         double q0, q1, q2, q3;
     };
