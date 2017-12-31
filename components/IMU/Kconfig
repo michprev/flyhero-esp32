@@ -35,4 +35,34 @@ menu "Flyhero IMU"
 
 	endchoice
 
+	choice FLYHERO_IMU_ACCEL_FSR
+		prompt "Accelerometer full-scale range"
+		default FLYHERO_IMU_ACCEL_FSR_16
+
+		config FLYHERO_IMU_ACCEL_FSR_2
+			bool "+- 2g"
+		config FLYHERO_IMU_ACCEL_FSR_4
+			bool "+- 4g"
+		config FLYHERO_IMU_ACCEL_FSR_8
+			bool "+- 8g"
+		config FLYHERO_IMU_ACCEL_FSR_16
+			bool "+- 16g"
+
+	endchoice
+
+	choice FLYHERO_IMU_GYRO_FSR
+		prompt "Gyroscope full-scale range"
+		default FLYHERO_IMU_GYRO_FSR_2000
+
+		config FLYHERO_IMU_GYRO_FSR_250
+			bool "+- 250 deg/sec"
+		config FLYHERO_IMU_GYRO_FSR_500
+			bool "+- 500 deg/sec"
+		config FLYHERO_IMU_GYRO_FSR_1000
+			bool "+- 1000 deg/sec"
+		config FLYHERO_IMU_GYRO_FSR_2000
+			bool "+- 2000 deg/sec"
+
+	endchoice
+
 endmenu
