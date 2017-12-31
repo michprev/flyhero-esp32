@@ -9,12 +9,14 @@
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
+#include "Logger.h"
 
 
 using namespace flyhero;
 
 Motors_Controller &motors_controller = Motors_Controller::Instance();
 QueueHandle_t wifi_log_data_queue;
+bool log_memory = false;
 
 void wifi_task(void *args);
 
@@ -37,6 +39,7 @@ extern "C" void app_main(void)
     motors_controller.Init();
     wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
 
+    Logger::Instance().Init();
     IMU &imu = IMU_Detector::Detect_IMU();
     imu.Init();
 
@@ -60,6 +63,7 @@ void imu_task(void *args)
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     IMU &imu = IMU_Detector::Detect_IMU();
+    Logger &logger = Logger::Instance();
     Complementary_Filter complementary(0.98);
 
     while (true)
@@ -71,6 +75,12 @@ void imu_task(void *args)
             esp_task_wdt_reset();
 
             imu.Read_Data(accel, gyro);
+
+            if (log_memory)
+            {
+                logger.Log_Next(&accel, sizeof(accel));
+                logger.Log_Next(&gyro, sizeof(gyro));
+            }
 
             complementary.Compute(accel, gyro, complementary_euler);
 
@@ -126,6 +136,11 @@ void wifi_task(void *args)
             } else if (strncmp((const char *) TCP_buffer, "calibrate", 9) == 0)
             {
                 IMU_Detector::Detect_IMU().Calibrate();
+                wifi.TCP_Send("yup", 3);
+            } else if (strncmp((const char *) TCP_buffer, "log", 3) == 0)
+            {
+                Logger::Instance().Erase();
+                log_memory = true;
                 wifi.TCP_Send("yup", 3);
             } else
                 wifi.TCP_Send("nah", 3);
