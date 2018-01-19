@@ -168,7 +168,7 @@ esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data)
         goto i2c_error;
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)))
         goto i2c_error;
-    if ((state = i2c_master_read_byte(cmd, data, 0x01)))
+    if ((state = i2c_master_read_byte(cmd, data, I2C_MASTER_NACK)))
         goto i2c_error;
     if ((state = i2c_master_stop(cmd)))
         goto i2c_error;
@@ -204,10 +204,7 @@ esp_err_t MPU6050::i2c_read(uint8_t reg, uint8_t *data, uint8_t data_size)
     if ((state = i2c_master_write_byte(cmd, this->I2C_ADDRESS_READ, true)))
         goto i2c_error;
 
-    if ((state = i2c_master_read(cmd, data, data_size - 1, 0x00)))
-        goto i2c_error;
-
-    if ((state = i2c_master_read_byte(cmd, data + data_size - 1, 0x01)))
+    if ((state = i2c_master_read(cmd, data, data_size , I2C_MASTER_LAST_NACK)))
         goto i2c_error;
 
     if ((state = i2c_master_stop(cmd)))

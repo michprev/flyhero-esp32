@@ -77,7 +77,7 @@ bool IMU_Detector::try_i2c_imu(const uint8_t DEVICE_ADDRESS_WRITE, const uint8_t
         goto i2c_error;
     if (i2c_master_write_byte(cmd, DEVICE_ADDRESS_READ, true) != ESP_OK)
         goto i2c_error;
-    if (i2c_master_read_byte(cmd, &who_am_i, 0x01) != ESP_OK)
+    if (i2c_master_read_byte(cmd, &who_am_i, I2C_MASTER_NACK) != ESP_OK)
         goto i2c_error;
     if (i2c_master_stop(cmd) != ESP_OK)
         goto i2c_error;
