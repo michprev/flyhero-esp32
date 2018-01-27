@@ -494,13 +494,33 @@ void MPU6050::Calibrate()
     this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
     this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
 
+    int16_t accel_z_calibration_value;
+
+    switch (this->a_fsr)
+    {
+        case ACCEL_FSR_2:
+            accel_z_calibration_value = 16384;
+            break;
+        case ACCEL_FSR_4:
+            accel_z_calibration_value = 8192;
+            break;
+        case ACCEL_FSR_8:
+            accel_z_calibration_value = 4096;
+            break;
+        case ACCEL_FSR_16:
+            accel_z_calibration_value = 2048;
+            break;
+        default:
+            return;
+    }
+
     for (uint16_t i = 0; i < 500; i++)
     {
         this->Read_Raw(accel, gyro);
 
         this->accel_offsets[0] += accel.x;
         this->accel_offsets[1] += accel.y;
-        this->accel_offsets[2] += accel.z - 2048;
+        this->accel_offsets[2] += accel.z - accel_z_calibration_value;
         this->gyro_offsets[0] += gyro.x;
         this->gyro_offsets[1] += gyro.y;
         this->gyro_offsets[2] += gyro.z;
