@@ -40,7 +40,9 @@ public:
 
     virtual bool Start() = 0;
 
-    virtual void Calibrate() = 0;
+    virtual void Accel_Calibrate() = 0;
+
+    virtual void Gyro_Calibrate() = 0;
 
     virtual uint16_t Get_Sample_Rate() = 0;
 

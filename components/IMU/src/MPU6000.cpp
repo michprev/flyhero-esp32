@@ -264,7 +264,7 @@ esp_err_t MPU6000::set_interrupt(bool enable)
     return this->spi_reg_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
 }
 
-esp_err_t MPU6000::load_offsets()
+esp_err_t MPU6000::load_accel_offsets()
 {
     esp_err_t ret;
 
@@ -290,18 +290,6 @@ esp_err_t MPU6000::load_offsets()
     if ((ret = nvs_get_u32(handle, "accel_z_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
         goto nvs_error;
     this->accel_offsets[2] = uint32_float_converter.float_value;
-
-    if ((ret = nvs_get_u32(handle, "gyro_x_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
-        goto nvs_error;
-    this->gyro_offsets[0] = uint32_float_converter.float_value;
-
-    if ((ret = nvs_get_u32(handle, "gyro_y_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
-        goto nvs_error;
-    this->gyro_offsets[1] = uint32_float_converter.float_value;
-
-    if ((ret = nvs_get_u32(handle, "gyro_z_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
-        goto nvs_error;
-    this->gyro_offsets[2] = uint32_float_converter.float_value;
 
     nvs_error:
 
@@ -426,7 +414,7 @@ void MPU6000::Init()
 
 bool MPU6000::Start()
 {
-    if (this->load_offsets() != ESP_OK)
+    if (this->load_accel_offsets() != ESP_OK)
         return false;
 
     ESP_ERROR_CHECK(this->set_interrupt(true));
@@ -435,12 +423,11 @@ bool MPU6000::Start()
     return true;
 }
 
-void MPU6000::Calibrate()
+void MPU6000::Accel_Calibrate()
 {
     Raw_Data accel, gyro;
 
     this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
-    this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
 
     int16_t accel_z_calibration_value;
 
@@ -462,24 +449,18 @@ void MPU6000::Calibrate()
             return;
     }
 
-    for (uint16_t i = 0; i < 500; i++)
+    for (uint16_t i = 0; i < 5000; i++)
     {
         this->Read_Raw(accel, gyro);
 
         this->accel_offsets[0] += accel.x;
         this->accel_offsets[1] += accel.y;
         this->accel_offsets[2] += accel.z - accel_z_calibration_value;
-        this->gyro_offsets[0] += gyro.x;
-        this->gyro_offsets[1] += gyro.y;
-        this->gyro_offsets[2] += gyro.z;
     }
 
-    this->accel_offsets[0] /= -500;
-    this->accel_offsets[1] /= -500;
-    this->accel_offsets[2] /= -500;
-    this->gyro_offsets[0] /= -500;
-    this->gyro_offsets[1] /= -500;
-    this->gyro_offsets[2] /= -500;
+    this->accel_offsets[0] /= -5000;
+    this->accel_offsets[1] /= -5000;
+    this->accel_offsets[2] /= -5000;
 
     nvs_handle handle;
 
@@ -501,16 +482,27 @@ void MPU6000::Calibrate()
     float_uint32_converter.float_value = this->accel_offsets[2];
     nvs_set_u32(handle, "accel_z_offset", float_uint32_converter.uint32_value);
 
-    float_uint32_converter.float_value = this->gyro_offsets[0];
-    nvs_set_u32(handle, "gyro_x_offset", float_uint32_converter.uint32_value);
-
-    float_uint32_converter.float_value = this->gyro_offsets[1];
-    nvs_set_u32(handle, "gyro_y_offset", float_uint32_converter.uint32_value);
-
-    float_uint32_converter.float_value = this->gyro_offsets[2];
-    nvs_set_u32(handle, "gyro_z_offset", float_uint32_converter.uint32_value);
-
     nvs_close(handle);
+}
+
+void MPU6000::Gyro_Calibrate()
+{
+    Raw_Data accel, gyro;
+
+    this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
+
+    for (uint16_t i = 0; i < 5000; i++)
+    {
+        this->Read_Raw(accel, gyro);
+
+        this->gyro_offsets[0] += gyro.x;
+        this->gyro_offsets[1] += gyro.y;
+        this->gyro_offsets[2] += gyro.z;
+    }
+
+    this->gyro_offsets[0] /= -5000;
+    this->gyro_offsets[1] /= -5000;
+    this->gyro_offsets[2] /= -5000;
 }
 
 uint16_t MPU6000::Get_Sample_Rate()

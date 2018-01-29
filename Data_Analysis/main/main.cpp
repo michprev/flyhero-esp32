@@ -44,16 +44,20 @@ void imu_task(void *args)
     euler.pitch = 0;
     euler.yaw = 0;
 
-    IMU::Euler_Angles complementary_euler, mahony_euler;
-    Complementary_Filter complementary_filter(0.97);
-    Mahony_Filter mahony_filter(25, 0);
+    //IMU::Euler_Angles complementary_euler, mahony_euler;
+    //Complementary_Filter complementary_filter(0.97);
+    //Mahony_Filter mahony_filter(25, 0);
 
     IMU &imu = IMU_Detector::Detect_IMU();
 
     imu.Init();
 
+    // wait for a while so that we can calibrate
+    vTaskDelay(2000 / portTICK_RATE_MS);
+    imu.Gyro_Calibrate();
+
     while (!imu.Start())
-        imu.Calibrate();
+        imu.Accel_Calibrate();
 
     while (true)
     {
@@ -61,13 +65,12 @@ void imu_task(void *args)
         {
             imu.Read_Data(accel, gyro);
 
-            complementary_filter.Compute(accel, gyro, complementary_euler);
-            mahony_filter.Compute(accel, gyro, mahony_euler);
+            //complementary_filter.Compute(accel, gyro, complementary_euler);
+            //mahony_filter.Compute(accel, gyro, mahony_euler);
 
             motors_controller.Update_Motors(euler, gyro);
 
-            printf("%f %f %f %f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z,
-                   (float) mahony_euler.roll, (float) mahony_euler.pitch, (float) mahony_euler.yaw);
+            printf("%f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
         }
     }
 }

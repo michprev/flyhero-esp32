@@ -126,6 +126,7 @@ void wifi_task(void *args)
         {
             if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
             {
+                IMU_Detector::Detect_IMU().Gyro_Calibrate();
                 if (IMU_Detector::Detect_IMU().Start())
                 {
                     wifi.TCP_Send("yup", 3);
@@ -135,7 +136,7 @@ void wifi_task(void *args)
 
             } else if (strncmp((const char *) TCP_buffer, "calibrate", 9) == 0)
             {
-                IMU_Detector::Detect_IMU().Calibrate();
+                IMU_Detector::Detect_IMU().Accel_Calibrate();
                 wifi.TCP_Send("yup", 3);
             } else if (strncmp((const char *) TCP_buffer, "log", 3) == 0)
             {

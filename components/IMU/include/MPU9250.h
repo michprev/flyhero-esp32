@@ -144,7 +144,7 @@ private:
 
     esp_err_t set_interrupt(bool enable);
 
-    esp_err_t load_offsets();
+    esp_err_t load_accel_offsets();
 
 
 public:
@@ -154,7 +154,9 @@ public:
 
     bool Start() override;
 
-    void Calibrate() override;
+    void Accel_Calibrate() override;
+
+    void Gyro_Calibrate() override;
 
     uint16_t Get_Sample_Rate() override;
 
