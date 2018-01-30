@@ -25,14 +25,12 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
     this->motor_BR = 0;
     this->motor_BL = 0;
 
-    this->invert_yaw = true;
     this->throttle = 0;
     this->reference_yaw = 0;
 
     this->stab_PIDs_semaphore = xSemaphoreCreateBinary();
     this->rate_PIDs_semaphore = xSemaphoreCreateBinary();
     this->throttle_semaphore = xSemaphoreCreateBinary();
-    this->invert_yaw_semaphore = xSemaphoreCreateBinary();
 }
 
 void Motors_Controller::Init()
@@ -60,7 +58,6 @@ void Motors_Controller::Init()
     xSemaphoreGive(this->stab_PIDs_semaphore);
     xSemaphoreGive(this->rate_PIDs_semaphore);
     xSemaphoreGive(this->throttle_semaphore);
-    xSemaphoreGive(this->invert_yaw_semaphore);
 
     this->pwm.Init();
     this->pwm.Arm();
@@ -109,16 +106,6 @@ void Motors_Controller::Set_Throttle(uint16_t throttle)
     xSemaphoreGive(this->throttle_semaphore);
 }
 
-void Motors_Controller::Set_Invert_Yaw(bool invert)
-{
-    // TODO semaphore might not be needed since boolean should be atomic
-    while (xSemaphoreTake(this->invert_yaw_semaphore, 0) != pdTRUE);
-
-    this->invert_yaw = invert;
-
-    xSemaphoreGive(this->invert_yaw_semaphore);
-}
-
 void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data gyro)
 {
     // consider more than 60 deg unsafe
@@ -156,36 +143,14 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data 
 
         xSemaphoreGive(this->rate_PIDs_semaphore);
 
-        while (xSemaphoreTake(this->invert_yaw_semaphore, 0) != pdTRUE);
-
-        // not sure about yaw signs
-        // FL + BR -> counterclockwise
-        // FR + BL -> clockwise
-        if (!this->invert_yaw)
-        {
-            xSemaphoreGive(this->invert_yaw_semaphore);
-
-            this->motor_FL = throttle - rate_corrections[ROLL] - rate_corrections[PITCH]
-                             - rate_corrections[YAW];
-            this->motor_BL = throttle - rate_corrections[ROLL] + rate_corrections[PITCH]
-                             + rate_corrections[YAW];
-            this->motor_FR = throttle + rate_corrections[ROLL] - rate_corrections[PITCH]
-                             + rate_corrections[YAW];
-            this->motor_BR = throttle + rate_corrections[ROLL] + rate_corrections[PITCH]
-                             - rate_corrections[YAW];
-        } else
-        {
-            xSemaphoreGive(this->invert_yaw_semaphore);
-
-            this->motor_FL = throttle - rate_corrections[ROLL] - rate_corrections[PITCH]
-                             + rate_corrections[YAW];
-            this->motor_BL = throttle - rate_corrections[ROLL] + rate_corrections[PITCH]
-                             - rate_corrections[YAW];
-            this->motor_FR = throttle + rate_corrections[ROLL] - rate_corrections[PITCH]
-                             - rate_corrections[YAW];
-            this->motor_BR = throttle + rate_corrections[ROLL] + rate_corrections[PITCH]
-                             + rate_corrections[YAW];
-        }
+        this->motor_FL = throttle - rate_corrections[ROLL] - rate_corrections[PITCH]
+                         + rate_corrections[YAW];
+        this->motor_BL = throttle - rate_corrections[ROLL] + rate_corrections[PITCH]
+                         - rate_corrections[YAW];
+        this->motor_FR = throttle + rate_corrections[ROLL] - rate_corrections[PITCH]
+                         - rate_corrections[YAW];
+        this->motor_BR = throttle + rate_corrections[ROLL] + rate_corrections[PITCH]
+                         + rate_corrections[YAW];
 
         if (this->motor_FL > 1000)
             this->motor_FL = 1000;
