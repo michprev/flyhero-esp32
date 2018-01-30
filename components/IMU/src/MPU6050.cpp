@@ -442,7 +442,9 @@ void MPU6050::Init()
 #endif
 
     // set low pass filter
-#if CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
+#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
+    ESP_ERROR_CHECK(this->set_lpf(LPF_256HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
     ESP_ERROR_CHECK(this->set_lpf(LPF_188HZ));
 #elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ
     ESP_ERROR_CHECK(this->set_lpf(LPF_98HZ));

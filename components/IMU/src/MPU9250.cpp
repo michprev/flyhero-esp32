@@ -411,7 +411,10 @@ void MPU9250::Init()
 #endif
 
     // set low pass filter
-#if CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
+#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
+    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_250HZ));
+    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
     ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_184HZ));
     ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
 #elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ

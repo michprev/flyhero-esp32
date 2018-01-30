@@ -18,20 +18,22 @@ menu "Flyhero IMU"
 
 	choice FLYHERO_IMU_HARD_LPF
 		prompt "Hardware LPF"
-		default FLYHERO_IMU_HARD_LPF_20HZ
+		default FLYHERO_IMU_HARD_LPF_256HZ
 
-		config FLYHERO_IMU_HARD_LPF_5HZ
-			bool "5 Hz"
-		config FLYHERO_IMU_HARD_LPF_10HZ
-			bool "10 Hz"
-		config FLYHERO_IMU_HARD_LPF_20HZ
-			bool "20 Hz"
-		config FLYHERO_IMU_HARD_LPF_42HZ
-			bool "42 Hz"
-		config FLYHERO_IMU_HARD_LPF_98HZ
-			bool "98 Hz"
+		config FLYHERO_IMU_HARD_LPF_256HZ
+			bool "256 Hz"
 		config FLYHERO_IMU_HARD_LPF_188HZ
 			bool "188 Hz"
+		config FLYHERO_IMU_HARD_LPF_98HZ
+			bool "98 Hz"
+		config FLYHERO_IMU_HARD_LPF_42HZ
+			bool "42 Hz"
+		config FLYHERO_IMU_HARD_LPF_20HZ
+			bool "20 Hz"
+		config FLYHERO_IMU_HARD_LPF_10HZ
+			bool "10 Hz"
+		config FLYHERO_IMU_HARD_LPF_5HZ
+			bool "5 Hz"
 
 	endchoice
 
@@ -39,14 +41,14 @@ menu "Flyhero IMU"
 		prompt "Accelerometer full-scale range"
 		default FLYHERO_IMU_ACCEL_FSR_16
 
-		config FLYHERO_IMU_ACCEL_FSR_2
-			bool "+- 2g"
-		config FLYHERO_IMU_ACCEL_FSR_4
-			bool "+- 4g"
-		config FLYHERO_IMU_ACCEL_FSR_8
-			bool "+- 8g"
 		config FLYHERO_IMU_ACCEL_FSR_16
 			bool "+- 16g"
+		config FLYHERO_IMU_ACCEL_FSR_8
+			bool "+- 8g"
+		config FLYHERO_IMU_ACCEL_FSR_4
+			bool "+- 4g"
+		config FLYHERO_IMU_ACCEL_FSR_2
+			bool "+- 2g"
 
 	endchoice
 
@@ -54,14 +56,14 @@ menu "Flyhero IMU"
 		prompt "Gyroscope full-scale range"
 		default FLYHERO_IMU_GYRO_FSR_2000
 
-		config FLYHERO_IMU_GYRO_FSR_250
-			bool "+- 250 deg/sec"
-		config FLYHERO_IMU_GYRO_FSR_500
-			bool "+- 500 deg/sec"
-		config FLYHERO_IMU_GYRO_FSR_1000
-			bool "+- 1000 deg/sec"
 		config FLYHERO_IMU_GYRO_FSR_2000
 			bool "+- 2000 deg/sec"
+		config FLYHERO_IMU_GYRO_FSR_1000
+			bool "+- 1000 deg/sec"
+		config FLYHERO_IMU_GYRO_FSR_500
+			bool "+- 500 deg/sec"
+		config FLYHERO_IMU_GYRO_FSR_250
+			bool "+- 250 deg/sec"
 
 	endchoice
 
