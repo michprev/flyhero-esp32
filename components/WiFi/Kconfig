@@ -18,6 +18,6 @@ menu "Flyhero WiFi"
 
 	config FLYHERO_WIFI_WPA2_PASSPHRASE
 		string "WPA2 passphrase"
-		default flyhero
+		default flyhero00
 
 endmenu
