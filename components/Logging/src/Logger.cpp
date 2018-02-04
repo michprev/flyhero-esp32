@@ -25,8 +25,14 @@ bool Logger::Init()
     this->partition = esp_partition_find_first((esp_partition_type_t) 0x40, (esp_partition_subtype_t) 0x40, NULL);
     this->write_offset = 0;
     this->read_offset = 0;
+    this->log = false;
 
     return esp_partition_verify(this->partition) != NULL;
+}
+
+void Logger::Enable_Writes()
+{
+    this->log = true;
 }
 
 bool Logger::Erase()
@@ -36,7 +42,7 @@ bool Logger::Erase()
 
 bool Logger::Log_Next(const void *data, size_t size)
 {
-    if (esp_partition_write(this->partition, this->write_offset, data, size) != ESP_OK)
+    if (!this->log || esp_partition_write(this->partition, this->write_offset, data, size) != ESP_OK)
         return false;
 
     this->write_offset += size;

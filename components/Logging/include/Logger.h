@@ -20,11 +20,14 @@ private:
 
     const esp_partition_t *partition;
     size_t write_offset, read_offset;
+    bool log;
 
 public:
     static Logger &Instance();
 
     bool Init();
+
+    void Enable_Writes();
 
     bool Erase();
 

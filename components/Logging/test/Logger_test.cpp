@@ -13,6 +13,7 @@ TEST_CASE("Basic logger test", "[logger]")
     Logger &logger = Logger::Instance();
 
     TEST_ASSERT_TRUE(logger.Init());
+    logger.Enable_Writes();
     TEST_ASSERT_TRUE(logger.Erase());
 
     bool var = true;
@@ -35,6 +36,7 @@ TEST_CASE("Array data type logger test", "[logger]")
     Logger &logger = Logger::Instance();
 
     TEST_ASSERT_TRUE(logger.Init());
+    logger.Enable_Writes();
     TEST_ASSERT_TRUE(logger.Erase());
 
     int var[4] = { 1, 2, 3, 4 };
@@ -71,6 +73,7 @@ TEST_CASE("Struct data type logger test", "[logger]")
     Logger &logger = Logger::Instance();
 
     TEST_ASSERT_TRUE(logger.Init());
+    logger.Enable_Writes();
     TEST_ASSERT_TRUE(logger.Erase());
 
     test_struct var;
@@ -128,6 +131,7 @@ TEST_CASE("Class data type logger test", "[logger]")
     Logger &logger = Logger::Instance();
 
     TEST_ASSERT_TRUE(logger.Init());
+    logger.Enable_Writes();
     TEST_ASSERT_TRUE(logger.Erase());
 
     test_class var;
@@ -153,6 +157,7 @@ TEST_CASE("Run out of space test", "[logger]")
     Logger &logger = Logger::Instance();
 
     TEST_ASSERT_TRUE(logger.Init());
+    logger.Enable_Writes();
     TEST_ASSERT_TRUE(logger.Erase());
 
     char var = 'a';
@@ -162,4 +167,16 @@ TEST_CASE("Run out of space test", "[logger]")
 
     TEST_ASSERT_FALSE(logger.Log_Next(&var, sizeof(var)));
     TEST_ASSERT_FALSE(logger.Log_Next(&var, sizeof(var)));
+}
+
+TEST_CASE("Not enabled test", "[logger]")
+{
+    Logger &logger = Logger::Instance();
+
+    TEST_ASSERT_TRUE(logger.Init());
+    TEST_ASSERT_TRUE(logger.Erase());
+
+    uint8_t x = 77;
+
+    TEST_ASSERT_FALSE(logger.Log_Next(&x, sizeof(x)));
 }

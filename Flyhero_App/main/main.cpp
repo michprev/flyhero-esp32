@@ -16,7 +16,6 @@ using namespace flyhero;
 
 Motors_Controller &motors_controller = Motors_Controller::Instance();
 QueueHandle_t wifi_log_data_queue;
-bool log_memory = false;
 
 void wifi_task(void *args);
 
@@ -76,11 +75,8 @@ void imu_task(void *args)
 
             imu.Read_Data(accel, gyro);
 
-            if (log_memory)
-            {
-                logger.Log_Next(&accel, sizeof(accel));
-                logger.Log_Next(&gyro, sizeof(gyro));
-            }
+            logger.Log_Next(&accel, sizeof(accel));
+            logger.Log_Next(&gyro, sizeof(gyro));
 
             complementary.Compute(accel, gyro, complementary_euler);
 
@@ -141,7 +137,7 @@ void wifi_task(void *args)
             } else if (strncmp((const char *) TCP_buffer, "log", 3) == 0)
             {
                 Logger::Instance().Erase();
-                log_memory = true;
+                Logger::Instance().Enable_Writes();
                 wifi.TCP_Send("yup", 3);
             } else
                 wifi.TCP_Send("nah", 3);
