@@ -35,7 +35,7 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
 
 void Motors_Controller::Init()
 {
-    float sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
+    float sample_rate = IMU_Detector::Detect_IMU().Get_Gyro_Sample_Rate();
 
     this->stab_PIDs = new PID *[3];
     this->rate_PIDs = new PID *[3];

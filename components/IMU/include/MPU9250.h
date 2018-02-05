@@ -97,6 +97,7 @@ private:
         uint8_t INT_PIN_CFG = 55;
         uint8_t INT_ENABLE = 56;
         uint8_t ACCEL_XOUT_H = 59;
+        uint8_t GYRO_XOUT_H = 67;
         uint8_t SIGNAL_PATH_RESET = 104;
         uint8_t USER_CTRL = 106;
         uint8_t PWR_MGMT_1 = 107;
@@ -104,8 +105,17 @@ private:
         uint8_t WHO_AM_I = 117;
     } REGISTERS;
 
+#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
+    const float GYRO_SAMPLE_RATE = 8000;
+    const float ACCEL_SAMPLE_RATE = 1000;
+    const uint8_t SAMPLE_RATES_RATIO = 8;
+#else
+    const float GYRO_SAMPLE_RATE = 1000;
+    const float ACCEL_SAMPLE_RATE = 1000;
+    const uint8_t SAMPLE_RATES_RATIO = 1;
+#endif
+
     const uint8_t ADC_BITS = 16;
-    const uint16_t SAMPLE_RATE = 1000;
 
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
     Biquad_Filter accel_x_filter, accel_y_filter, accel_z_filter;
@@ -117,12 +127,15 @@ private:
     gyro_lpf g_lpf;
     accel_lpf a_lpf;
     float g_mult, a_mult;
-    uint16_t sample_rate;
+    bool sample_rate_divider_set;
+    uint8_t sample_rate_divider;
     spi_device_handle_t spi;
     bool data_ready;
     bool ready;
     float accel_offsets[3];
     float gyro_offsets[3];
+    Sensor_Data last_accel;
+    uint8_t readings_counter;
 
     esp_err_t spi_init();
 
@@ -140,7 +153,7 @@ private:
 
     esp_err_t set_accel_lpf(accel_lpf lpf);
 
-    esp_err_t set_sample_rate(uint16_t rate);
+    esp_err_t set_sample_rate_divider(uint8_t divider);
 
     esp_err_t set_interrupt(bool enable);
 
@@ -158,7 +171,11 @@ public:
 
     void Gyro_Calibrate() override;
 
-    uint16_t Get_Sample_Rate() override;
+    float Get_Accel_Sample_Rate() override;
+
+    float Get_Gyro_Sample_Rate() override;
+
+    uint8_t Get_Sample_Rates_Ratio() override;
 
     void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) override;
 

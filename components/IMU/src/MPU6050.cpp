@@ -25,12 +25,12 @@ MPU6050 &MPU6050::Instance()
 
 MPU6050::MPU6050()
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
-        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
-          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
-          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
-          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
-          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
-          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
+        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->ACCEL_SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->ACCEL_SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->ACCEL_SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
 #endif
 {
     this->g_fsr = GYRO_FSR_NOT_SET;
@@ -38,7 +38,8 @@ MPU6050::MPU6050()
     this->a_mult = 0;
     this->a_fsr = ACCEL_FSR_NOT_SET;
     this->lpf = LPF_NOT_SET;
-    this->sample_rate = 0;
+    this->sample_rate_divider_set = false;
+    this->sample_rate_divider = 0;
     this->accel_offsets[0] = 0;
     this->accel_offsets[1] = 0;
     this->accel_offsets[2] = 0;
@@ -316,16 +317,15 @@ esp_err_t MPU6050::set_lpf(lpf_bandwidth lpf)
     return ESP_FAIL;
 }
 
-esp_err_t MPU6050::set_sample_rate(uint16_t rate)
+esp_err_t MPU6050::set_sample_rate_divider(uint8_t divider)
 {
-    if (this->sample_rate == rate)
+    if (this->sample_rate_divider == divider && this->sample_rate_divider_set)
         return ESP_OK;
 
-    uint8_t val = (1000 - rate) / rate;
-
-    if (this->i2c_write(this->REGISTERS.SMPRT_DIV, val) == ESP_OK)
+    if (this->i2c_write(this->REGISTERS.SMPRT_DIV, divider) == ESP_OK)
     {
-        this->sample_rate = rate;
+        this->sample_rate_divider_set = true;
+        this->sample_rate_divider = divider;
         return ESP_OK;
     }
 
@@ -461,7 +461,11 @@ void MPU6050::Init()
 #endif
 
     // set sample rate
-    ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
+#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
+    ESP_ERROR_CHECK(this->set_sample_rate_divider(7));
+#else
+    ESP_ERROR_CHECK(this->set_sample_rate_divider(0));
+#endif
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
 }
@@ -559,9 +563,19 @@ void MPU6050::Gyro_Calibrate()
     this->gyro_offsets[2] /= -5000;
 }
 
-uint16_t MPU6050::Get_Sample_Rate()
+float MPU6050::Get_Accel_Sample_Rate()
 {
-    return this->SAMPLE_RATE;
+    return this->ACCEL_SAMPLE_RATE;
+}
+
+float MPU6050::Get_Gyro_Sample_Rate()
+{
+    return this->GYRO_SAMPLE_RATE;
+}
+
+uint8_t MPU6050::Get_Sample_Rates_Ratio()
+{
+    return this->SAMPLE_RATES_RATIO;
 }
 
 void MPU6050::Read_Raw(Raw_Data &accel, Raw_Data &gyro)

@@ -44,7 +44,11 @@ public:
 
     virtual void Gyro_Calibrate() = 0;
 
-    virtual uint16_t Get_Sample_Rate() = 0;
+    virtual float Get_Accel_Sample_Rate() = 0;
+
+    virtual float Get_Gyro_Sample_Rate() = 0;
+
+    virtual uint8_t Get_Sample_Rates_Ratio() = 0;
 
     virtual void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) = 0;
 

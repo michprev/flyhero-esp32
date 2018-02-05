@@ -5,6 +5,7 @@
  *      Author: michp
  */
 
+#include <MPU9250.h>
 #include "MPU9250.h"
 
 
@@ -25,12 +26,12 @@ MPU9250 &MPU9250::Instance()
 
 MPU9250::MPU9250()
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
-        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
-          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
-          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
-          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
-          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
-          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
+        : accel_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->ACCEL_SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->ACCEL_SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          accel_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->ACCEL_SAMPLE_RATE, CONFIG_FLYHERO_IMU_ACCEL_SOFT_LPF),
+          gyro_x_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
+          gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
 #endif
 {
     this->spi = NULL;
@@ -40,7 +41,8 @@ MPU9250::MPU9250()
     this->g_fsr = GYRO_FSR_NOT_SET;
     this->g_lpf = GYRO_LPF_NOT_SET;
     this->g_mult = 0;
-    this->sample_rate = 0;
+    this->sample_rate_divider_set = false;
+    this->sample_rate_divider = 0;
     this->data_ready = false;
     this->ready = false;
     this->accel_offsets[0] = 0;
@@ -49,6 +51,7 @@ MPU9250::MPU9250()
     this->gyro_offsets[0] = 0;
     this->gyro_offsets[1] = 0;
     this->gyro_offsets[2] = 0;
+    this->readings_counter = 0;
 }
 
 esp_err_t MPU9250::spi_init()
@@ -290,18 +293,19 @@ esp_err_t MPU9250::set_accel_lpf(accel_lpf lpf)
     return ESP_OK;
 }
 
-esp_err_t MPU9250::set_sample_rate(uint16_t rate)
+esp_err_t MPU9250::set_sample_rate_divider(uint8_t divider)
 {
-    // setting SMPLRT_DIV won't be effective in cases:
-    // 8800 Hz => sample at 32 kHz
-    // 3600 Hz => sample at 32 kHz
-    // 250 Hz => sample at 8 kHz
-    if (this->g_lpf == GYRO_LPF_8800HZ || this->g_lpf == GYRO_LPF_3600Hz || this->g_lpf == GYRO_LPF_250HZ)
+    if (this->sample_rate_divider == divider && this->sample_rate_divider_set)
         return ESP_OK;
 
-    uint8_t div = (1000 - rate) / rate;
+    if (this->spi_reg_write(this->REGISTERS.SMPLRT_DIV, divider) == ESP_OK)
+    {
+        this->sample_rate_divider_set = true;
+        this->sample_rate_divider = divider;
+        return ESP_OK;
+    }
 
-    return this->spi_reg_write(this->REGISTERS.SMPLRT_DIV, div);
+    return ESP_FAIL;
 }
 
 esp_err_t MPU9250::set_interrupt(bool enable)
@@ -436,7 +440,7 @@ void MPU9250::Init()
 #error "Gyro hardware LPF not set"
 #endif
 
-    ESP_ERROR_CHECK(this->set_sample_rate(this->SAMPLE_RATE));
+    ESP_ERROR_CHECK(this->set_sample_rate_divider(0));
 
     // set SPI speed to 20 MHz
 
@@ -555,9 +559,19 @@ void MPU9250::Gyro_Calibrate()
     this->gyro_offsets[2] /= -5000;
 }
 
-uint16_t MPU9250::Get_Sample_Rate()
+float MPU9250::Get_Accel_Sample_Rate()
 {
-    return this->SAMPLE_RATE;
+    return this->ACCEL_SAMPLE_RATE;
+}
+
+float MPU9250::Get_Gyro_Sample_Rate()
+{
+    return this->GYRO_SAMPLE_RATE;
+}
+
+uint8_t MPU9250::Get_Sample_Rates_Ratio()
+{
+    return this->SAMPLE_RATES_RATIO;
 }
 
 void MPU9250::Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro)
@@ -591,51 +605,91 @@ void MPU9250::Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro)
 
 void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 {
-    static const uint8_t tx_data[14] = { 0x00 };
-    static uint8_t rx_data[14];
+    if (this->readings_counter == 0)
+    {
+        const uint8_t tx_data[14] = { 0x00 };
+        uint8_t rx_data[14];
 
-    spi_transaction_t trans;
-    trans.flags = 0;
-    trans.cmd = 0;
-    trans.addr = this->REGISTERS.ACCEL_XOUT_H | 0x80;
-    trans.length = 14 * 8;
-    trans.rxlength = 14 * 8;
-    trans.user = 0;
-    trans.tx_buffer = tx_data;
-    trans.rx_buffer = rx_data;
+        spi_transaction_t trans;
+        trans.flags = 0;
+        trans.cmd = 0;
+        trans.addr = this->REGISTERS.ACCEL_XOUT_H | 0x80;
+        trans.length = 14 * 8;
+        trans.rxlength = 14 * 8;
+        trans.user = 0;
+        trans.tx_buffer = tx_data;
+        trans.rx_buffer = rx_data;
 
-    // reading:
-    // 75 us not 32b aligned, non DMA capable mem
-    // 69 us 32b aligned, DMA capable mem
-    ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
+        ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
 
-    static Raw_Data raw_accel, raw_gyro;
+        Raw_Data raw_accel, raw_gyro;
 
-    raw_accel.x = (rx_data[2] << 8) | rx_data[3];
-    raw_accel.y = (rx_data[0] << 8) | rx_data[1];
-    raw_accel.z = (rx_data[4] << 8) | rx_data[5];
+        raw_accel.x = (rx_data[2] << 8) | rx_data[3];
+        raw_accel.y = (rx_data[0] << 8) | rx_data[1];
+        raw_accel.z = (rx_data[4] << 8) | rx_data[5];
 
-    raw_gyro.x = -((rx_data[8] << 8) | rx_data[9]);
-    raw_gyro.y = -((rx_data[10] << 8) | rx_data[11]);
-    raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
+        raw_gyro.x = -((rx_data[8] << 8) | rx_data[9]);
+        raw_gyro.y = -((rx_data[10] << 8) | rx_data[11]);
+        raw_gyro.z = (rx_data[12] << 8) | rx_data[13];
 
-    accel.x = (raw_accel.x + this->accel_offsets[0]) * this->a_mult;
-    accel.y = (raw_accel.y + this->accel_offsets[1]) * this->a_mult;
-    accel.z = (raw_accel.z + this->accel_offsets[2]) * this->a_mult;
+        accel.x = (raw_accel.x + this->accel_offsets[0]) * this->a_mult;
+        accel.y = (raw_accel.y + this->accel_offsets[1]) * this->a_mult;
+        accel.z = (raw_accel.z + this->accel_offsets[2]) * this->a_mult;
 
-    gyro.x = (raw_gyro.x + this->gyro_offsets[0]) * this->g_mult;
-    gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
-    gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
+        gyro.x = (raw_gyro.x + this->gyro_offsets[0]) * this->g_mult;
+        gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
+        gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
 
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
-    accel.x = this->accel_x_filter.Apply_Filter(accel.x);
-    accel.y = this->accel_y_filter.Apply_Filter(accel.y);
-    accel.z = this->accel_z_filter.Apply_Filter(accel.z);
+        accel.x = this->accel_x_filter.Apply_Filter(accel.x);
+        accel.y = this->accel_y_filter.Apply_Filter(accel.y);
+        accel.z = this->accel_z_filter.Apply_Filter(accel.z);
 
-    gyro.x = this->gyro_x_filter.Apply_Filter(gyro.x);
-    gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
-    gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
+        gyro.x = this->gyro_x_filter.Apply_Filter(gyro.x);
+        gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
+        gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
 #endif
+        this->last_accel = accel;
+    } else
+    {
+        const uint8_t tx_data[6] = { 0x00 };
+        uint8_t rx_data[6];
+
+        spi_transaction_t trans;
+        trans.flags = 0;
+        trans.cmd = 0;
+        trans.addr = this->REGISTERS.GYRO_XOUT_H | 0x80;
+        trans.length = 6 * 8;
+        trans.rxlength = 6 * 8;
+        trans.user = 0;
+        trans.tx_buffer = tx_data;
+        trans.rx_buffer = rx_data;
+
+        ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
+
+        Raw_Data raw_gyro;
+
+        raw_gyro.x = -((rx_data[0] << 8) | rx_data[1]);
+        raw_gyro.y = -((rx_data[2] << 8) | rx_data[3]);
+        raw_gyro.z = (rx_data[4] << 8) | rx_data[5];
+
+        accel = this->last_accel;
+
+        gyro.x = (raw_gyro.x + this->gyro_offsets[0]) * this->g_mult;
+        gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
+        gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
+
+#if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
+        gyro.x = this->gyro_x_filter.Apply_Filter(gyro.x);
+        gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
+        gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
+#endif
+    }
+
+    this->readings_counter++;
+
+    if (this->readings_counter == this->SAMPLE_RATES_RATIO)
+        this->readings_counter = 0;
 }
 
 void MPU9250::Data_Ready_Callback()
