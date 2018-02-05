@@ -15,7 +15,6 @@
 using namespace flyhero;
 
 Motors_Controller &motors_controller = Motors_Controller::Instance();
-QueueHandle_t wifi_log_data_queue;
 
 void wifi_task(void *args);
 
@@ -36,7 +35,6 @@ extern "C" void app_main(void)
 
     LEDs::Init();
     motors_controller.Init();
-    wifi_log_data_queue = xQueueCreate(2, sizeof(WiFi_Controller::Out_Datagram_Data));
 
     Logger::Instance().Init();
     IMU &imu = IMU_Detector::Detect_IMU();
@@ -52,9 +50,6 @@ extern "C" void app_main(void)
 
 void imu_task(void *args)
 {
-    WiFi_Controller::Out_Datagram_Data log_data;
-    int64_t start = esp_timer_get_time(), end;
-    uint8_t i = 0;
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles complementary_euler;
 
@@ -69,8 +64,6 @@ void imu_task(void *args)
     {
         if (imu.Data_Ready())
         {
-            end = esp_timer_get_time();
-
             esp_task_wdt_reset();
 
             imu.Read_Data(accel, gyro);
@@ -80,22 +73,7 @@ void imu_task(void *args)
 
             complementary.Compute(accel, gyro, complementary_euler);
 
-            i++;
-
-            if (i == imu.Get_Sample_Rate() / 10)
-            {
-                log_data.euler[0] = complementary_euler;
-
-                log_data.free_time = (end - start) * imu.Get_Sample_Rate() * 0.01f;
-
-                xQueueSend(wifi_log_data_queue, &log_data, 0);
-                i = 0;
-            }
-
-
             motors_controller.Update_Motors(complementary_euler, gyro);
-
-            start = esp_timer_get_time();
         }
     }
 }
@@ -104,7 +82,6 @@ void wifi_task(void *args)
 {
     WiFi_Controller &wifi = WiFi_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
-    WiFi_Controller::Out_Datagram_Data out_datagram_data;
 
     const uint8_t TCP_BUFFER_LENGTH = 50;
     char TCP_buffer[TCP_BUFFER_LENGTH];
@@ -172,11 +149,6 @@ void wifi_task(void *args)
             motors_controller.Set_Throttle(in_datagram_data.throttle);
             motors_controller.Set_PID_Constants(Motors_Controller::RATE, rate_parameters);
             motors_controller.Set_PID_Constants(Motors_Controller::STABILIZE, stab_parameters);
-        }
-
-        if (xQueueReceive(wifi_log_data_queue, &out_datagram_data, 0) == pdTRUE)
-        {
-            wifi.UDP_Send(out_datagram_data);
         }
     }
 }
