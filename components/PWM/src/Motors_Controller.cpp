@@ -25,8 +25,11 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
     this->motor_BR = 0;
     this->motor_BL = 0;
 
+    this->rate_setpoints[0] = 0;
+    this->rate_setpoints[1] = 0;
+    this->rate_setpoints[2] = 0;
+
     this->throttle = 0;
-    this->reference_yaw = 0;
 
     this->stab_PIDs_semaphore = xSemaphoreCreateBinary();
     this->rate_PIDs_semaphore = xSemaphoreCreateBinary();
@@ -103,7 +106,7 @@ void Motors_Controller::Set_Throttle(uint16_t throttle)
     xSemaphoreGive(this->throttle_semaphore);
 }
 
-void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data gyro)
+void Motors_Controller::Feed_Stab_PIDs(IMU::Euler_Angles euler)
 {
     // consider more than 60 deg unsafe
     if (std::fabs(euler.roll) > 60 || std::fabs(euler.pitch) > 60)
@@ -115,28 +118,38 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data 
 
     xSemaphoreGive(this->throttle_semaphore);
 
+    if (throttle > 180)
+    {
+        while (xSemaphoreTake(this->stab_PIDs_semaphore, 0) != pdTRUE);
+
+        this->rate_setpoints[ROLL] = this->stab_PIDs[ROLL]->Get_PID(0 - euler.roll);
+        this->rate_setpoints[PITCH] = this->stab_PIDs[PITCH]->Get_PID(0 - euler.pitch);
+        this->rate_setpoints[YAW] = 0;
+
+        xSemaphoreGive(this->stab_PIDs_semaphore);
+    }
+}
+
+void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
+{
+    while (xSemaphoreTake(this->throttle_semaphore, 0) != pdTRUE);
+
+    uint16_t throttle = this->throttle;
+
+    xSemaphoreGive(this->throttle_semaphore);
 
     if (throttle > 180)
     {
-        float stab_corrections[3], rate_corrections[3];
-
-        while (xSemaphoreTake(this->stab_PIDs_semaphore, 0) != pdTRUE);
-
-        stab_corrections[ROLL] = this->stab_PIDs[ROLL]->Get_PID(0 - euler.roll);
-        stab_corrections[PITCH] = this->stab_PIDs[PITCH]->Get_PID(0 - euler.pitch);
-        stab_corrections[YAW] = 0;
-        //stab_corrections[YAW] = this->stab_PIDs[YAW]->Get_PID(this->reference_yaw - euler.yaw);
-
-        xSemaphoreGive(this->stab_PIDs_semaphore);
+        float rate_corrections[3];
 
         while (xSemaphoreTake(this->rate_PIDs_semaphore, 0) != pdTRUE);
 
         rate_corrections[ROLL] =
-                this->rate_PIDs[ROLL]->Get_PID(stab_corrections[ROLL] - gyro.y);
+                this->rate_PIDs[ROLL]->Get_PID(this->rate_setpoints[ROLL] - gyro.y);
         rate_corrections[PITCH] =
-                this->rate_PIDs[PITCH]->Get_PID(stab_corrections[PITCH] - gyro.x);
+                this->rate_PIDs[PITCH]->Get_PID(this->rate_setpoints[PITCH] - gyro.x);
         rate_corrections[YAW] =
-                this->rate_PIDs[YAW]->Get_PID(stab_corrections[YAW] - gyro.z);
+                this->rate_PIDs[YAW]->Get_PID(this->rate_setpoints[YAW] - gyro.z);
 
         xSemaphoreGive(this->rate_PIDs_semaphore);
 
@@ -175,11 +188,6 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data 
         this->pwm.Set_Pulse(PWM_Generator::MOTOR_BR, this->motor_BR);
     } else
     {
-        this->reference_yaw = euler.yaw;
-
-        // TODO
-        //MPU6050::Instance().Reset_Integrators();
-
         this->pwm.Set_Pulse(PWM_Generator::MOTOR_FL, 0);
         this->pwm.Set_Pulse(PWM_Generator::MOTOR_BL, 0);
         this->pwm.Set_Pulse(PWM_Generator::MOTOR_FR, 0);

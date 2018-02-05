@@ -59,6 +59,8 @@ void imu_task(void *args)
     while (!imu.Start())
         imu.Accel_Calibrate();
 
+    uint8_t readings_counter = 0;
+
     while (true)
     {
         if (imu.Data_Ready())
@@ -68,7 +70,17 @@ void imu_task(void *args)
             //complementary_filter.Compute(accel, gyro, complementary_euler);
             //mahony_filter.Compute(accel, gyro, mahony_euler);
 
-            motors_controller.Update_Motors(euler, gyro);
+            if (readings_counter == 0)
+            {
+                motors_controller.Feed_Stab_PIDs(euler);
+                motors_controller.Feed_Rate_PIDs(gyro);
+            } else
+                motors_controller.Feed_Rate_PIDs(gyro);
+
+            readings_counter++;
+
+            if (readings_counter == imu.Get_Sample_Rates_Ratio())
+                readings_counter = 0;
 
             printf("%f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
         }

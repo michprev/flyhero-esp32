@@ -60,6 +60,8 @@ void imu_task(void *args)
     Logger &logger = Logger::Instance();
     Complementary_Filter complementary(0.97f);
 
+    uint8_t readings_counter = 0;
+
     while (true)
     {
         if (imu.Data_Ready())
@@ -73,7 +75,17 @@ void imu_task(void *args)
 
             complementary.Compute(accel, gyro, complementary_euler);
 
-            motors_controller.Update_Motors(complementary_euler, gyro);
+            if (readings_counter == 0)
+            {
+                motors_controller.Feed_Stab_PIDs(complementary_euler);
+                motors_controller.Feed_Rate_PIDs(gyro);
+            } else
+                motors_controller.Feed_Rate_PIDs(gyro);
+
+            readings_counter++;
+
+            if (readings_counter == imu.Get_Sample_Rates_Ratio())
+                readings_counter = 0;
         }
     }
 }
