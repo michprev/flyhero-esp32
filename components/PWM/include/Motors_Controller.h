@@ -39,7 +39,7 @@ private:
     PID **stab_PIDs, **rate_PIDs;
     int16_t motor_FL, motor_FR, motor_BL, motor_BR;
     uint16_t throttle;
-    double reference_yaw;
+    float reference_yaw;
 
     SemaphoreHandle_t stab_PIDs_semaphore, rate_PIDs_semaphore, throttle_semaphore;
 
@@ -54,7 +54,7 @@ public:
     // to be called from CORE 0
     void Init();
 
-    void Set_PID_Constants(PID_Type type, double parameters[3][3]);
+    void Set_PID_Constants(PID_Type type, float parameters[3][3]);
 
     void Set_Throttle(uint16_t throttle);
 

@@ -11,17 +11,17 @@
 namespace flyhero
 {
 
-Biquad_Filter::Biquad_Filter(Filter_Type type, double sample_frequency, double cut_frequency)
+Biquad_Filter::Biquad_Filter(Filter_Type type, float sample_frequency, float cut_frequency)
 {
-    double K = std::tan(M_PI * cut_frequency / sample_frequency);
-    double Q = 1.0 / std::sqrt(2); // let Q be 1 / sqrt(2) for Butterworth
+    float K = tanf(Math::PI * cut_frequency / sample_frequency);
+    float Q = 1.0f / sqrtf(2); // let Q be 1 / sqrt(2) for Butterworth
 
-    double norm;
+    float norm;
 
     switch (type)
     {
         case FILTER_LOW_PASS:
-            norm = 1.0 / (1 + K / Q + K * K);
+            norm = 1.0f / (1 + K / Q + K * K);
 
             this->a0 = K * K * norm;
             this->a1 = 2 * this->a0;
@@ -31,7 +31,7 @@ Biquad_Filter::Biquad_Filter(Filter_Type type, double sample_frequency, double c
 
             break;
         case FILTER_NOTCH:
-            norm = 1.0 / (1 + K / Q + K * K);
+            norm = 1.0f / (1 + K / Q + K * K);
 
             this->a0 = (1 + K * K) * norm;
             this->a1 = 2 * (K * K - 1) * norm;

@@ -23,17 +23,17 @@ public:
 
     struct __attribute__((__packed__)) Sensor_Data
     {
-        double x, y, z;
+        float x, y, z;
     };
 
     struct __attribute__((__packed__)) Euler_Angles
     {
-        double roll, pitch, yaw;
+        float roll, pitch, yaw;
     };
 
     struct __attribute__((__packed__)) Quaternion
     {
-        double q0, q1, q2, q3;
+        float q0, q1, q2, q3;
     };
 
     virtual void Init() = 0;

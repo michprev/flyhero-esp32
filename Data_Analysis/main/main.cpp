@@ -45,7 +45,7 @@ void imu_task(void *args)
     euler.yaw = 0;
 
     //IMU::Euler_Angles complementary_euler, mahony_euler;
-    //Complementary_Filter complementary_filter(0.97);
+    //Complementary_Filter complementary_filter(0.97f);
     //Mahony_Filter mahony_filter(25, 0);
 
     IMU &imu = IMU_Detector::Detect_IMU();
@@ -111,16 +111,16 @@ void wifi_task(void *args)
     {
         if (wifi.UDP_Receive(datagram_data))
         {
-            double rate_parameters[3][3] = {
-                    { datagram_data.rate_roll_kp * 0.01,  0, 0 },
-                    { datagram_data.rate_pitch_kp * 0.01, 0, 0 },
-                    { datagram_data.rate_yaw_kp * 0.01,   0, 0 }
+            float rate_parameters[3][3] = {
+                    { datagram_data.rate_roll_kp * 0.01f,  0, 0 },
+                    { datagram_data.rate_pitch_kp * 0.01f, 0, 0 },
+                    { datagram_data.rate_yaw_kp * 0.01f,   0, 0 }
             };
 
-            double stab_parameters[3][3] = {
-                    { datagram_data.stab_roll_kp * 0.01,  0, 0 },
-                    { datagram_data.stab_pitch_kp * 0.01, 0, 0 },
-                    { datagram_data.stab_yaw_kp * 0.01,   0, 0 }
+            float stab_parameters[3][3] = {
+                    { datagram_data.stab_roll_kp * 0.01f,  0, 0 },
+                    { datagram_data.stab_pitch_kp * 0.01f, 0, 0 },
+                    { datagram_data.stab_yaw_kp * 0.01f,   0, 0 }
             };
 
             motors_controller.Set_Throttle(datagram_data.throttle);

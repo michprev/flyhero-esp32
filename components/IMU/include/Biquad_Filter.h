@@ -9,6 +9,8 @@
 
 #include <cmath>
 
+#include "Math.h"
+
 
 namespace flyhero
 {
@@ -18,9 +20,9 @@ namespace flyhero
 class Biquad_Filter
 {
 private:
-    double a0, a1, a2;
-    double b1, b2;
-    double z1, z2;
+    float a0, a1, a2;
+    float b1, b2;
+    float z1, z2;
 
 public:
     enum Filter_Type
@@ -28,15 +30,15 @@ public:
         FILTER_LOW_PASS, FILTER_NOTCH
     };
 
-    Biquad_Filter(Filter_Type type, double sample_frequency, double cut_frequency);
+    Biquad_Filter(Filter_Type type, float sample_frequency, float cut_frequency);
 
-    inline double Apply_Filter(double value);
+    inline float Apply_Filter(float value);
 };
 
 // https://en.wikipedia.org/wiki/Digital_biquad_filter - Transposed direct forms
-double Biquad_Filter::Apply_Filter(double value)
+float Biquad_Filter::Apply_Filter(float value)
 {
-    double ret = value * this->a0 + this->z1;
+    float ret = value * this->a0 + this->z1;
     this->z1 = value * this->a1 + this->z2 - this->b1 * ret;
     this->z2 = value * this->a2 - this->b2 * ret;
 

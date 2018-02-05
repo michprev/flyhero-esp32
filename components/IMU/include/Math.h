@@ -19,8 +19,9 @@ private:
     Math();
 
 public:
-    static constexpr double DEG_TO_RAD = M_PI / 180;
-    static constexpr double RAD_TO_DEG = 180 * M_1_PI;
+    static constexpr float PI = 3.14159265358979323846f;
+    static constexpr float DEG_TO_RAD = PI / 180;
+    static constexpr float RAD_TO_DEG = 180 / PI;
 };
 
 } /* namespace flyhero */

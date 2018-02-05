@@ -21,10 +21,10 @@ class Complementary_Filter : public Fusion_Filter
 private:
     IMU::Euler_Angles euler;
     int64_t last_time;
-    const double COMPLEMENTARY_COEFFICIENT;
+    const float COMPLEMENTARY_COEFFICIENT;
 
 public:
-    Complementary_Filter(double coeff);
+    Complementary_Filter(float coeff);
 
     ~Complementary_Filter() override = default;
 

@@ -21,12 +21,12 @@ class Mahony_Filter : public Fusion_Filter
 {
 private:
     IMU::Quaternion quaternion;
-    const double MAHONY_KP, MAHONY_KI;
+    const float MAHONY_KP, MAHONY_KI;
     int64_t last_time;
     IMU::Sensor_Data error_integral;
 
 public:
-    Mahony_Filter(double kp, double ki);
+    Mahony_Filter(float kp, float ki);
 
     ~Mahony_Filter() override = default;
 

@@ -77,11 +77,11 @@ void HC_SR04::Trigger()
     gpio_set_level(this->trigg_pin, 0);
 }
 
-double HC_SR04::Get_Distance()
+float HC_SR04::Get_Distance()
 {
     while (xSemaphoreTake(this->distance_semaphore, 0) != pdTRUE);
 
-    double ret = this->distance;
+    float ret = this->distance;
 
     xSemaphoreGive(this->distance_semaphore);
 
@@ -101,7 +101,7 @@ void HC_SR04::Echo_Callback()
 
         while (xSemaphoreTake(this->distance_semaphore, 0) != pdTRUE);
 
-        this->distance = (end - this->start) * 0.000001 * 334 * 0.5;
+        this->distance = (end - this->start) * 0.000001f * 334 * 0.5f;
 
         xSemaphoreGive(this->distance_semaphore);
     }

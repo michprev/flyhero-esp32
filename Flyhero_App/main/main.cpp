@@ -63,7 +63,7 @@ void imu_task(void *args)
 
     IMU &imu = IMU_Detector::Detect_IMU();
     Logger &logger = Logger::Instance();
-    Complementary_Filter complementary(0.98);
+    Complementary_Filter complementary(0.97f);
 
     while (true)
     {
@@ -157,16 +157,16 @@ void wifi_task(void *args)
         {
             esp_task_wdt_reset();
 
-            double rate_parameters[3][3] = {
-                    { in_datagram_data.rate_roll_kp * 0.01,  0, 0 },
-                    { in_datagram_data.rate_pitch_kp * 0.01, 0, 0 },
-                    { in_datagram_data.rate_yaw_kp * 0.01,   0, 0 }
+            float rate_parameters[3][3] = {
+                    { in_datagram_data.rate_roll_kp * 0.01f,  0, 0 },
+                    { in_datagram_data.rate_pitch_kp * 0.01f, 0, 0 },
+                    { in_datagram_data.rate_yaw_kp * 0.01f,   0, 0 }
             };
 
-            double stab_parameters[3][3] = {
-                    { in_datagram_data.stab_roll_kp * 0.01,  0, 0 },
-                    { in_datagram_data.stab_pitch_kp * 0.01, 0, 0 },
-                    { in_datagram_data.stab_yaw_kp * 0.01,   0, 0 }
+            float stab_parameters[3][3] = {
+                    { in_datagram_data.stab_roll_kp * 0.01f,  0, 0 },
+                    { in_datagram_data.stab_pitch_kp * 0.01f, 0, 0 },
+                    { in_datagram_data.stab_yaw_kp * 0.01f,   0, 0 }
             };
 
             motors_controller.Set_Throttle(in_datagram_data.throttle);

@@ -26,7 +26,7 @@ private:
 
     int64_t start;
     bool level_high;
-    double distance;
+    float distance;
     SemaphoreHandle_t distance_semaphore;
 
     esp_err_t trigg_init();
@@ -40,7 +40,7 @@ public:
 
     void Trigger();
 
-    double Get_Distance();
+    float Get_Distance();
 
     void Echo_Callback();
 };

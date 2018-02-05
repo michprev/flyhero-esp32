@@ -35,7 +35,7 @@ Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
 
 void Motors_Controller::Init()
 {
-    double sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
+    float sample_rate = IMU_Detector::Detect_IMU().Get_Sample_Rate();
 
     this->stab_PIDs = new PID *[3];
     this->rate_PIDs = new PID *[3];
@@ -49,8 +49,8 @@ void Motors_Controller::Init()
         this->rate_PIDs[i]->Set_I_Max(50);
     }
 
-    this->stab_PIDs[ROLL]->Set_Kp(4.5);
-    this->stab_PIDs[PITCH]->Set_Kp(4.5);
+    this->stab_PIDs[ROLL]->Set_Kp(4.5f);
+    this->stab_PIDs[PITCH]->Set_Kp(4.5f);
 
     xSemaphoreGive(this->stab_PIDs_semaphore);
     xSemaphoreGive(this->rate_PIDs_semaphore);
@@ -60,7 +60,7 @@ void Motors_Controller::Init()
     this->pwm.Arm();
 }
 
-void Motors_Controller::Set_PID_Constants(PID_Type type, double parameters[3][3])
+void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
 {
     switch (type)
     {
@@ -118,7 +118,7 @@ void Motors_Controller::Update_Motors(IMU::Euler_Angles euler, IMU::Sensor_Data 
 
     if (throttle > 180)
     {
-        double stab_corrections[3], rate_corrections[3];
+        float stab_corrections[3], rate_corrections[3];
 
         while (xSemaphoreTake(this->stab_PIDs_semaphore, 0) != pdTRUE);
 

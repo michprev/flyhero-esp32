@@ -12,7 +12,7 @@
 namespace flyhero
 {
 
-PID::PID(double update_rate, double i_max, double Kp, double Ki, double Kd)
+PID::PID(float update_rate, float i_max, float Kp, float Ki, float Kd)
         : d_term_lpf(Biquad_Filter::FILTER_LOW_PASS, update_rate, 20)
 {
     this->last_t = 0;
@@ -25,11 +25,11 @@ PID::PID(double update_rate, double i_max, double Kp, double Ki, double Kd)
     this->last_error = NAN;
 }
 
-double PID::Get_PID(double error)
+float PID::Get_PID(float error)
 {
     int64_t now = esp_timer_get_time();
 
-    double delta_t = (now - this->last_t) * 0.000001;
+    float delta_t = (now - this->last_t) * 0.000001f;
 
     if (this->last_t == 0 || delta_t > 1)
     {
@@ -39,7 +39,7 @@ double PID::Get_PID(double error)
 
     this->last_t = now;
 
-    double output = 0;
+    float output = 0;
 
     // proportional component
     output += error * this->Kp;
@@ -60,7 +60,7 @@ double PID::Get_PID(double error)
     // derivative component
     if (this->Kd != 0 && delta_t > 0)
     {
-        double derivative;
+        float derivative;
 
         if (std::isnan(this->last_d))
         {
@@ -81,22 +81,22 @@ double PID::Get_PID(double error)
     return output;
 }
 
-void PID::Set_Kp(double Kp)
+void PID::Set_Kp(float Kp)
 {
     this->Kp = Kp;
 }
 
-void PID::Set_Ki(double Ki)
+void PID::Set_Ki(float Ki)
 {
     this->Ki = Ki;
 }
 
-void PID::Set_Kd(double Kd)
+void PID::Set_Kd(float Kd)
 {
     this->Kd = Kd;
 }
 
-void PID::Set_I_Max(double i_max)
+void PID::Set_I_Max(float i_max)
 {
     this->i_max = i_max;
 }
