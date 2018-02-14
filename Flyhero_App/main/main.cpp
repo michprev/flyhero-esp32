@@ -70,13 +70,13 @@ void imu_task(void *args)
 
             imu.Read_Data(accel, gyro);
 
-            logger.Log_Next(&accel, sizeof(accel));
-            logger.Log_Next(&gyro, sizeof(gyro));
-
             complementary.Compute(accel, gyro, complementary_euler);
 
             if (readings_counter == 0)
             {
+                logger.Log_Next(&accel, sizeof(accel));
+                logger.Log_Next(&gyro, sizeof(gyro));
+
                 motors_controller.Feed_Stab_PIDs(complementary_euler);
                 motors_controller.Feed_Rate_PIDs(gyro);
             } else
