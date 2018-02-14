@@ -52,6 +52,9 @@ void imu_task(void *args)
 
     imu.Init();
 
+    // we are not able to write data over UART that fast yet
+    assert(imu.Get_Gyro_Sample_Rate() <= 1000);
+
     // wait for a while so that we can calibrate
     vTaskDelay(2000 / portTICK_RATE_MS);
     imu.Gyro_Calibrate();
