@@ -114,6 +114,7 @@ void wifi_task(void *args)
                 IMU_Detector::Detect_IMU().Gyro_Calibrate();
                 if (IMU_Detector::Detect_IMU().Start())
                 {
+                    ESP_ERROR_CHECK(wifi.UDP_Server_Start());
                     wifi.TCP_Send("yup", 3);
                     process_tcp = false;
                 } else
@@ -132,13 +133,12 @@ void wifi_task(void *args)
                 wifi.TCP_Send("nah", 3);
         }
     }
+    ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
 
     // Subscribe WiFi task to watchdog
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
-    ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
-    ESP_ERROR_CHECK(wifi.UDP_Server_Start());
 
     while (true)
     {

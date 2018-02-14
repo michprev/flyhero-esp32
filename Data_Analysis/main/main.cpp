@@ -107,15 +107,14 @@ void wifi_task(void *args)
         {
             if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
             {
+                ESP_ERROR_CHECK(wifi.UDP_Server_Start());
                 wifi.TCP_Send("yup", 3);
                 process_tcp = false;
             } else
                 wifi.TCP_Send("nah", 3);
         }
     }
-
     ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
-    ESP_ERROR_CHECK(wifi.UDP_Server_Start());
 
     WiFi_Controller::In_Datagram_Data datagram_data;
 
