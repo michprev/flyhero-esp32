@@ -153,9 +153,9 @@ void wifi_task(void *args)
             };
 
             float stab_parameters[3][3] = {
-                    { in_datagram_data.stab_roll_kp * 0.01f,  0, 0 },
-                    { in_datagram_data.stab_pitch_kp * 0.01f, 0, 0 },
-                    { in_datagram_data.stab_yaw_kp * 0.01f,   0, 0 }
+                    { in_datagram_data.stab_roll_kp * 0.01f,  in_datagram_data.stab_roll_ki * 0.01f,  0 },
+                    { in_datagram_data.stab_pitch_kp * 0.01f, in_datagram_data.stab_pitch_ki * 0.01f, 0 },
+                    { 0,                                      0,                                      0 }
             };
 
             motors_controller.Set_Throttle(in_datagram_data.throttle);
