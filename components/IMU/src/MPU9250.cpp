@@ -33,6 +33,14 @@ MPU9250::MPU9250()
           gyro_y_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF),
           gyro_z_filter(Biquad_Filter::FILTER_LOW_PASS, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_SOFT_LPF)
 #endif
+#if CONFIG_FLYHERO_IMU_USE_NOTCH
+#if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
+        ,
+#endif
+          gyro_x_notch_filter(Biquad_Filter::FILTER_NOTCH, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_NOTCH),
+          gyro_y_notch_filter(Biquad_Filter::FILTER_NOTCH, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_NOTCH),
+          gyro_z_notch_filter(Biquad_Filter::FILTER_NOTCH, this->GYRO_SAMPLE_RATE, CONFIG_FLYHERO_IMU_GYRO_NOTCH)
+#endif
 {
     this->spi = NULL;
     this->a_fsr = ACCEL_FSR_NOT_SET;
@@ -640,6 +648,11 @@ void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
         gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
 
+#if CONFIG_FLYHERO_IMU_USE_NOTCH
+        gyro.x = this->gyro_x_notch_filter.Apply_Filter(gyro.x);
+        gyro.y = this->gyro_y_notch_filter.Apply_Filter(gyro.y);
+        gyro.z = this->gyro_z_notch_filter.Apply_Filter(gyro.z);
+#endif
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
         accel.x = this->accel_x_filter.Apply_Filter(accel.x);
         accel.y = this->accel_y_filter.Apply_Filter(accel.y);
@@ -679,6 +692,11 @@ void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
         gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
 
+#if CONFIG_FLYHERO_IMU_USE_NOTCH
+        gyro.x = this->gyro_x_notch_filter.Apply_Filter(gyro.x);
+        gyro.y = this->gyro_y_notch_filter.Apply_Filter(gyro.y);
+        gyro.z = this->gyro_z_notch_filter.Apply_Filter(gyro.z);
+#endif
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF
         gyro.x = this->gyro_x_filter.Apply_Filter(gyro.x);
         gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
