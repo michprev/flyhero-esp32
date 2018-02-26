@@ -134,7 +134,6 @@ private:
     uint8_t sample_rate_divider;
     spi_device_handle_t spi;
     bool data_ready;
-    bool ready;
     float accel_offsets[3];
     float gyro_offsets[3];
     Sensor_Data last_accel;

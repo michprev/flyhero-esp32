@@ -113,7 +113,6 @@ private:
     uint8_t sample_rate_divider;
     float accel_offsets[3];
     float gyro_offsets[3];
-    bool ready;
     bool data_ready;
     Sensor_Data last_accel;
     uint8_t readings_counter;

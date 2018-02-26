@@ -52,7 +52,6 @@ MPU9250::MPU9250()
     this->sample_rate_divider_set = false;
     this->sample_rate_divider = 0;
     this->data_ready = false;
-    this->ready = false;
     this->accel_offsets[0] = 0;
     this->accel_offsets[1] = 0;
     this->accel_offsets[2] = 0;
@@ -115,9 +114,6 @@ esp_err_t MPU9250::int_init()
         return ret;
 
     if ((ret = gpio_install_isr_service(0)))
-        return ret;
-
-    if ((ret = gpio_isr_handler_add(GPIO_NUM_4, int_isr_handler, NULL)))
         return ret;
 
     return ESP_OK;
@@ -318,7 +314,23 @@ esp_err_t MPU9250::set_sample_rate_divider(uint8_t divider)
 
 esp_err_t MPU9250::set_interrupt(bool enable)
 {
-    return this->spi_reg_write(this->REGISTERS.INT_ENABLE, (enable ? 0x01 : 0x00));
+    if (enable)
+    {
+        if (this->spi_reg_write(this->REGISTERS.INT_ENABLE, 0x01) != ESP_OK)
+            return ESP_FAIL;
+
+        if (gpio_isr_handler_add(GPIO_NUM_4, int_isr_handler, NULL) != ESP_OK)
+            return ESP_FAIL;
+    } else
+    {
+        if (this->spi_reg_write(this->REGISTERS.INT_ENABLE, 0x00) != ESP_OK)
+            return ESP_FAIL;
+
+        if (gpio_isr_handler_remove(GPIO_NUM_4) != ESP_OK)
+            return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
 esp_err_t MPU9250::load_accel_offsets()
@@ -480,7 +492,6 @@ bool MPU9250::Start()
         return false;
 
     ESP_ERROR_CHECK(this->set_interrupt(true));
-    this->ready = true;
 
     return true;
 }
@@ -712,8 +723,7 @@ void MPU9250::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 
 void MPU9250::Data_Ready_Callback()
 {
-    if (this->ready)
-        this->data_ready = true;
+    this->data_ready = true;
 }
 
 bool MPU9250::Data_Ready()

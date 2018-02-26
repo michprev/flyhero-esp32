@@ -54,7 +54,6 @@ MPU6050::MPU6050()
     this->gyro_offsets[0] = 0;
     this->gyro_offsets[1] = 0;
     this->gyro_offsets[2] = 0;
-    this->ready = false;
     this->data_ready = false;
 }
 
@@ -93,8 +92,6 @@ esp_err_t MPU6050::int_init()
         return state;
 
     if ((state = gpio_install_isr_service(0)))
-        return state;
-    if ((state = gpio_isr_handler_add(GPIO_NUM_4, int_handler, NULL)))
         return state;
 
     return ESP_OK;
@@ -342,7 +339,23 @@ esp_err_t MPU6050::set_sample_rate_divider(uint8_t divider)
 
 esp_err_t MPU6050::set_interrupt(bool enable)
 {
-    return this->i2c_write(this->REGISTERS.INT_ENABLE, enable ? 0x01 : 0x00);
+    if (enable)
+    {
+        if (this->i2c_write(this->REGISTERS.INT_ENABLE, 0x01) != ESP_OK)
+            return ESP_FAIL;
+
+        if (gpio_isr_handler_add(GPIO_NUM_4, int_handler, NULL) != ESP_OK)
+            return ESP_FAIL;
+    } else
+    {
+        if (this->i2c_write(this->REGISTERS.INT_ENABLE, 0x00) != ESP_OK)
+            return ESP_FAIL;
+
+        if (gpio_isr_handler_remove(GPIO_NUM_4) != ESP_OK)
+            return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
 esp_err_t MPU6050::load_accel_offsets()
@@ -484,7 +497,6 @@ bool MPU6050::Start()
         return false;
 
     ESP_ERROR_CHECK(this->set_interrupt(true));
-    this->ready = true;
 
     return true;
 }
@@ -643,8 +655,7 @@ void MPU6050::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 
 void MPU6050::Data_Ready_Callback()
 {
-    if (this->ready)
-        this->data_ready = true;
+    this->data_ready = true;
 }
 
 bool MPU6050::Data_Ready()

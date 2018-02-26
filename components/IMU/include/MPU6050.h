@@ -108,7 +108,6 @@ private:
     uint8_t sample_rate_divider;
     float accel_offsets[3];
     float gyro_offsets[3];
-    bool ready;
     bool data_ready;
 
     esp_err_t i2c_init();
