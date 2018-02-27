@@ -176,6 +176,7 @@ esp_err_t MPU9250::set_gyro_fsr(gyro_fsr fsr)
 
     if ((ret = this->spi_reg_read(this->REGISTERS.GYRO_CONFIG, gyro_config)))
         return ret;
+    gyro_config &= 0xe7;
     if ((ret = this->spi_reg_write(this->REGISTERS.GYRO_CONFIG, gyro_config | fsr)))
         return ret;
 
