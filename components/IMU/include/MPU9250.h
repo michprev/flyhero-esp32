@@ -115,6 +115,55 @@ private:
     const uint8_t SAMPLE_RATES_RATIO = 1;
 #endif
 
+#if CONFIG_FLYHERO_IMU_GYRO_FSR_250
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_250;
+#elif CONFIG_FLYHERO_IMU_GYRO_FSR_500
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_500;
+#elif CONFIG_FLYHERO_IMU_GYRO_FSR_1000
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_1000;
+#elif CONFIG_FLYHERO_IMU_GYRO_FSR_2000
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_2000;
+#else
+#error "Gyro FSR not set"
+#endif
+
+#if CONFIG_FLYHERO_IMU_ACCEL_FSR_2
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_2;
+#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_4
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_4;
+#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_8
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_8;
+#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_16
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_16;
+#else
+#error "Accel FSR not set"
+#endif
+
+#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_250HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_218HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_184HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_218HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_92HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_99HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_42HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_41HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_45HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_20HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_20HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_21HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_10HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_10HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_10HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_5HZ
+    const gyro_lpf TARGET_GYRO_LPF = GYRO_LPF_5HZ;
+    const accel_lpf TARGET_ACCEL_LPF = ACCEL_LPF_5HZ;
+#else
+#error "Gyro hardware LPF not set"
+#endif
+
     const uint8_t ADC_BITS = 16;
 
 #if CONFIG_FLYHERO_IMU_USE_SOFT_LPF

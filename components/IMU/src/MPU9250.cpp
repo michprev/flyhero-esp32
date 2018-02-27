@@ -409,56 +409,14 @@ void MPU9250::Init()
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.INT_PIN_CFG, 0x10));
 
     // set gyro full scale range
-#if CONFIG_FLYHERO_IMU_GYRO_FSR_250
-    ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_250));
-#elif CONFIG_FLYHERO_IMU_GYRO_FSR_500
-    ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_500));
-#elif CONFIG_FLYHERO_IMU_GYRO_FSR_1000
-    ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_1000));
-#elif CONFIG_FLYHERO_IMU_GYRO_FSR_2000
-    ESP_ERROR_CHECK(this->set_gyro_fsr(GYRO_FSR_2000));
-#else
-#error "Gyro FSR not set"
-#endif
+    ESP_ERROR_CHECK(this->set_gyro_fsr(this->TARGET_GYRO_FSR));
 
     // set accel full scale range
-#if CONFIG_FLYHERO_IMU_ACCEL_FSR_2
-    ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_2));
-#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_4
-    ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_4));
-#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_8
-    ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_8));
-#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_16
-    ESP_ERROR_CHECK(this->set_accel_fsr(ACCEL_FSR_16));
-#else
-#error "Accel FSR not set"
-#endif
+    ESP_ERROR_CHECK(this->set_accel_fsr(this->TARGET_ACCEL_FSR));
 
     // set low pass filter
-#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_250HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
-#elif CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_184HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_218HZ));
-#elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_92HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_99HZ));
-#elif CONFIG_FLYHERO_IMU_HARD_LPF_42HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_41HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_45HZ));
-#elif CONFIG_FLYHERO_IMU_HARD_LPF_20HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_20HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_21HZ));
-#elif CONFIG_FLYHERO_IMU_HARD_LPF_10HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_10HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_10HZ));
-#elif CONFIG_FLYHERO_IMU_HARD_LPF_5HZ
-    ESP_ERROR_CHECK(this->set_gyro_lpf(GYRO_LPF_5HZ));
-    ESP_ERROR_CHECK(this->set_accel_lpf(ACCEL_LPF_5HZ));
-#else
-#error "Gyro hardware LPF not set"
-#endif
+    ESP_ERROR_CHECK(this->set_gyro_lpf(this->TARGET_GYRO_LPF));
+    ESP_ERROR_CHECK(this->set_accel_lpf(this->TARGET_ACCEL_LPF));
 
     ESP_ERROR_CHECK(this->set_sample_rate_divider(0));
 

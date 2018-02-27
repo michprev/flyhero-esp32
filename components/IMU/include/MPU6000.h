@@ -69,6 +69,48 @@ private:
     const uint8_t SAMPLE_RATES_RATIO = 1;
 #endif
 
+#if CONFIG_FLYHERO_IMU_GYRO_FSR_250
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_250;
+#elif CONFIG_FLYHERO_IMU_GYRO_FSR_500
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_500;
+#elif CONFIG_FLYHERO_IMU_GYRO_FSR_1000
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_1000;
+#elif CONFIG_FLYHERO_IMU_GYRO_FSR_2000
+    const gyro_fsr TARGET_GYRO_FSR = GYRO_FSR_2000;
+#else
+#error "Gyro FSR not set"
+#endif
+
+#if CONFIG_FLYHERO_IMU_ACCEL_FSR_2
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_2;
+#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_4
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_4;
+#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_8
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_8;
+#elif CONFIG_FLYHERO_IMU_ACCEL_FSR_16
+    const accel_fsr TARGET_ACCEL_FSR = ACCEL_FSR_16;
+#else
+#error "Accel FSR not set"
+#endif
+
+#if CONFIG_FLYHERO_IMU_HARD_LPF_256HZ
+    const lpf_bandwidth TARGET_LPF = LPF_256HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_188HZ
+    const lpf_bandwidth TARGET_LPF = LPF_188HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_98HZ
+    const lpf_bandwidth TARGET_LPF = LPF_98HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_42HZ
+    const lpf_bandwidth TARGET_LPF = LPF_42HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_20HZ
+    const lpf_bandwidth TARGET_LPF = LPF_20HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_10HZ
+    const lpf_bandwidth TARGET_LPF = LPF_10HZ;
+#elif CONFIG_FLYHERO_IMU_HARD_LPF_5HZ
+    const lpf_bandwidth TARGET_LPF = LPF_5HZ;
+#else
+#error "Gyro hardware LPF not set"
+#endif
+
     const uint8_t ADC_BITS = 16;
 
     const struct
