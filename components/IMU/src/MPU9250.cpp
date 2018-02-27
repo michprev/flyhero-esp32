@@ -419,9 +419,16 @@ void MPU9250::Init()
     ESP_ERROR_CHECK(this->set_accel_lpf(this->TARGET_ACCEL_LPF));
 
     ESP_ERROR_CHECK(this->set_sample_rate_divider(0));
+}
+
+bool MPU9250::Start()
+{
+    if (this->load_accel_offsets() != ESP_OK)
+        return false;
+
+    ESP_ERROR_CHECK(this->set_interrupt(true));
 
     // set SPI speed to 20 MHz
-
     ESP_ERROR_CHECK(spi_bus_remove_device(this->spi));
 
     spi_device_interface_config_t devcfg;
@@ -440,16 +447,6 @@ void MPU9250::Init()
     devcfg.post_cb = 0;
 
     ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
-
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-}
-
-bool MPU9250::Start()
-{
-    if (this->load_accel_offsets() != ESP_OK)
-        return false;
-
-    ESP_ERROR_CHECK(this->set_interrupt(true));
 
     return true;
 }

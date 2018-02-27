@@ -375,9 +375,16 @@ void MPU6000::Init()
 
     // set sample rate
     ESP_ERROR_CHECK(this->set_sample_rate_divider(0));
+}
+
+bool MPU6000::Start()
+{
+    if (this->load_accel_offsets() != ESP_OK)
+        return false;
+
+    ESP_ERROR_CHECK(this->set_interrupt(true));
 
     // set SPI speed to 20 MHz
-
     ESP_ERROR_CHECK(spi_bus_remove_device(this->spi));
 
     spi_device_interface_config_t devcfg;
@@ -396,16 +403,6 @@ void MPU6000::Init()
     devcfg.post_cb = 0;
 
     ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
-
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-}
-
-bool MPU6000::Start()
-{
-    if (this->load_accel_offsets() != ESP_OK)
-        return false;
-
-    ESP_ERROR_CHECK(this->set_interrupt(true));
 
     return true;
 }
