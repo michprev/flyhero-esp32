@@ -289,29 +289,19 @@ esp_err_t MPU6000::set_interrupt(bool enable)
 esp_err_t MPU6000::load_accel_offsets()
 {
     esp_err_t ret;
-
     nvs_handle handle;
 
     if ((ret = nvs_open("MPU6000", NVS_READONLY, &handle)) != ESP_OK)
         return ret;
 
-    union
-    {
-        uint32_t uint32_value;
-        float float_value;
-    } uint32_float_converter;
-
-    if ((ret = nvs_get_u32(handle, "accel_x_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+    if ((ret = nvs_get_i16(handle, "accel_x_offset", this->accel_offsets)) != ESP_OK)
         goto nvs_error;
-    this->accel_offsets[0] = uint32_float_converter.float_value;
 
-    if ((ret = nvs_get_u32(handle, "accel_y_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+    if ((ret = nvs_get_i16(handle, "accel_y_offset", this->accel_offsets + 1)) != ESP_OK)
         goto nvs_error;
-    this->accel_offsets[1] = uint32_float_converter.float_value;
 
-    if ((ret = nvs_get_u32(handle, "accel_z_offset", &(uint32_float_converter.uint32_value))) != ESP_OK)
+    if ((ret = nvs_get_i16(handle, "accel_z_offset", this->accel_offsets + 2)) != ESP_OK)
         goto nvs_error;
-    this->accel_offsets[2] = uint32_float_converter.float_value;
 
     nvs_error:
 
@@ -410,61 +400,59 @@ bool MPU6000::Start()
 void MPU6000::Accel_Calibrate()
 {
     Raw_Data accel, gyro;
-
-    this->accel_offsets[0] = this->accel_offsets[1] = this->accel_offsets[2] = 0;
-
-    int16_t accel_z_calibration_value;
+    int16_t accel_z_reference;
 
     switch (this->a_fsr)
     {
         case ACCEL_FSR_2:
-            accel_z_calibration_value = 16384;
+            accel_z_reference = 16384;
             break;
         case ACCEL_FSR_4:
-            accel_z_calibration_value = 8192;
+            accel_z_reference = 8192;
             break;
         case ACCEL_FSR_8:
-            accel_z_calibration_value = 4096;
+            accel_z_reference = 4096;
             break;
         case ACCEL_FSR_16:
-            accel_z_calibration_value = 2048;
+            accel_z_reference = 2048;
             break;
         default:
             return;
     }
 
-    for (uint16_t i = 0; i < 5000; i++)
-    {
-        this->Read_Raw(accel, gyro);
+    ESP_ERROR_CHECK(this->set_interrupt(true));
 
-        this->accel_offsets[0] += accel.x;
-        this->accel_offsets[1] += accel.y;
-        this->accel_offsets[2] += accel.z - accel_z_calibration_value;
+    uint16_t i = 0;
+    Counting_Median_Finder<int16_t> accel_median_finder[3];
+
+    while (i < 1000)
+    {
+        if (this->Data_Ready())
+        {
+            this->Read_Raw(accel, gyro);
+
+            accel_median_finder[0].Push_Value(accel.x);
+            accel_median_finder[1].Push_Value(accel.y);
+            accel_median_finder[2].Push_Value(accel.z - accel_z_reference);
+
+            i++;
+        }
     }
 
-    this->accel_offsets[0] /= -5000;
-    this->accel_offsets[1] /= -5000;
-    this->accel_offsets[2] /= -5000;
+    ESP_ERROR_CHECK(this->set_interrupt(false));
+
+    this->accel_offsets[0] = -accel_median_finder[0].Get_Median();
+    this->accel_offsets[1] = -accel_median_finder[1].Get_Median();
+    this->accel_offsets[2] = -accel_median_finder[2].Get_Median();
 
     nvs_handle handle;
 
     if (nvs_open("MPU6000", NVS_READWRITE, &handle) != ESP_OK)
         return;
 
-    union
-    {
-        uint32_t uint32_value;
-        float float_value;
-    } float_uint32_converter;
-
-    float_uint32_converter.float_value = this->accel_offsets[0];
-    nvs_set_u32(handle, "accel_x_offset", float_uint32_converter.uint32_value);
-
-    float_uint32_converter.float_value = this->accel_offsets[1];
-    nvs_set_u32(handle, "accel_y_offset", float_uint32_converter.uint32_value);
-
-    float_uint32_converter.float_value = this->accel_offsets[2];
-    nvs_set_u32(handle, "accel_z_offset", float_uint32_converter.uint32_value);
+    nvs_set_i16(handle, "accel_x_offset", this->accel_offsets[0]);
+    nvs_set_i16(handle, "accel_y_offset", this->accel_offsets[1]);
+    nvs_set_i16(handle, "accel_z_offset", this->accel_offsets[2]);
 
     nvs_close(handle);
 }
@@ -473,20 +461,30 @@ void MPU6000::Gyro_Calibrate()
 {
     Raw_Data accel, gyro;
 
-    this->gyro_offsets[0] = this->gyro_offsets[1] = this->gyro_offsets[2] = 0;
+    ESP_ERROR_CHECK(this->set_interrupt(true));
 
-    for (uint16_t i = 0; i < 5000; i++)
+    uint16_t i = 0;
+    Counting_Median_Finder<int16_t> gyro_median_finder[3];
+
+    while (i < 1000)
     {
-        this->Read_Raw(accel, gyro);
+        if (this->Data_Ready())
+        {
+            this->Read_Raw(accel, gyro);
 
-        this->gyro_offsets[0] += gyro.x;
-        this->gyro_offsets[1] += gyro.y;
-        this->gyro_offsets[2] += gyro.z;
+            gyro_median_finder[0].Push_Value(gyro.x);
+            gyro_median_finder[1].Push_Value(gyro.y);
+            gyro_median_finder[2].Push_Value(gyro.z);
+
+            i++;
+        }
     }
 
-    this->gyro_offsets[0] /= -5000;
-    this->gyro_offsets[1] /= -5000;
-    this->gyro_offsets[2] /= -5000;
+    ESP_ERROR_CHECK(this->set_interrupt(false));
+
+    this->gyro_offsets[0] = -gyro_median_finder[0].Get_Median();
+    this->gyro_offsets[1] = -gyro_median_finder[1].Get_Median();
+    this->gyro_offsets[2] = -gyro_median_finder[2].Get_Median();
 }
 
 float MPU6000::Get_Accel_Sample_Rate()

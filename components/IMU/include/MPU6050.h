@@ -13,6 +13,7 @@
 
 #include "Biquad_Filter.h"
 #include "IMU.h"
+#include "Counting_Median_Finder.h"
 
 
 namespace flyhero
@@ -148,8 +149,8 @@ private:
     lpf_bandwidth lpf;
     bool sample_rate_divider_set;
     uint8_t sample_rate_divider;
-    float accel_offsets[3];
-    float gyro_offsets[3];
+    int16_t accel_offsets[3];
+    int16_t gyro_offsets[3];
     bool data_ready;
 
     esp_err_t i2c_init();

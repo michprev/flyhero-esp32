@@ -16,6 +16,7 @@
 
 #include "Biquad_Filter.h"
 #include "IMU.h"
+#include "Counting_Median_Finder.h"
 
 
 namespace flyhero
@@ -183,8 +184,8 @@ private:
     uint8_t sample_rate_divider;
     spi_device_handle_t spi;
     bool data_ready;
-    float accel_offsets[3];
-    float gyro_offsets[3];
+    int16_t accel_offsets[3];
+    int16_t gyro_offsets[3];
     Sensor_Data last_accel;
     uint8_t readings_counter;
 
