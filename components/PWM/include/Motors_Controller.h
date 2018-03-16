@@ -12,7 +12,7 @@
 
 #include "PID.h"
 #include "IMU.h"
-#include "PWM_Generator.h"
+#include "Motors_Protocol.h"
 #include "IMU_Detector.h"
 
 
@@ -35,7 +35,7 @@ private:
         YAW = 2
     };
 
-    PWM_Generator &pwm;
+    Motors_Protocol &motors_protocol;
     PID **stab_PIDs, **rate_PIDs;
     int16_t motor_FL, motor_FR, motor_BL, motor_BR;
     uint16_t throttle;

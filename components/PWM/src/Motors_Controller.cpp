@@ -5,6 +5,7 @@
  *      Author: michp
  */
 
+#include "OneShot125.h"
 #include "Motors_Controller.h"
 
 
@@ -18,7 +19,7 @@ Motors_Controller &Motors_Controller::Instance()
     return instance;
 }
 
-Motors_Controller::Motors_Controller() : pwm(PWM_Generator::Instance())
+Motors_Controller::Motors_Controller() : motors_protocol(OneShot125::Instance())
 {
     this->motor_FR = 0;
     this->motor_FL = 0;
@@ -59,8 +60,8 @@ void Motors_Controller::Init()
     xSemaphoreGive(this->rate_PIDs_semaphore);
     xSemaphoreGive(this->throttle_semaphore);
 
-    this->pwm.Init();
-    this->pwm.Arm();
+    this->motors_protocol.Init();
+    this->motors_protocol.Arm();
 }
 
 void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
@@ -182,17 +183,9 @@ void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
         else if (this->motor_BR < 0)
             this->motor_BR = 0;
 
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_FL, this->motor_FL);
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_BL, this->motor_BL);
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_FR, this->motor_FR);
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_BR, this->motor_BR);
+        this->motors_protocol.Update(this->motor_FL, this->motor_BL, this->motor_FR, this->motor_BR);
     } else
-    {
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_FL, 0);
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_BL, 0);
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_FR, 0);
-        this->pwm.Set_Pulse(PWM_Generator::MOTOR_BR, 0);
-    }
+        this->motors_protocol.Update(0, 0, 0, 0);
 }
 
 } /* namespace flyhero */
