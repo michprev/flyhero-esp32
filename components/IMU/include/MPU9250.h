@@ -183,7 +183,7 @@ private:
     bool sample_rate_divider_set;
     uint8_t sample_rate_divider;
     spi_device_handle_t spi;
-    bool data_ready;
+    volatile bool data_ready;
     int16_t accel_offsets[3];
     int16_t gyro_offsets[3];
     Sensor_Data last_accel;

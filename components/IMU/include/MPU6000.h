@@ -156,7 +156,7 @@ private:
     uint8_t sample_rate_divider;
     int16_t accel_offsets[3];
     int16_t gyro_offsets[3];
-    bool data_ready;
+    volatile bool data_ready;
     Sensor_Data last_accel;
     uint8_t readings_counter;
 
