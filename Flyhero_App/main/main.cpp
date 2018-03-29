@@ -52,6 +52,7 @@ void imu_task(void *args)
 {
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles complementary_euler;
+    IMU::Read_Data_Type data_type;
 
     // Subscribe IMU task to watchdog
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
@@ -60,19 +61,17 @@ void imu_task(void *args)
     Logger &logger = Logger::Instance();
     Complementary_Filter complementary(0.97f);
 
-    uint8_t readings_counter = 0;
-
     while (true)
     {
         if (imu.Data_Ready())
         {
             esp_task_wdt_reset();
 
-            imu.Read_Data(accel, gyro);
+            data_type = imu.Read_Data(accel, gyro);
 
             complementary.Compute(accel, gyro, complementary_euler);
 
-            if (readings_counter == 0)
+            if (data_type == IMU::Read_Data_Type::ACCEL_GYRO)
             {
                 logger.Log_Next(&accel, sizeof(accel));
                 logger.Log_Next(&gyro, sizeof(gyro));
@@ -81,11 +80,6 @@ void imu_task(void *args)
                 motors_controller.Feed_Rate_PIDs(gyro);
             } else
                 motors_controller.Feed_Rate_PIDs(gyro);
-
-            readings_counter++;
-
-            if (readings_counter == imu.Get_Sample_Rates_Ratio())
-                readings_counter = 0;
         }
     }
 }

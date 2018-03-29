@@ -40,6 +40,7 @@ void imu_task(void *args)
 {
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles euler;
+    IMU::Read_Data_Type data_type;
     euler.roll = 0;
     euler.pitch = 0;
     euler.yaw = 0;
@@ -62,28 +63,21 @@ void imu_task(void *args)
     while (!imu.Start())
         imu.Accel_Calibrate();
 
-    uint8_t readings_counter = 0;
-
     while (true)
     {
         if (imu.Data_Ready())
         {
-            imu.Read_Data(accel, gyro);
+            data_type = imu.Read_Data(accel, gyro);
 
             //complementary_filter.Compute(accel, gyro, complementary_euler);
             //mahony_filter.Compute(accel, gyro, mahony_euler);
 
-            if (readings_counter == 0)
+            if (data_type == IMU::Read_Data_Type::ACCEL_GYRO)
             {
                 motors_controller.Feed_Stab_PIDs(euler);
                 motors_controller.Feed_Rate_PIDs(gyro);
             } else
                 motors_controller.Feed_Rate_PIDs(gyro);
-
-            readings_counter++;
-
-            if (readings_counter == imu.Get_Sample_Rates_Ratio())
-                readings_counter = 0;
 
             printf("%f %f %f %f %f %f\n", accel.x, accel.y, accel.z, gyro.x, gyro.y, gyro.z);
         }

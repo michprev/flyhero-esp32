@@ -36,6 +36,12 @@ public:
         float q0, q1, q2, q3;
     };
 
+    enum class Read_Data_Type
+    {
+        GYRO_ONLY,
+        ACCEL_GYRO
+    };
+
     virtual void Init() = 0;
 
     virtual bool Start() = 0;
@@ -52,7 +58,7 @@ public:
 
     virtual void Read_Raw(Raw_Data &raw_accel, Raw_Data &raw_gyro) = 0;
 
-    virtual void Read_Data(Sensor_Data &accel, Sensor_Data &gyro) = 0;
+    virtual Read_Data_Type Read_Data(Sensor_Data &accel, Sensor_Data &gyro) = 0;
 
     virtual void Data_Ready_Callback() = 0;
 

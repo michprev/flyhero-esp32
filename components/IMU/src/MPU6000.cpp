@@ -528,8 +528,10 @@ void MPU6000::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
     gyro.z = (rx_data[12] << 8) | rx_data[13];
 }
 
-void MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
+IMU::Read_Data_Type MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 {
+    IMU::Read_Data_Type return_type;
+
     if (this->readings_counter == 0)
     {
         const uint8_t tx_data[14] = { 0x00 };
@@ -580,6 +582,7 @@ void MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
 #endif
         this->last_accel = accel;
+        return_type = IMU::Read_Data_Type::ACCEL_GYRO;
     } else
     {
         const uint8_t tx_data[6] = { 0x00 };
@@ -619,12 +622,15 @@ void MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
         gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
 #endif
+        return_type = IMU::Read_Data_Type::GYRO_ONLY;
     }
 
     this->readings_counter++;
 
     if (this->readings_counter == this->SAMPLE_RATES_RATIO)
         this->readings_counter = 0;
+
+    return return_type;
 }
 
 void MPU6000::Data_Ready_Callback()

@@ -199,7 +199,7 @@ public:
 
     void Read_Raw(Raw_Data &accel, Raw_Data &gyro) override;
 
-    void Read_Data(Sensor_Data &accel, Sensor_Data &gyro) override;
+    IMU::Read_Data_Type Read_Data(Sensor_Data &accel, Sensor_Data &gyro) override;
 
     void Data_Ready_Callback() override;
 

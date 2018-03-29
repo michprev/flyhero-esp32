@@ -575,7 +575,7 @@ void MPU6050::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
     gyro.z = (data[12] << 8) | data[13];
 }
 
-void MPU6050::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
+IMU::Read_Data_Type MPU6050::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
 {
     uint8_t data[14];
 
@@ -613,6 +613,8 @@ void MPU6050::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
     gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
     gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
 #endif
+
+    return IMU::Read_Data_Type::ACCEL_GYRO;
 }
 
 void MPU6050::Data_Ready_Callback()
