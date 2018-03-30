@@ -25,6 +25,8 @@ public:
 
     void Arm() override;
 
+    void Disarm() override;
+
     void Update(uint16_t motor_fl, uint16_t motor_bl, uint16_t motor_fr, uint16_t motor_br) override;
 };
 

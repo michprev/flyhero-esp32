@@ -114,6 +114,17 @@ void OneShot125::Arm()
     vTaskDelay(1000 / portTICK_RATE_MS);
 }
 
+void OneShot125::Disarm()
+{
+    // stop timer
+    MCPWM0.timer[0].mode.start = 0;
+
+    ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_25, 0));
+    ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_26, 0));
+    ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_27, 0));
+    ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_14, 0));
+}
+
 void OneShot125::Update(uint16_t motor_fl, uint16_t motor_bl, uint16_t motor_fr, uint16_t motor_br)
 {
     MCPWM0.timer[0].mode.start = 4;

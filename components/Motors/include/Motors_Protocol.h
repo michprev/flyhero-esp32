@@ -16,6 +16,8 @@ public:
 
     virtual void Arm() = 0;
 
+    virtual void Disarm() = 0;
+
     virtual void Update(uint16_t motor_fl, uint16_t motor_bl, uint16_t motor_fr, uint16_t motor_br) = 0;
 };
 

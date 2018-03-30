@@ -21,6 +21,8 @@ Motors_Controller &Motors_Controller::Instance()
 
 Motors_Controller::Motors_Controller() : motors_protocol(OneShot125::Instance())
 {
+    this->motors_protocol.Disarm();
+
     this->motor_FR = 0;
     this->motor_FL = 0;
     this->motor_BR = 0;
