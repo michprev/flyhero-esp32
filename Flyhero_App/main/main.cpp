@@ -122,6 +122,52 @@ void wifi_task(void *args)
                 Logger::Instance().Erase();
                 Logger::Instance().Enable_Writes();
                 wifi.TCP_Send("yup", 3);
+            } else if (strncmp(received_data, "download", strlen("download")) == 0)
+            {
+                char buffer[1024];
+                if (!Logger::Instance().Read_Next(buffer, 1024))
+                {
+                    wifi.TCP_Send("nah", 3);
+                    continue;
+                }
+
+                bool empty = true;
+
+                for (uint8_t i = 0; i < 100; i++)
+                {
+                    if (buffer[i] != 0xFF)
+                    {
+                        empty = false;
+                        break;
+                    }
+                }
+
+                if (empty)
+                {
+                    wifi.TCP_Send("nah", 3);
+                    continue;
+                }
+
+                wifi.TCP_Send("yup", 3);
+
+                do
+                {
+                    wifi.TCP_Send(buffer, 1024);
+                    if (!Logger::Instance().Read_Next(buffer, 1024))
+                        break;
+
+                    empty = true;
+
+                    for (uint8_t i = 0; i < 100; i++)
+                    {
+                        if (buffer[i] != 0xFF)
+                        {
+                            empty = false;
+                            break;
+                        }
+                    }
+
+                } while (!empty);
             } else
                 wifi.TCP_Send("nah", 3);
         }
