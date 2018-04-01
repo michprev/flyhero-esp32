@@ -88,9 +88,8 @@ void wifi_task(void *args)
 {
     WiFi_Controller &wifi = WiFi_Controller::Instance();
 
-    const uint8_t TCP_BUFFER_LENGTH = 50;
-    char TCP_buffer[TCP_BUFFER_LENGTH];
-    uint8_t received_length = 0;
+    const char * received_data;
+    size_t received_length;
     bool process_tcp = true;
 
     wifi.Init();
@@ -100,9 +99,9 @@ void wifi_task(void *args)
 
     while (process_tcp)
     {
-        if (wifi.TCP_Receive(TCP_buffer, TCP_BUFFER_LENGTH, &received_length))
+        if (wifi.TCP_Receive(received_data, received_length))
         {
-            if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
+            if (strncmp(received_data, "start", 5) == 0)
             {
                 ESP_ERROR_CHECK(wifi.UDP_Server_Start());
                 wifi.TCP_Send("yup", 3);

@@ -89,9 +89,8 @@ void wifi_task(void *args)
     WiFi_Controller &wifi = WiFi_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
 
-    const uint8_t TCP_BUFFER_LENGTH = 50;
-    char TCP_buffer[TCP_BUFFER_LENGTH];
-    uint8_t received_length = 0;
+    const char * received_data;
+    size_t received_length;
     bool process_tcp = true;
 
     wifi.Init();
@@ -101,9 +100,9 @@ void wifi_task(void *args)
 
     while (process_tcp)
     {
-        if (wifi.TCP_Receive(TCP_buffer, TCP_BUFFER_LENGTH, &received_length))
+        if (wifi.TCP_Receive(received_data, received_length))
         {
-            if (strncmp((const char *) TCP_buffer, "start", 5) == 0)
+            if (strncmp(received_data, "start", 5) == 0)
             {
                 IMU_Detector::Detect_IMU().Gyro_Calibrate();
                 if (IMU_Detector::Detect_IMU().Start())
@@ -114,11 +113,11 @@ void wifi_task(void *args)
                 } else
                     wifi.TCP_Send("nah", 3);
 
-            } else if (strncmp((const char *) TCP_buffer, "calibrate", 9) == 0)
+            } else if (strncmp(received_data, "calibrate", 9) == 0)
             {
                 IMU_Detector::Detect_IMU().Accel_Calibrate();
                 wifi.TCP_Send("yup", 3);
-            } else if (strncmp((const char *) TCP_buffer, "log", 3) == 0)
+            } else if (strncmp(received_data, "log", 3) == 0)
             {
                 Logger::Instance().Erase();
                 Logger::Instance().Enable_Writes();

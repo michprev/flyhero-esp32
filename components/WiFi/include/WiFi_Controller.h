@@ -51,9 +51,9 @@ public:
 private:
     WiFi_Controller();
 
-    WiFi_Controller(WiFi_Controller const &);
+    WiFi_Controller(const WiFi_Controller &);
 
-    WiFi_Controller &operator=(WiFi_Controller const &);
+    WiFi_Controller & operator=(const WiFi_Controller &);
 
     struct __attribute__((__packed__)) in_data
     {
@@ -84,7 +84,7 @@ private:
         out_data data;
     };
 
-    static const uint8_t TCP_BUFFER_LENGTH = 50;
+    static const size_t TCP_BUFFER_LENGTH = 256;
     uint8_t tcp_buffer[TCP_BUFFER_LENGTH];
 
     const uint16_t UDP_PORT = CONFIG_FLYHERO_WIFI_UDP_PORT;
@@ -105,7 +105,7 @@ private:
     void ap_init();
 
 public:
-    static WiFi_Controller &Instance();
+    static WiFi_Controller & Instance();
 
     void Init();
 
@@ -119,13 +119,17 @@ public:
 
     esp_err_t TCP_Wait_For_Client();
 
-    bool UDP_Receive(In_Datagram_Data &datagram_data);
+    bool UDP_Receive(In_Datagram_Data & datagram_data);
 
-    bool UDP_Send(Out_Datagram_Data datagram_data);
+    bool UDP_Send(const Out_Datagram_Data & datagram_data);
 
-    bool TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *received_length);
+    bool TCP_Receive(const char *& data, size_t & received_length);
 
-    bool TCP_Send(const char *data, uint8_t data_length);
+    bool TCP_Receive(const uint8_t *& data, size_t & received_length);
+
+    bool TCP_Send(const char * data, size_t data_length);
+
+    bool TCP_Send(const uint8_t * data, size_t data_length);
 
     void Client_Connected_Callback();
 

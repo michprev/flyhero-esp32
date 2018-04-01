@@ -11,7 +11,7 @@
 namespace flyhero
 {
 
-static esp_err_t event_handler(void *ctx, system_event_t *event)
+static esp_err_t event_handler(void * ctx, system_event_t * event)
 {
     switch (event->event_id)
     {
@@ -36,7 +36,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-WiFi_Controller &WiFi_Controller::Instance()
+WiFi_Controller & WiFi_Controller::Instance()
 {
     static WiFi_Controller instance;
 
@@ -199,7 +199,7 @@ esp_err_t WiFi_Controller::TCP_Wait_For_Client()
     return ESP_OK;
 }
 
-bool WiFi_Controller::UDP_Receive(In_Datagram_Data &datagram_data)
+bool WiFi_Controller::UDP_Receive(In_Datagram_Data & datagram_data)
 {
     in_datagram datagram;
 
@@ -219,7 +219,7 @@ bool WiFi_Controller::UDP_Receive(In_Datagram_Data &datagram_data)
     return true;
 }
 
-bool WiFi_Controller::UDP_Send(Out_Datagram_Data datagram_data)
+bool WiFi_Controller::UDP_Send(const Out_Datagram_Data & datagram_data)
 {
     if (!this->client_connected)
         return false;
@@ -230,15 +230,13 @@ bool WiFi_Controller::UDP_Send(Out_Datagram_Data datagram_data)
     datagram.data.datagram_contents = datagram_data;
     datagram.data.crc = CRC::CRC16(datagram.raw_data, OUT_DATAGRAM_LENGTH - 2);
 
-    if (sendto(this->udp_server_fd, datagram.raw_data, OUT_DATAGRAM_LENGTH, 0,
-               (sockaddr *) &this->udp_client_socket, this->udp_client_socket_length)
-        != datagram.data.datagram_length)
-        return false;
+    return sendto(this->udp_server_fd, datagram.raw_data, OUT_DATAGRAM_LENGTH, 0,
+                  (sockaddr *) &this->udp_client_socket, this->udp_client_socket_length) ==
+           datagram.data.datagram_length;
 
-    return true;
 }
 
-bool WiFi_Controller::TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *received_length)
+bool WiFi_Controller::TCP_Receive(const char *& data, size_t & received_length)
 {
     // in case that client reconnected
     int tmp_fd = accept(this->tcp_server_fd,
@@ -247,41 +245,55 @@ bool WiFi_Controller::TCP_Receive(char *buffer, uint8_t buffer_length, uint8_t *
     if (tmp_fd >= 0)
         this->tcp_client_fd = tmp_fd;
 
-
-    int len;
-
-    if ((len = recv(this->tcp_client_fd, buffer, buffer_length, MSG_DONTWAIT)) < 2)
+    ssize_t len;
+    if ((len = recv(this->tcp_client_fd, this->tcp_buffer, this->TCP_BUFFER_LENGTH, MSG_DONTWAIT)) <= 0)
+    {
+        received_length = 0;
         return false;
+    }
 
-    uint16_t expected_crc = buffer[len - 1] << 8;
-    expected_crc |= buffer[len - 2];
-
-    if (expected_crc != CRC::CRC16((uint8_t *) buffer, len - 2))
-        return false;
-
-    *received_length = len;
+    data = (const char *) this->tcp_buffer;
+    received_length = (size_t) len;
 
     return true;
 }
 
-bool WiFi_Controller::TCP_Send(const char *data, uint8_t data_length)
+bool WiFi_Controller::TCP_Receive(const uint8_t *& data, size_t & received_length)
 {
-    if (data_length > this->TCP_BUFFER_LENGTH - 2)
+    // in case that client reconnected
+    int tmp_fd = accept(this->tcp_server_fd,
+                        (sockaddr *) &this->tcp_client_address,
+                        &this->tcp_client_address_length);
+    if (tmp_fd >= 0)
+        this->tcp_client_fd = tmp_fd;
+
+    ssize_t len;
+    if ((len = recv(this->tcp_client_fd, this->tcp_buffer, this->TCP_BUFFER_LENGTH, MSG_DONTWAIT)) <= 0)
+    {
+        received_length = 0;
         return false;
+    }
 
-    std::strncpy((char *) this->tcp_buffer, data, data_length);
+    data = this->tcp_buffer;
+    received_length = (size_t) len;
 
-    uint16_t crc = CRC::CRC16((uint8_t *) data, data_length);
-    this->tcp_buffer[data_length] = crc & 0xFF;
-    this->tcp_buffer[data_length + 1] = crc >> 8;
+    return true;
+}
 
+bool WiFi_Controller::TCP_Send(const char * data, size_t data_length)
+{
     if (!this->client_connected)
         return false;
 
-    if (send(this->tcp_client_fd, this->tcp_buffer, data_length + 2, 0) != data_length + 2)
+    return send(this->tcp_client_fd, data, data_length, 0) == data_length;
+}
+
+bool WiFi_Controller::TCP_Send(const uint8_t * data, size_t data_length)
+{
+    if (!this->client_connected)
         return false;
 
-    return true;
+    return send(this->tcp_client_fd, data, data_length, 0) == data_length;
 }
 
 void WiFi_Controller::Client_Connected_Callback()
