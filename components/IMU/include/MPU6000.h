@@ -7,10 +7,12 @@
 
 #pragma once
 
-#include <driver/spi_master.h>
+#include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
+#include <driver/spi_master.h>
 
+#include "spi_master.h"
 #include "Biquad_Filter.h"
 #include "IMU.h"
 #include "Counting_Median_Finder.h"

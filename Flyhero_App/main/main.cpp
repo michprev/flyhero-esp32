@@ -4,6 +4,12 @@
 #include <nvs_flash.h>
 #include <esp_task_wdt.h>
 
+#include <soc/rtc.h>
+#include <driver/spi_common.h>
+#include <driver/spi_master.h>
+#include <spi_master.h>
+#include <driver/periph_ctrl.h>
+
 #include "Motors_Controller.h"
 #include "IMU_Detector.h"
 #include "Mahony_Filter.h"
@@ -51,35 +57,72 @@ extern "C" void app_main(void)
 void imu_task(void *args)
 {
     IMU::Sensor_Data accel, gyro;
-    IMU::Euler_Angles complementary_euler;
+    IMU::Euler_Angles euler;
     IMU::Read_Data_Type data_type;
 
     // Subscribe IMU task to watchdog
-    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+    //ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     IMU &imu = IMU_Detector::Detect_IMU();
     Logger &logger = Logger::Instance();
-    Complementary_Filter complementary(0.97f);
+    Mahony_Filter mahony_filter(0.7f, 0.01f);
+
+    uint32_t start, end;
+
+    /*extern uint32_t * _xt_interrupt_table;
+
+    uint32_t * tmp = (uint32_t *)&_xt_interrupt_table;
+
+    uint16_t i = 0;
+    uint8_t interrupt_number = 0;
+
+    while (interrupt_number < 32)
+    {
+        printf("int %d, cpu 0 address %x\n", interrupt_number, tmp[i++]);
+        printf("int %d, cpu 0 arg %x\n", interrupt_number, tmp[i++]);
+        printf("int %d, cpu 1 address %x\n", interrupt_number, tmp[i++]);
+        printf("int %d, cpu 1 arg %x\n", interrupt_number, tmp[i++]);
+
+        interrupt_number++;
+    }
+
+
+    while (true);*/
 
     while (true)
     {
         if (imu.Data_Ready())
         {
-            esp_task_wdt_reset();
+            //esp_task_wdt_reset();
 
             data_type = imu.Read_Data(accel, gyro);
 
-            complementary.Compute(accel, gyro, complementary_euler);
+            //portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
+            //portENTER_CRITICAL(&mutex);
+            //XTOS_SET_INTLEVEL(1);
 
-            if (data_type == IMU::Read_Data_Type::ACCEL_GYRO)
+            __asm__ __volatile__ ("rsr.ccount %0" : "=r"(start));
+            mahony_filter.Compute(accel, gyro, euler);
+            __asm__ __volatile__ ("rsr.ccount %0" : "=r"(end));
+
+            //portEXIT_CRITICAL(&mutex);
+            //XTOS_SET_INTLEVEL(0);
+
+            if (end > start && (end - start) / 240 > 1000)
+            {
+                printf("%d us\n", (end - start) / 240);
+            }
+
+            /*if (data_type == IMU::Read_Data_Type::ACCEL_GYRO)
             {
                 logger.Log_Next(&accel, sizeof(accel));
                 logger.Log_Next(&gyro, sizeof(gyro));
 
-                motors_controller.Feed_Stab_PIDs(complementary_euler);
+                motors_controller.Feed_Stab_PIDs(euler);
                 motors_controller.Feed_Rate_PIDs(gyro);
             } else
                 motors_controller.Feed_Rate_PIDs(gyro);
+*/
         }
     }
 }
@@ -175,15 +218,15 @@ void wifi_task(void *args)
     ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
 
     // Subscribe WiFi task to watchdog
-    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+    //ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 10000, NULL, 2, NULL, 1);
 
     while (true)
     {
         if (wifi.UDP_Receive(in_datagram_data))
         {
-            esp_task_wdt_reset();
+            //esp_task_wdt_reset();
 
             float rate_parameters[3][3] = {
                     { in_datagram_data.rate_roll_kp * 0.01f,  0, 0 },

@@ -5,6 +5,9 @@
  *      Author: michp
  */
 
+#include <spi_master.h>
+#include <driver/periph_ctrl.h>
+#include <driver/spi_common.h>
 #include "MPU6000.h"
 
 
@@ -55,13 +58,41 @@ MPU6000::MPU6000()
     this->gyro_offsets[1] = 0;
     this->gyro_offsets[2] = 0;
     this->data_ready = false;
-    this->spi = NULL;
     this->readings_counter = 0;
 }
 
 esp_err_t MPU6000::spi_init()
 {
-    esp_err_t ret;
+    SPI_Master_Config_t spi_master_config;
+    spi_master_config.frequency = 1000000;
+    spi_master_config.clock_mode = SPI_CLOCK_MODE_0;
+    spi_master_config.read_bit_order = SPI_BIT_ORDER_MSB_FIRST;
+    spi_master_config.write_bit_order = SPI_BIT_ORDER_MSB_FIRST;
+    spi_master_config.flags = 0;
+
+    periph_module_enable(PERIPH_HSPI_MODULE);
+
+    SPI_Master_Config(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &spi_master_config);
+
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_18], PIN_FUNC_GPIO);
+    gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT);
+    gpio_matrix_out(GPIO_NUM_18, HSPICLK_OUT_IDX, false, false);
+
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_5], PIN_FUNC_GPIO);
+    gpio_set_direction(GPIO_NUM_5, GPIO_MODE_OUTPUT);
+    gpio_matrix_out(GPIO_NUM_5, HSPID_OUT_IDX, false, false);
+
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_16], PIN_FUNC_GPIO);
+    gpio_set_direction(GPIO_NUM_16, GPIO_MODE_INPUT);
+    gpio_matrix_in(GPIO_NUM_16, HSPIQ_IN_IDX, false);
+
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[GPIO_NUM_17], PIN_FUNC_GPIO);
+    gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
+    gpio_matrix_out(GPIO_NUM_17, HSPICS0_OUT_IDX, false, false);
+
+    return ESP_OK;
+
+    /*esp_err_t ret;
 
     spi_bus_config_t buscfg;
     buscfg.miso_io_num = GPIO_NUM_16;
@@ -70,6 +101,7 @@ esp_err_t MPU6000::spi_init()
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
+    buscfg.flags = 0;
 
     spi_device_interface_config_t devcfg;
     devcfg.command_bits = 0;
@@ -81,7 +113,7 @@ esp_err_t MPU6000::spi_init()
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 1000000;
     devcfg.spics_io_num = GPIO_NUM_17;
-    devcfg.flags = 0;
+    devcfg.flags = SPI_DEVICE_NO_DUMMY;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
     devcfg.post_cb = 0;
@@ -93,7 +125,7 @@ esp_err_t MPU6000::spi_init()
     if ((ret = spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi)))
         return ret;
 
-    return ESP_OK;
+    return ESP_OK;*/
 }
 
 esp_err_t MPU6000::int_init()
@@ -118,7 +150,18 @@ esp_err_t MPU6000::int_init()
 
 esp_err_t MPU6000::spi_reg_write(uint8_t reg, uint8_t data)
 {
-    esp_err_t ret;
+    SPI_Master_Transmission_t transmission;
+    transmission.mode = SPI_MASTER_MODE_FULL_DUPLEX;
+    transmission.command_bits = 0;
+    transmission.address_bits = 8;
+    transmission.address = reg & 0x7F;
+    transmission.dummy_bits = 0;
+    transmission.mosi_bits = 8;
+    transmission.miso_bits = 0;
+
+    SPI_Master_Transmit(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &transmission, &data, NULL);
+
+    /*esp_err_t ret;
 
     spi_transaction_t trans;
     trans.flags = SPI_TRANS_USE_TXDATA;
@@ -131,14 +174,25 @@ esp_err_t MPU6000::spi_reg_write(uint8_t reg, uint8_t data)
     trans.rx_buffer = NULL;
 
     if ((ret = spi_device_transmit(this->spi, &trans)))
-        return ret;
+        return ret;*/
 
     return ESP_OK;
 }
 
 esp_err_t MPU6000::spi_reg_read(uint8_t reg, uint8_t &data)
 {
-    esp_err_t ret;
+    SPI_Master_Transmission_t transmission;
+    transmission.mode = SPI_MASTER_MODE_FULL_DUPLEX;
+    transmission.command_bits = 0;
+    transmission.address_bits = 8;
+    transmission.address = reg | 0x80;
+    transmission.dummy_bits = 0;
+    transmission.mosi_bits = 0;
+    transmission.miso_bits = 8;
+
+    SPI_Master_Transmit(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &transmission, NULL, &data);
+
+    /*esp_err_t ret;
 
     spi_transaction_t trans;
     trans.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
@@ -152,7 +206,7 @@ esp_err_t MPU6000::spi_reg_read(uint8_t reg, uint8_t &data)
     if ((ret = spi_device_transmit(this->spi, &trans)))
         return ret;
 
-    data = trans.rx_data[0];
+    data = trans.rx_data[0];*/
 
     return ESP_OK;
 }
@@ -375,7 +429,17 @@ bool MPU6000::Start()
     ESP_ERROR_CHECK(this->set_interrupt(true));
 
     // set SPI speed to 20 MHz
-    ESP_ERROR_CHECK(spi_bus_remove_device(this->spi));
+
+    SPI_Master_Config_t spi_master_config;
+    spi_master_config.frequency = 20000000;
+    spi_master_config.clock_mode = SPI_CLOCK_MODE_0;
+    spi_master_config.read_bit_order = SPI_BIT_ORDER_MSB_FIRST;
+    spi_master_config.write_bit_order = SPI_BIT_ORDER_MSB_FIRST;
+    spi_master_config.flags = 0;
+
+    SPI_Master_Config(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &spi_master_config);
+
+    /*ESP_ERROR_CHECK(spi_bus_remove_device(this->spi));
 
     spi_device_interface_config_t devcfg;
     devcfg.command_bits = 0;
@@ -387,12 +451,12 @@ bool MPU6000::Start()
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 20000000;
     devcfg.spics_io_num = GPIO_NUM_17;
-    devcfg.flags = 0;
+    devcfg.flags = SPI_DEVICE_NO_DUMMY;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
     devcfg.post_cb = 0;
 
-    ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
+    ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));*/
 
     return true;
 }
@@ -461,7 +525,7 @@ void MPU6000::Gyro_Calibrate()
 {
     Raw_Data accel, gyro;
 
-    ESP_ERROR_CHECK(this->set_interrupt(true));
+    /*ESP_ERROR_CHECK(this->set_interrupt(true));
 
     uint16_t i = 0;
     Counting_Median_Finder<int16_t> gyro_median_finder[3];
@@ -484,7 +548,7 @@ void MPU6000::Gyro_Calibrate()
 
     this->gyro_offsets[0] = -gyro_median_finder[0].Get_Median();
     this->gyro_offsets[1] = -gyro_median_finder[1].Get_Median();
-    this->gyro_offsets[2] = -gyro_median_finder[2].Get_Median();
+    this->gyro_offsets[2] = -gyro_median_finder[2].Get_Median();*/
 }
 
 float MPU6000::Get_Accel_Sample_Rate()
@@ -507,7 +571,18 @@ void MPU6000::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
     const uint8_t tx_data[14] = { 0x00 };
     uint8_t rx_data[14];
 
-    spi_transaction_t trans;
+    SPI_Master_Transmission_t transmission;
+    transmission.mode = SPI_MASTER_MODE_FULL_DUPLEX;
+    transmission.command_bits = 0;
+    transmission.address_bits = 8;
+    transmission.address = this->REGISTERS.ACCEL_XOUT_H | 0x80;
+    transmission.dummy_bits = 0;
+    transmission.mosi_bits = 0;
+    transmission.miso_bits = 14 * 8;
+
+    SPI_Master_Transmit(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &transmission, NULL, rx_data);
+
+    /*spi_transaction_t trans;
     trans.flags = 0;
     trans.cmd = 0;
     trans.addr = this->REGISTERS.ACCEL_XOUT_H | 0x80;
@@ -517,7 +592,7 @@ void MPU6000::Read_Raw(Raw_Data &accel, Raw_Data &gyro)
     trans.tx_buffer = tx_data;
     trans.rx_buffer = rx_data;
 
-    ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
+    ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));*/
 
     accel.x = (rx_data[2] << 8) | rx_data[3];
     accel.y = (rx_data[0] << 8) | rx_data[1];
@@ -537,6 +612,17 @@ IMU::Read_Data_Type MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         const uint8_t tx_data[14] = { 0x00 };
         uint8_t rx_data[14];
 
+        SPI_Master_Transmission_t transmission;
+        transmission.mode = SPI_MASTER_MODE_FULL_DUPLEX;
+        transmission.command_bits = 0;
+        transmission.address_bits = 8;
+        transmission.address = this->REGISTERS.ACCEL_XOUT_H | 0x80;
+        transmission.dummy_bits = 0;
+        transmission.mosi_bits = 0;
+        transmission.miso_bits = 14 * 8;
+
+        SPI_Master_Transmit(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &transmission, NULL, rx_data);
+/*
         spi_transaction_t trans;
         trans.flags = 0;
         trans.cmd = 0;
@@ -548,6 +634,8 @@ IMU::Read_Data_Type MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         trans.rx_buffer = rx_data;
 
         ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
+
+*/
 
         Raw_Data raw_accel, raw_gyro;
 
@@ -566,7 +654,7 @@ IMU::Read_Data_Type MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.x = (raw_gyro.x + this->gyro_offsets[0]) * this->g_mult;
         gyro.y = (raw_gyro.y + this->gyro_offsets[1]) * this->g_mult;
         gyro.z = (raw_gyro.z + this->gyro_offsets[2]) * this->g_mult;
-
+/*
 #if CONFIG_FLYHERO_IMU_USE_NOTCH
         gyro.x = this->gyro_x_notch_filter.Apply_Filter(gyro.x);
         gyro.y = this->gyro_y_notch_filter.Apply_Filter(gyro.y);
@@ -581,24 +669,36 @@ IMU::Read_Data_Type MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.y = this->gyro_y_filter.Apply_Filter(gyro.y);
         gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
 #endif
+ */
         this->last_accel = accel;
         return_type = IMU::Read_Data_Type::ACCEL_GYRO;
-    } else
+    } /*else
     {
-        const uint8_t tx_data[6] = { 0x00 };
+        //const uint8_t tx_data[6] = { 0x00 };
         uint8_t rx_data[6];
 
-        spi_transaction_t trans;
-        trans.flags = 0;
-        trans.cmd = 0;
-        trans.addr = this->REGISTERS.GYRO_XOUT_H | 0x80;
-        trans.length = 6 * 8;
-        trans.rxlength = 6 * 8;
-        trans.user = 0;
-        trans.tx_buffer = tx_data;
-        trans.rx_buffer = rx_data;
+        SPI_Master_Transmission_t transmission;
+        transmission.mode = SPI_MASTER_MODE_FULL_DUPLEX;
+        transmission.command_bits = 0;
+        transmission.address_bits = 8;
+        transmission.address = this->REGISTERS.GYRO_XOUT_H | 0x80;
+        transmission.dummy_bits = 0;
+        transmission.mosi_bits = 0;
+        transmission.miso_bits = 6 * 8;
 
-        ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
+        SPI_Master_Transmit(SPI_DEVICE_HSPI, SPI_MASTER_CS0, &transmission, NULL, rx_data);
+
+        //spi_transaction_t trans;
+        //trans.flags = 0;
+        //trans.cmd = 0;
+        //trans.addr = this->REGISTERS.GYRO_XOUT_H | 0x80;
+        //trans.length = 6 * 8;
+        //trans.rxlength = 6 * 8;
+        //trans.user = 0;
+        //trans.tx_buffer = tx_data;
+        //trans.rx_buffer = rx_data;
+
+        //ESP_ERROR_CHECK(spi_device_transmit(this->spi, &trans));
 
         Raw_Data raw_gyro;
 
@@ -623,7 +723,7 @@ IMU::Read_Data_Type MPU6000::Read_Data(Sensor_Data &accel, Sensor_Data &gyro)
         gyro.z = this->gyro_z_filter.Apply_Filter(gyro.z);
 #endif
         return_type = IMU::Read_Data_Type::GYRO_ONLY;
-    }
+    }*/
 
     this->readings_counter++;
 

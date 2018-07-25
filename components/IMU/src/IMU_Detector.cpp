@@ -2,6 +2,7 @@
 // Created by michal on 22.10.17.
 //
 
+#include <driver/spi_common.h>
 #include "IMU_Detector.h"
 
 
@@ -46,6 +47,7 @@ bool IMU_Detector::spi_init()
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
+    buscfg.flags = 0;
 
     if (spi_bus_initialize(HSPI_HOST, &buscfg, 0) != ESP_OK)
         return false;
@@ -107,7 +109,7 @@ bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EX
     devcfg.cs_ena_posttrans = 0;
     devcfg.clock_speed_hz = 1000000;
     devcfg.spics_io_num = CS_NUM;
-    devcfg.flags = 0;
+    devcfg.flags = SPI_DEVICE_NO_DUMMY;
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
     devcfg.post_cb = 0;
@@ -185,7 +187,6 @@ IMU &IMU_Detector::Detect_IMU()
 
             IMU_Detector::imu = &MPU6000::Instance();
             IMU_Detector::detected = true;
-
             return *IMU_Detector::imu;
         }
 
