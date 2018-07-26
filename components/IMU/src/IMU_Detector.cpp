@@ -46,6 +46,7 @@ bool IMU_Detector::spi_init()
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
+    buscfg.flags = 0;
 
     if (spi_bus_initialize(HSPI_HOST, &buscfg, 0) != ESP_OK)
         return false;
@@ -111,6 +112,7 @@ bool IMU_Detector::try_spi_imu(const uint8_t WHO_AM_I_REGISTER, const uint8_t EX
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
     devcfg.post_cb = 0;
+    devcfg.input_delay_ns = 0;
 
     if (spi_bus_add_device(HSPI_HOST, &devcfg, &IMU_Detector::spi) != ESP_OK)
         return false;

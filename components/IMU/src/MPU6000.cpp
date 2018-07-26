@@ -70,6 +70,7 @@ esp_err_t MPU6000::spi_init()
     buscfg.quadwp_io_num = -1;
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
+    buscfg.flags = 0;
 
     spi_device_interface_config_t devcfg;
     devcfg.command_bits = 0;
@@ -85,6 +86,7 @@ esp_err_t MPU6000::spi_init()
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
     devcfg.post_cb = 0;
+    devcfg.input_delay_ns = 0;
 
     //Initialize the SPI bus
     if ((ret = spi_bus_initialize(HSPI_HOST, &buscfg, 0)))
@@ -391,6 +393,7 @@ bool MPU6000::Start()
     devcfg.queue_size = 7;
     devcfg.pre_cb = 0;
     devcfg.post_cb = 0;
+    devcfg.input_delay_ns = 0;
 
     ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
 
