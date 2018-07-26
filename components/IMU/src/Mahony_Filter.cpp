@@ -12,7 +12,7 @@ namespace flyhero
 {
 
 Mahony_Filter::Mahony_Filter(float kp, float ki)
-        : MAHONY_KP(kp), MAHONY_KI(ki)
+        : TWO_KP(2 * kp), TWO_KI(2 * ki)
 {
     this->last_time = 0;
     this->quaternion.q0 = 1;
@@ -49,7 +49,7 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     gyro_rad.y = gyro.y * Math::DEG_TO_RAD;
     gyro_rad.z = gyro.z * Math::DEG_TO_RAD;
 
-    IMU::Sensor_Data v, error;
+    IMU::Sensor_Data half_v, half_error;
 
     // normalise accelerometer measurement
     recip_norm = 1 / sqrtf(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z);
@@ -58,25 +58,23 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     accel.z *= recip_norm;
 
     // estimated direction of gravity and vector perpendicular to magnetic flux
-    v.x = 2 * (this->quaternion.q1 * this->quaternion.q3
-               - this->quaternion.q0 * this->quaternion.q2);
-    v.y = 2 * (this->quaternion.q0 * this->quaternion.q1
-               + this->quaternion.q2 * this->quaternion.q3);
-    v.z = +this->quaternion.q0 * this->quaternion.q0
-          - this->quaternion.q1 * this->quaternion.q1
-          - this->quaternion.q2 * this->quaternion.q2
-          + this->quaternion.q3 * this->quaternion.q3;
+    half_v.x = this->quaternion.q1 * this->quaternion.q3
+               - this->quaternion.q0 * this->quaternion.q2;
+    half_v.y = this->quaternion.q0 * this->quaternion.q1
+               + this->quaternion.q2 * this->quaternion.q3;
+    half_v.z = this->quaternion.q0 * this->quaternion.q0 - 0.5f
+               + this->quaternion.q3 * this->quaternion.q3;
 
     // error is sum of cross product between estimated and measured direction of gravity
-    error.x = (accel.y * v.z - accel.z * v.y);
-    error.y = (accel.z * v.x - accel.x * v.z);
-    error.z = (accel.x * v.y - accel.y * v.x);
+    half_error.x = accel.y * half_v.z - accel.z * half_v.y;
+    half_error.y = accel.z * half_v.x - accel.x * half_v.z;
+    half_error.z = accel.x * half_v.y - accel.y * half_v.x;
 
-    if (this->MAHONY_KI > 0)
+    if (this->TWO_KI > 0)
     {
-        this->error_integral.x += error.x * delta_t;
-        this->error_integral.y += error.y * delta_t;
-        this->error_integral.z += error.z * delta_t;
+        this->error_integral.x += this->TWO_KI * half_error.x * delta_t;
+        this->error_integral.y += this->TWO_KI * half_error.y * delta_t;
+        this->error_integral.z += this->TWO_KI * half_error.z * delta_t;
     } else
     {
         this->error_integral.x = 0;
@@ -84,22 +82,26 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
         this->error_integral.z = 0;
     }
 
-    gyro_rad.x += this->MAHONY_KP * error.x + this->MAHONY_KI * error_integral.x;
-    gyro_rad.y += this->MAHONY_KP * error.y + this->MAHONY_KI * error_integral.y;
-    gyro_rad.z += this->MAHONY_KP * error.z + this->MAHONY_KI * error_integral.z;
+    gyro_rad.x += this->TWO_KP * half_error.x + error_integral.x;
+    gyro_rad.y += this->TWO_KP * half_error.y + error_integral.y;
+    gyro_rad.z += this->TWO_KP * half_error.z + error_integral.z;
+
+    gyro_rad.x *= 0.5f * delta_t;
+    gyro_rad.y *= 0.5f * delta_t;
+    gyro_rad.z *= 0.5f * delta_t;
 
     float qa = this->quaternion.q0;
     float qb = this->quaternion.q1;
     float qc = this->quaternion.q2;
 
-    this->quaternion.q0 += 0.5f * delta_t * (-qb * gyro_rad.x - qc * gyro_rad.y
-                                             - this->quaternion.q3 * gyro_rad.z);
-    this->quaternion.q1 += 0.5f * delta_t * (qa * gyro_rad.x + qc * gyro_rad.z
-                                             - this->quaternion.q3 * gyro_rad.y);
-    this->quaternion.q2 += 0.5f * delta_t * (qa * gyro_rad.y - qb * gyro_rad.z
-                                             + this->quaternion.q3 * gyro_rad.x);
-    this->quaternion.q3 += 0.5f * delta_t * (qa * gyro_rad.z + qb * gyro_rad.y
-                                             - qc * gyro_rad.x);
+    this->quaternion.q0 += -qb * gyro_rad.x - qc * gyro_rad.y
+                           - this->quaternion.q3 * gyro_rad.z;
+    this->quaternion.q1 += qa * gyro_rad.x + qc * gyro_rad.z
+                           - this->quaternion.q3 * gyro_rad.y;
+    this->quaternion.q2 += qa * gyro_rad.y - qb * gyro_rad.z
+                           + this->quaternion.q3 * gyro_rad.x;
+    this->quaternion.q3 += qa * gyro_rad.z + qb * gyro_rad.y
+                           - qc * gyro_rad.x;
 
     // normalise quaternion
     recip_norm = 1 / sqrtf(this->quaternion.q0 * this->quaternion.q0 +
@@ -117,19 +119,19 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
     float q2_sqr = this->quaternion.q2 * this->quaternion.q2;
 
-    float t0 = +2.0f * (this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3);
-    float t1 = +1.0f - 2.0f * (this->quaternion.q1 * this->quaternion.q1 + q2_sqr);
-    euler.roll = atan2f(t0, t1) * Math::RAD_TO_DEG;
+    euler.roll = atan2f(2 * (this->quaternion.q0 * this->quaternion.q1 + this->quaternion.q2 * this->quaternion.q3),
+                        1 - 2 * (this->quaternion.q1 * this->quaternion.q1 + q2_sqr)) * Math::RAD_TO_DEG;
 
-    float t2 = +2.0f * (this->quaternion.q0 * this->quaternion.q2 - this->quaternion.q3 * this->quaternion.q1);
-    t2 = ((t2 > 1.0f) ? 1.0f : t2);
-    t2 = ((t2 < -1.0f) ? -1.0f : t2);
-    euler.pitch = asinf(t2);
+    float sinp = 2 * (this->quaternion.q0 * this->quaternion.q2 - this->quaternion.q3 * this->quaternion.q1);
+
+    if (fabs(sinp) >= 1)
+        euler.pitch = copysignf(Math::PI / 2, sinp);
+    else
+        euler.pitch = asinf(sinp);
     euler.pitch *= Math::RAD_TO_DEG;
 
-    float t3 = +2.0f * (this->quaternion.q0 * this->quaternion.q3 + this->quaternion.q1 * this->quaternion.q2);
-    float t4 = +1.0f - 2.0f * (q2_sqr + this->quaternion.q3 * this->quaternion.q3);
-    euler.yaw = atan2f(t3, t4) * Math::RAD_TO_DEG;
+    euler.yaw = atan2f(2 * (this->quaternion.q0 * this->quaternion.q3 + this->quaternion.q1 * this->quaternion.q2),
+                           1 - 2 * (q2_sqr + this->quaternion.q3 * this->quaternion.q3)) * Math::RAD_TO_DEG;
 }
 
 void Mahony_Filter::Reset()

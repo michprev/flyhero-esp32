@@ -21,7 +21,7 @@ class Mahony_Filter : public Fusion_Filter
 {
 private:
     IMU::Quaternion quaternion;
-    const float MAHONY_KP, MAHONY_KI;
+    const float TWO_KP, TWO_KI;
     int64_t last_time;
     IMU::Sensor_Data error_integral;
 
@@ -33,7 +33,6 @@ public:
     void Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::Euler_Angles &euler) override;
 
     void Reset() override;
-
 };
 
 } /* namespace flyhero */
