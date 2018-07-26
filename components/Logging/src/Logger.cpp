@@ -49,6 +49,11 @@ bool Logger::Log_Next(const void *data, size_t size)
     return true;
 }
 
+void Logger::Reset_Read_Pointer()
+{
+    this->read_offset = 0;
+}
+
 bool Logger::Read_Next(void *data, size_t size)
 {
     if (esp_partition_read(this->partition, this->read_offset, data, size) != ESP_OK)

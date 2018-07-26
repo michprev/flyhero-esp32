@@ -33,6 +33,8 @@ public:
 
     bool Log_Next(const void *data, size_t size);
 
+    void Reset_Read_Pointer();
+
     bool Read_Next(void *data, size_t size);
 };
 
