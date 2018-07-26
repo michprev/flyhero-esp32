@@ -44,8 +44,6 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(esp_task_wdt_init(1, true));
 
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
-
-    while (true);
 }
 
 void imu_task(void *args)
@@ -177,7 +175,7 @@ void wifi_task(void *args)
     // Subscribe WiFi task to watchdog
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 20, NULL, 1);
 
     while (true)
     {
