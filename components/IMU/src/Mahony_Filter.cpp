@@ -45,9 +45,10 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
 
     float recip_norm;
 
+    // swap x with y value
     IMU::Sensor_Data gyro_rad;
-    gyro_rad.x = gyro.x * Math::DEG_TO_RAD;
-    gyro_rad.y = gyro.y * Math::DEG_TO_RAD;
+    gyro_rad.x = gyro.y * Math::DEG_TO_RAD;
+    gyro_rad.y = gyro.x * Math::DEG_TO_RAD;
     gyro_rad.z = gyro.z * Math::DEG_TO_RAD;
 
     IMU::Sensor_Data half_v, half_error;
