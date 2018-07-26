@@ -32,13 +32,13 @@ public:
     struct __attribute__((__packed__)) In_Datagram_Data
     {
         uint16_t throttle;
-        uint8_t rate_roll_kp;
+        uint16_t rate_roll_kp;
         uint16_t stab_roll_kp;
-        uint8_t stab_roll_ki;
-        uint8_t rate_pitch_kp;
+        uint16_t stab_roll_ki;
+        uint16_t rate_pitch_kp;
         uint16_t stab_pitch_kp;
-        uint8_t stab_pitch_ki;
-        uint8_t rate_yaw_kp;
+        uint16_t stab_pitch_ki;
+        uint16_t rate_yaw_kp;
     };
 
     struct __attribute__((__packed__)) Out_Datagram_Data
