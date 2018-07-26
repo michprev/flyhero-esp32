@@ -40,6 +40,7 @@ private:
     int16_t motor_FL, motor_FR, motor_BL, motor_BR;
     uint16_t throttle;
     float rate_setpoints[3];
+    bool running;
 
     SemaphoreHandle_t stab_PIDs_semaphore, rate_PIDs_semaphore, throttle_semaphore;
 
@@ -59,6 +60,10 @@ public:
     void Set_Throttle(uint16_t throttle);
 
     // to be called from CORE 1
+    void Start();
+
+    void Stop();
+
     void Feed_Stab_PIDs(IMU::Euler_Angles euler);
     void Feed_Rate_PIDs(IMU::Sensor_Data gyro);
 };

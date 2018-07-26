@@ -34,6 +34,8 @@ Motors_Controller::Motors_Controller() : motors_protocol(OneShot125::Instance())
 
     this->throttle = 0;
 
+    this->running = false;
+
     this->stab_PIDs_semaphore = xSemaphoreCreateBinary();
     this->rate_PIDs_semaphore = xSemaphoreCreateBinary();
     this->throttle_semaphore = xSemaphoreCreateBinary();
@@ -63,7 +65,6 @@ void Motors_Controller::Init()
     xSemaphoreGive(this->throttle_semaphore);
 
     this->motors_protocol.Init();
-    this->motors_protocol.Arm();
 }
 
 void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
@@ -111,6 +112,9 @@ void Motors_Controller::Set_Throttle(uint16_t throttle)
 
 void Motors_Controller::Feed_Stab_PIDs(IMU::Euler_Angles euler)
 {
+    if (!this->running)
+        return;
+
     // consider more than 60 deg unsafe
     if (std::fabs(euler.roll) > 60 || std::fabs(euler.pitch) > 60)
         esp_restart();
@@ -135,6 +139,9 @@ void Motors_Controller::Feed_Stab_PIDs(IMU::Euler_Angles euler)
 
 void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
 {
+    if (!this->running)
+        return;
+
     while (xSemaphoreTake(this->throttle_semaphore, 0) != pdTRUE);
 
     uint16_t throttle = this->throttle;
@@ -188,6 +195,18 @@ void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
         this->motors_protocol.Update(this->motor_FL, this->motor_BL, this->motor_FR, this->motor_BR);
     } else
         this->motors_protocol.Update(0, 0, 0, 0);
+}
+
+void Motors_Controller::Start()
+{
+    this->motors_protocol.Arm();
+    this->running = true;
+}
+
+void Motors_Controller::Stop()
+{
+    this->motors_protocol.Disarm();
+    this->running = false;
 }
 
 } /* namespace flyhero */
