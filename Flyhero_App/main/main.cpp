@@ -20,6 +20,8 @@ void wifi_task(void * args);
 
 void imu_task(void * args);
 
+void TCP_process(const char * command);
+
 extern "C" void app_main(void)
 {
     // Initialize NVS
@@ -89,115 +91,157 @@ void wifi_task(void * args)
 
     const char * received_data;
     size_t received_length;
-    bool process_tcp = true;
+    bool process_tcp, process_udp;
 
     wifi.Init();
 
+    ESP_ERROR_CHECK(wifi.UDP_Server_Start());
     ESP_ERROR_CHECK(wifi.TCP_Server_Start());
     ESP_ERROR_CHECK(wifi.TCP_Wait_For_Client());
 
-    while (process_tcp)
-    {
-        if (wifi.TCP_Receive(received_data, received_length))
-        {
-            if (strncmp(received_data, "start", 5) == 0)
-            {
-                IMU_Detector::Detect_IMU().Gyro_Calibrate();
-                if (IMU_Detector::Detect_IMU().Start())
-                {
-                    ESP_ERROR_CHECK(wifi.UDP_Server_Start());
-                    wifi.TCP_Send("yup", 3);
-                    process_tcp = false;
-                } else
-                    wifi.TCP_Send("nah", 3);
-
-            } else if (strncmp(received_data, "calibrate", 9) == 0)
-            {
-                IMU_Detector::Detect_IMU().Accel_Calibrate();
-                wifi.TCP_Send("yup", 3);
-            } else if (strncmp(received_data, "log", 3) == 0)
-            {
-                Logger::Instance().Erase();
-                Logger::Instance().Enable_Writes();
-                wifi.TCP_Send("yup", 3);
-            } else if (strncmp(received_data, "download", strlen("download")) == 0)
-            {
-                char buffer[1024];
-                if (!Logger::Instance().Read_Next(buffer, 1024))
-                {
-                    wifi.TCP_Send("nah", 3);
-                    continue;
-                }
-
-                bool empty = true;
-
-                for (uint8_t i = 0; i < 100; i++)
-                {
-                    if (buffer[i] != 0xFF)
-                    {
-                        empty = false;
-                        break;
-                    }
-                }
-
-                if (empty)
-                {
-                    wifi.TCP_Send("nah", 3);
-                    continue;
-                }
-
-                wifi.TCP_Send("yup", 3);
-
-                do
-                {
-                    wifi.TCP_Send(buffer, 1024);
-                    if (!Logger::Instance().Read_Next(buffer, 1024))
-                        break;
-
-                    empty = true;
-
-                    for (uint8_t i = 0; i < 100; i++)
-                    {
-                        if (buffer[i] != 0xFF)
-                        {
-                            empty = false;
-                            break;
-                        }
-                    }
-
-                } while (!empty);
-            } else
-                wifi.TCP_Send("nah", 3);
-        }
-    }
-    ESP_ERROR_CHECK(wifi.TCP_Server_Stop());
-
-    // Subscribe WiFi task to watchdog
-    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
-
-    xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 20, NULL, 1);
-
     while (true)
     {
-        if (wifi.UDP_Receive(in_datagram_data))
+        // TCP phase
+
+        process_tcp = true;
+
+        while (process_tcp)
         {
-            esp_task_wdt_reset();
+            if (wifi.TCP_Receive(received_data, received_length))
+            {
+                if (strncmp(received_data, "start", strlen("start")) == 0)
+                {
+                    IMU_Detector::Detect_IMU().Gyro_Calibrate();
+                    if (IMU_Detector::Detect_IMU().Start())
+                    {
+                        motors_controller.Start();
+                        wifi.TCP_Send("yup", 3);
+                        process_tcp = false;
+                    } else
+                        wifi.TCP_Send("nah", 3);
+                } else
+                    TCP_process(received_data);
+            }
+        }
 
-            float rate_parameters[3][3] = {
-                    { in_datagram_data.rate_roll_kp * 0.01f,  0, 0 },
-                    { in_datagram_data.rate_pitch_kp * 0.01f, 0, 0 },
-                    { in_datagram_data.rate_yaw_kp * 0.01f,   0, 0 }
-            };
+        // Subscribe WiFi task to watchdog
+        ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
-            float stab_parameters[3][3] = {
-                    { in_datagram_data.stab_roll_kp * 0.01f,  in_datagram_data.stab_roll_ki * 0.01f,  0 },
-                    { in_datagram_data.stab_pitch_kp * 0.01f, in_datagram_data.stab_pitch_ki * 0.01f, 0 },
-                    { 0,                                      0,                                      0 }
-            };
+        TaskHandle_t imu_task_handle;
+        assert(xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 20, &imu_task_handle, 1) == pdTRUE);
 
-            motors_controller.Set_Throttle(in_datagram_data.throttle);
-            motors_controller.Set_PID_Constants(Motors_Controller::RATE, rate_parameters);
-            motors_controller.Set_PID_Constants(Motors_Controller::STABILIZE, stab_parameters);
+        // UDP phase
+
+        process_udp = true;
+
+        while (process_udp)
+        {
+            if (wifi.UDP_Receive(in_datagram_data))
+            {
+                esp_task_wdt_reset();
+
+                float rate_parameters[3][3] = {
+                        { in_datagram_data.rate_roll_kp * 0.01f,  0, 0 },
+                        { in_datagram_data.rate_pitch_kp * 0.01f, 0, 0 },
+                        { in_datagram_data.rate_yaw_kp * 0.01f,   0, 0 }
+                };
+
+                float stab_parameters[3][3] = {
+                        { in_datagram_data.stab_roll_kp * 0.01f,  in_datagram_data.stab_roll_ki * 0.01f,  0 },
+                        { in_datagram_data.stab_pitch_kp * 0.01f, in_datagram_data.stab_pitch_ki * 0.01f, 0 },
+                        { 0,                                      0,                                      0 }
+                };
+
+                motors_controller.Set_Throttle(in_datagram_data.throttle);
+                motors_controller.Set_PID_Constants(Motors_Controller::RATE, rate_parameters);
+                motors_controller.Set_PID_Constants(Motors_Controller::STABILIZE, stab_parameters);
+            }
+            if (wifi.TCP_Receive(received_data, received_length))
+            {
+                if (strncmp(received_data, "stop", strlen("stop")) == 0)
+                {
+                    // Unsubscribe WiFi & IMU task from watchdog
+                    esp_task_wdt_delete(NULL);
+                    esp_task_wdt_delete(imu_task_handle);
+
+                    vTaskDelete(imu_task_handle);
+
+                    motors_controller.Stop();
+                    IMU_Detector::Detect_IMU().Stop();
+                    process_udp = false;
+
+                    wifi.TCP_Send("yup", 3);
+                } else
+                    wifi.TCP_Send("nah", 3);
+            }
         }
     }
+}
+
+void TCP_process(const char * command)
+{
+    WiFi_Controller & wifi = WiFi_Controller::Instance();
+
+    if (strncmp(command, "calibrate", strlen("calibrate")) == 0)
+    {
+        IMU_Detector::Detect_IMU().Accel_Calibrate();
+        wifi.TCP_Send("yup", 3);
+    } else if (strncmp(command, "log", strlen("log")) == 0)
+    {
+        Logger::Instance().Erase();
+        Logger::Instance().Enable_Writes();
+        wifi.TCP_Send("yup", 3);
+    } else if (strncmp(command, "download", strlen("download")) == 0)
+    {
+        char buffer[1024];
+
+        Logger & logger = Logger::Instance();
+
+        logger.Reset_Read_Pointer();
+        if (!logger.Read_Next(buffer, 1024))
+        {
+            wifi.TCP_Send("nah", 3);
+            return;
+        }
+
+        bool empty = true;
+
+        for (uint8_t i = 0; i < 100; i++)
+        {
+            if (buffer[i] != 0xFF)
+            {
+                empty = false;
+                break;
+            }
+        }
+
+        if (empty)
+        {
+            wifi.TCP_Send("nah", 3);
+            return;
+        }
+
+
+        wifi.TCP_Send("yup", 3);
+
+        do
+        {
+            wifi.TCP_Send(buffer, 1024);
+            if (!logger.Read_Next(buffer, 1024))
+                break;
+
+            empty = true;
+
+            for (uint8_t i = 0; i < 100; i++)
+            {
+                if (buffer[i] != 0xFF)
+                {
+                    empty = false;
+                    break;
+                }
+            }
+
+        } while (!empty);
+    } else
+        wifi.TCP_Send("nah", 3);
 }
