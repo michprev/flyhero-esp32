@@ -22,7 +22,7 @@ class Mahony_Filter : public Fusion_Filter
 private:
     IMU::Quaternion quaternion;
     const float TWO_KP, TWO_KI;
-    int64_t last_time;
+    int64_t first_time, last_time;
     IMU::Sensor_Data error_integral;
 
 public:

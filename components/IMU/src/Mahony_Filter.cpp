@@ -33,7 +33,8 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
     {
         delta_t = 0;
 
-        this->last_time = esp_timer_get_time();
+        this->first_time = esp_timer_get_time();
+        this->last_time = this->first_time;
     } else
     {
         int64_t tmp = esp_timer_get_time();
@@ -82,9 +83,17 @@ void Mahony_Filter::Compute(IMU::Sensor_Data accel, IMU::Sensor_Data gyro, IMU::
         this->error_integral.z = 0;
     }
 
-    gyro_rad.x += this->TWO_KP * half_error.x + error_integral.x;
-    gyro_rad.y += this->TWO_KP * half_error.y + error_integral.y;
-    gyro_rad.z += this->TWO_KP * half_error.z + error_integral.z;
+    if (this->last_time - this->first_time < 20000000)
+    {
+        gyro_rad.x += 10 * this->TWO_KP * half_error.x + error_integral.x;
+        gyro_rad.y += 10 * this->TWO_KP * half_error.y + error_integral.y;
+        gyro_rad.z += 10 * this->TWO_KP * half_error.z + error_integral.z;
+    } else
+    {
+        gyro_rad.x += this->TWO_KP * half_error.x + error_integral.x;
+        gyro_rad.y += this->TWO_KP * half_error.y + error_integral.y;
+        gyro_rad.z += this->TWO_KP * half_error.z + error_integral.z;
+    }
 
     gyro_rad.x *= 0.5f * delta_t;
     gyro_rad.y *= 0.5f * delta_t;
