@@ -46,6 +46,8 @@ public:
 
     virtual bool Start() = 0;
 
+    virtual void Stop() = 0;
+
     virtual void Accel_Calibrate() = 0;
 
     virtual void Gyro_Calibrate() = 0;

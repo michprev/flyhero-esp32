@@ -400,6 +400,36 @@ bool MPU6000::Start()
     return true;
 }
 
+void MPU6000::Stop()
+{
+    // wait for last SPI transcation
+    spi_transaction_t * dummy;
+    spi_device_get_trans_result(this->spi, &dummy, 10);
+
+    // set SPI speed to 1 MHz
+    ESP_ERROR_CHECK(spi_bus_remove_device(this->spi));
+
+    spi_device_interface_config_t devcfg;
+    devcfg.command_bits = 0;
+    devcfg.address_bits = 8;
+    devcfg.dummy_bits = 0;
+    devcfg.mode = 0;
+    devcfg.duty_cycle_pos = 128;
+    devcfg.cs_ena_pretrans = 0;
+    devcfg.cs_ena_posttrans = 0;
+    devcfg.clock_speed_hz = 1000000;
+    devcfg.spics_io_num = GPIO_NUM_17;
+    devcfg.flags = 0;
+    devcfg.queue_size = 7;
+    devcfg.pre_cb = 0;
+    devcfg.post_cb = 0;
+    devcfg.input_delay_ns = 0;
+
+    ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &this->spi));
+
+    ESP_ERROR_CHECK(this->set_interrupt(false));
+}
+
 void MPU6000::Accel_Calibrate()
 {
     Raw_Data accel, gyro;

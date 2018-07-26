@@ -455,6 +455,11 @@ bool MPU6050::Start()
     return true;
 }
 
+void MPU6050::Stop()
+{
+    ESP_ERROR_CHECK(this->set_interrupt(false));
+}
+
 void MPU6050::Accel_Calibrate()
 {
     Raw_Data accel, gyro;

@@ -187,6 +187,8 @@ public:
 
     bool Start() override;
 
+    void Stop() override;
+
     void Accel_Calibrate() override;
 
     void Gyro_Calibrate() override;
