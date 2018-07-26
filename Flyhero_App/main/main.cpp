@@ -14,11 +14,11 @@
 
 using namespace flyhero;
 
-Motors_Controller &motors_controller = Motors_Controller::Instance();
+Motors_Controller & motors_controller = Motors_Controller::Instance();
 
-void wifi_task(void *args);
+void wifi_task(void * args);
 
-void imu_task(void *args);
+void imu_task(void * args);
 
 extern "C" void app_main(void)
 {
@@ -37,7 +37,7 @@ extern "C" void app_main(void)
     motors_controller.Init();
 
     Logger::Instance().Init();
-    IMU &imu = IMU_Detector::Detect_IMU();
+    IMU & imu = IMU_Detector::Detect_IMU();
     imu.Init();
 
     // Initialize watchdog with 1 sec timeout
@@ -46,7 +46,7 @@ extern "C" void app_main(void)
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
 }
 
-void imu_task(void *args)
+void imu_task(void * args)
 {
     IMU::Sensor_Data accel, gyro;
     IMU::Euler_Angles complementary_euler;
@@ -55,8 +55,8 @@ void imu_task(void *args)
     // Subscribe IMU task to watchdog
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
-    IMU &imu = IMU_Detector::Detect_IMU();
-    Logger &logger = Logger::Instance();
+    IMU & imu = IMU_Detector::Detect_IMU();
+    Logger & logger = Logger::Instance();
     Complementary_Filter complementary(0.97f);
 
     while (true)
@@ -82,9 +82,9 @@ void imu_task(void *args)
     }
 }
 
-void wifi_task(void *args)
+void wifi_task(void * args)
 {
-    WiFi_Controller &wifi = WiFi_Controller::Instance();
+    WiFi_Controller & wifi = WiFi_Controller::Instance();
     WiFi_Controller::In_Datagram_Data in_datagram_data;
 
     const char * received_data;
