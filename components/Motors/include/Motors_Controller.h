@@ -42,7 +42,7 @@ private:
     float rate_setpoints[3];
     bool running;
 
-    SemaphoreHandle_t stab_PIDs_semaphore, rate_PIDs_semaphore, throttle_semaphore;
+    SemaphoreHandle_t stab_PIDs_semaphore, rate_PIDs_semaphore;
 
 public:
     static Motors_Controller &Instance();

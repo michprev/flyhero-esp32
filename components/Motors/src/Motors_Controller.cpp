@@ -38,7 +38,6 @@ Motors_Controller::Motors_Controller() : motors_protocol(OneShot125::Instance())
 
     this->stab_PIDs_semaphore = xSemaphoreCreateBinary();
     this->rate_PIDs_semaphore = xSemaphoreCreateBinary();
-    this->throttle_semaphore = xSemaphoreCreateBinary();
 }
 
 void Motors_Controller::Init()
@@ -62,7 +61,6 @@ void Motors_Controller::Init()
 
     xSemaphoreGive(this->stab_PIDs_semaphore);
     xSemaphoreGive(this->rate_PIDs_semaphore);
-    xSemaphoreGive(this->throttle_semaphore);
 
     this->motors_protocol.Init();
 }
@@ -103,11 +101,7 @@ void Motors_Controller::Set_Throttle(uint16_t throttle)
     if (throttle > 1000)
         return;
 
-    while (xSemaphoreTake(this->throttle_semaphore, 0) != pdTRUE);
-
     this->throttle = throttle;
-
-    xSemaphoreGive(this->throttle_semaphore);
 }
 
 void Motors_Controller::Feed_Stab_PIDs(IMU::Euler_Angles euler)
@@ -119,11 +113,7 @@ void Motors_Controller::Feed_Stab_PIDs(IMU::Euler_Angles euler)
     if (std::fabs(euler.roll) > 60 || std::fabs(euler.pitch) > 60)
         esp_restart();
 
-    while (xSemaphoreTake(this->throttle_semaphore, 0) != pdTRUE);
-
     uint16_t throttle = this->throttle;
-
-    xSemaphoreGive(this->throttle_semaphore);
 
     if (throttle > 180)
     {
@@ -142,11 +132,7 @@ void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
     if (!this->running)
         return;
 
-    while (xSemaphoreTake(this->throttle_semaphore, 0) != pdTRUE);
-
     uint16_t throttle = this->throttle;
-
-    xSemaphoreGive(this->throttle_semaphore);
 
     if (throttle > 180)
     {
