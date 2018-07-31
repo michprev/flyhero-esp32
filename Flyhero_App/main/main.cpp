@@ -144,6 +144,7 @@ void wifi_task(void * args)
                 } else
                     TCP_process(received_data);
             }
+            vTaskDelay(20);
         }
 
         TaskHandle_t imu_task_handle;
@@ -216,6 +217,7 @@ void wifi_task(void * args)
                 } else
                     wifi.TCP_Send("nah", 3);
             }
+            vTaskDelay(20);
         }
     }
 }
