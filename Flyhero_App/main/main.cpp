@@ -3,6 +3,8 @@
 #include <freertos/semphr.h>
 #include <nvs_flash.h>
 #include <esp_task_wdt.h>
+#include <driver/periph_ctrl.h>
+#include <soc/timer_group_struct.h>
 
 #include "Motors_Controller.h"
 #include "IMU_Detector.h"
@@ -50,9 +52,6 @@ extern "C" void app_main(void)
     IMU & imu = IMU_Detector::Detect_IMU();
     imu.Init();
 
-    // Initialize watchdog with 1 sec timeout
-    ESP_ERROR_CHECK(esp_task_wdt_init(1, true));
-
     xTaskCreatePinnedToCore(wifi_task, "WiFi task", 4096, NULL, 2, NULL, 0);
 }
 
@@ -62,18 +61,33 @@ void imu_task(void * args)
     IMU::Euler_Angles complementary_euler;
     IMU::Read_Data_Type data_type;
 
-    // Subscribe IMU task to watchdog
-    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
-
     IMU & imu = IMU_Detector::Detect_IMU();
     Logger & logger = Logger::Instance();
     Complementary_Filter complementary(0.97f);
+
+    periph_module_enable(PERIPH_TIMG1_MODULE);  // enable TIMG1 watchdog clock
+    TIMERG1.wdt_wprotect = 0x50d83aa1;          // disable write protection
+    TIMERG1.wdt_config0.sys_reset_length = 7;
+    TIMERG1.wdt_config0.cpu_reset_length = 7;
+    TIMERG1.wdt_config0.level_int_en = 0;       // disable level interrupt
+    TIMERG1.wdt_config0.edge_int_en = 0;        // disable edge interrupt
+    TIMERG1.wdt_config0.stg0 = 3;               // reset chip when reaching stage 0 limit
+    TIMERG1.wdt_config0.stg1 = 0;               //
+    TIMERG1.wdt_config0.stg2 = 0;               // disable other stages
+    TIMERG1.wdt_config0.stg3 = 0;               //
+    TIMERG1.wdt_config1.clk_prescale = 80;      // tick every 1 us
+    TIMERG1.wdt_config2 = 1100;                 // wait 1100 ticks (1100 microseconds) before resetting chip
+    TIMERG1.wdt_config0.en = 1;
+    TIMERG1.wdt_feed = 1;
+    TIMERG1.wdt_wprotect = 0;                   // enable write protection
 
     while (true)
     {
         if (imu.Data_Ready())
         {
-            esp_task_wdt_reset();
+            TIMERG1.wdt_wprotect = 0x50d83aa1;
+            TIMERG1.wdt_feed = 1;
+            TIMERG1.wdt_wprotect = 0;
 
             data_type = imu.Read_Data(accel, gyro);
 
@@ -132,11 +146,24 @@ void wifi_task(void * args)
             }
         }
 
-        // Subscribe WiFi task to watchdog
-        ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
-
         TaskHandle_t imu_task_handle;
         assert(xTaskCreatePinnedToCore(imu_task, "IMU task", 4096, NULL, 20, &imu_task_handle, 1) == pdTRUE);
+
+        periph_module_enable(PERIPH_TIMG0_MODULE);  // enable TIMG0 watchdog clock
+        TIMERG0.wdt_wprotect = 0x50d83aa1;          // disable write protection
+        TIMERG0.wdt_config0.sys_reset_length = 7;
+        TIMERG0.wdt_config0.cpu_reset_length = 7;
+        TIMERG0.wdt_config0.level_int_en = 0;       // disable level interrupt
+        TIMERG0.wdt_config0.edge_int_en = 0;        // disable edge interrupt
+        TIMERG0.wdt_config0.stg0 = 3;               // reset chip when reaching stage 0 limit
+        TIMERG0.wdt_config0.stg1 = 0;               //
+        TIMERG0.wdt_config0.stg2 = 0;               // disable other stages
+        TIMERG0.wdt_config0.stg3 = 0;               //
+        TIMERG0.wdt_config1.clk_prescale = 40000;   // tick every 500 us
+        TIMERG0.wdt_config2 = 2000;                 // wait 2000 ticks (1 second) before resetting chip
+        TIMERG0.wdt_config0.en = 1;
+        TIMERG0.wdt_feed = 1;
+        TIMERG0.wdt_wprotect = 0;                   // enable write protection
 
         // UDP phase
 
@@ -146,7 +173,9 @@ void wifi_task(void * args)
         {
             if (wifi.UDP_Receive(in_datagram_data))
             {
-                esp_task_wdt_reset();
+                TIMERG0.wdt_wprotect = 0x50d83aa1;
+                TIMERG0.wdt_feed = 1;
+                TIMERG0.wdt_wprotect = 0;
 
                 float rate_parameters[3][3] = {
                         { in_datagram_data.rate_roll_kp * 0.01f,  0, 0 },
@@ -168,13 +197,18 @@ void wifi_task(void * args)
             {
                 if (strncmp(received_data, "stop", strlen("stop")) == 0)
                 {
-                    // Unsubscribe WiFi & IMU task from watchdog
-                    esp_task_wdt_delete(NULL);
-                    esp_task_wdt_delete(imu_task_handle);
+                    motors_controller.Stop();
+
+                    // motors disabled, safe to disable both watchdogs
+                    TIMERG0.wdt_wprotect = 0x50d83aa1;
+                    TIMERG0.wdt_config0.en = 0;
+                    TIMERG0.wdt_wprotect = 0;
+
+                    TIMERG1.wdt_wprotect = 0x50d83aa1;
+                    TIMERG1.wdt_config0.en = 0;
+                    TIMERG1.wdt_wprotect = 0;
 
                     vTaskDelete(imu_task_handle);
-
-                    motors_controller.Stop();
                     IMU_Detector::Detect_IMU().Stop();
                     process_udp = false;
 
