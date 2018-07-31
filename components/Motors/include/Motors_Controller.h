@@ -42,7 +42,7 @@ private:
     float rate_setpoints[3];
     bool running;
 
-    SemaphoreHandle_t stab_PIDs_semaphore, rate_PIDs_semaphore;
+    portMUX_TYPE stab_PIDs_mutex, rate_PIDs_mutex;
 
 public:
     static Motors_Controller &Instance();

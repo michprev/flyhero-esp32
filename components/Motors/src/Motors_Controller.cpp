@@ -36,13 +36,16 @@ Motors_Controller::Motors_Controller() : motors_protocol(OneShot125::Instance())
 
     this->running = false;
 
-    this->stab_PIDs_semaphore = xSemaphoreCreateBinary();
-    this->rate_PIDs_semaphore = xSemaphoreCreateBinary();
+    this->stab_PIDs_mutex = portMUX_INITIALIZER_UNLOCKED;
+    this->rate_PIDs_mutex = portMUX_INITIALIZER_UNLOCKED;
 }
 
 void Motors_Controller::Init()
 {
     float sample_rate = IMU_Detector::Detect_IMU().Get_Gyro_Sample_Rate();
+
+    vPortCPUAcquireMutex(&this->stab_PIDs_mutex);
+    vPortCPUAcquireMutex(&this->rate_PIDs_mutex);
 
     this->stab_PIDs = new PID *[3];
     this->rate_PIDs = new PID *[3];
@@ -59,8 +62,8 @@ void Motors_Controller::Init()
     this->stab_PIDs[ROLL]->Set_Kp(4.5f);
     this->stab_PIDs[PITCH]->Set_Kp(4.5f);
 
-    xSemaphoreGive(this->stab_PIDs_semaphore);
-    xSemaphoreGive(this->rate_PIDs_semaphore);
+    vPortCPUReleaseMutex(&this->stab_PIDs_mutex);
+    vPortCPUReleaseMutex(&this->rate_PIDs_mutex);
 
     this->motors_protocol.Init();
 }
@@ -70,7 +73,7 @@ void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
     switch (type)
     {
         case STABILIZE:
-            while (xSemaphoreTake(this->stab_PIDs_semaphore, 0) != pdTRUE);
+            vPortCPUAcquireMutex(&this->stab_PIDs_mutex);
 
             for (uint8_t i = ROLL; i <= YAW; i++)
             {
@@ -79,10 +82,10 @@ void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
                 this->stab_PIDs[i]->Set_Kd(parameters[i][2]);
             }
 
-            xSemaphoreGive(this->stab_PIDs_semaphore);
+            vPortCPUReleaseMutex(&this->stab_PIDs_mutex);
             break;
         case RATE:
-            while (xSemaphoreTake(this->rate_PIDs_semaphore, 0) != pdTRUE);
+            vPortCPUAcquireMutex(&this->rate_PIDs_mutex);
 
             for (uint8_t i = ROLL; i <= YAW; i++)
             {
@@ -91,7 +94,7 @@ void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
                 this->rate_PIDs[i]->Set_Kd(parameters[i][2]);
             }
 
-            xSemaphoreGive(this->rate_PIDs_semaphore);
+            vPortCPUReleaseMutex(&this->rate_PIDs_mutex);
             break;
     }
 }
@@ -117,13 +120,13 @@ void Motors_Controller::Feed_Stab_PIDs(IMU::Euler_Angles euler)
 
     if (throttle > 180)
     {
-        while (xSemaphoreTake(this->stab_PIDs_semaphore, 0) != pdTRUE);
+        vPortCPUAcquireMutex(&this->stab_PIDs_mutex);
 
         this->rate_setpoints[ROLL] = this->stab_PIDs[ROLL]->Get_PID(0 - euler.roll);
         this->rate_setpoints[PITCH] = this->stab_PIDs[PITCH]->Get_PID(0 - euler.pitch);
         this->rate_setpoints[YAW] = 0;
 
-        xSemaphoreGive(this->stab_PIDs_semaphore);
+        vPortCPUReleaseMutex(&this->stab_PIDs_mutex);
     }
 }
 
@@ -138,7 +141,7 @@ void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
     {
         float rate_corrections[3];
 
-        while (xSemaphoreTake(this->rate_PIDs_semaphore, 0) != pdTRUE);
+        vPortCPUAcquireMutex(&this->rate_PIDs_mutex);
 
         rate_corrections[ROLL] =
                 this->rate_PIDs[ROLL]->Get_PID(this->rate_setpoints[ROLL] - gyro.y);
@@ -147,7 +150,7 @@ void Motors_Controller::Feed_Rate_PIDs(IMU::Sensor_Data gyro)
         rate_corrections[YAW] =
                 this->rate_PIDs[YAW]->Get_PID(this->rate_setpoints[YAW] - gyro.z);
 
-        xSemaphoreGive(this->rate_PIDs_semaphore);
+        vPortCPUReleaseMutex(&this->rate_PIDs_mutex);
 
         this->motor_FL = throttle - rate_corrections[ROLL] - rate_corrections[PITCH]
                          + rate_corrections[YAW];
