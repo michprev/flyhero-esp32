@@ -70,6 +70,8 @@ void Motors_Controller::Init()
 
 void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
 {
+    portDISABLE_INTERRUPTS();
+
     switch (type)
     {
         case STABILIZE:
@@ -97,6 +99,8 @@ void Motors_Controller::Set_PID_Constants(PID_Type type, float parameters[3][3])
             vPortCPUReleaseMutex(&this->rate_PIDs_mutex);
             break;
     }
+
+    portENABLE_INTERRUPTS();
 }
 
 void Motors_Controller::Set_Throttle(uint16_t throttle)
