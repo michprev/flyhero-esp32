@@ -20,6 +20,13 @@ void wifi_task(void * args);
 
 void imu_task(void * args);
 
+void gpio_isr_task(void * args)
+{
+    ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_LEVEL3));
+
+    vTaskDelete(NULL);
+}
+
 void TCP_process(const char * command);
 
 extern "C" void app_main(void)
@@ -33,6 +40,7 @@ extern "C" void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
 
+    xTaskCreatePinnedToCore(gpio_isr_task, "GPIO ISR register task", 2048, NULL, 2, NULL, 1);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     LEDs::Init();

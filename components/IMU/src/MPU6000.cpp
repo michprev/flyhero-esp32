@@ -112,9 +112,6 @@ esp_err_t MPU6000::int_init()
     if ((state = gpio_config(&conf)))
         return state;
 
-    if ((state = gpio_install_isr_service(0)))
-        return state;
-
     return ESP_OK;
 }
 

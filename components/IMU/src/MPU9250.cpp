@@ -115,9 +115,6 @@ esp_err_t MPU9250::int_init()
     if ((ret = gpio_config(&conf)))
         return ret;
 
-    if ((ret = gpio_install_isr_service(0)))
-        return ret;
-
     return ESP_OK;
 }
 
