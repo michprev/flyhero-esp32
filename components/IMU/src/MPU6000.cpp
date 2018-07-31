@@ -670,10 +670,14 @@ void MPU6000::Data_Ready_Callback()
 
 bool MPU6000::Data_Ready()
 {
+    portDISABLE_INTERRUPTS();
+
     bool tmp = this->data_ready;
 
     if (this->data_ready)
         this->data_ready = false;
+
+    portENABLE_INTERRUPTS();
 
     return tmp;
 }
