@@ -318,18 +318,11 @@ void MPU6000::Init()
 
     // reset device
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.PWR_MGMT_1, 0x80));
-
-    // wait until reset done
-    uint8_t tmp;
-    do
-    {
-        this->spi_reg_read(this->REGISTERS.PWR_MGMT_1, tmp);
-    } while (tmp & 0x80);
-
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // reset analog devices - should not be needed
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.SIGNAL_PATH_RESET, 0x07));
+    vTaskDelay(100 / portTICK_RATE_MS);
 
     // wake up, set clock source PLL with Z gyro axis
     ESP_ERROR_CHECK(this->spi_reg_write(this->REGISTERS.PWR_MGMT_1, 0x03));
