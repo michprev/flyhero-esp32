@@ -11,7 +11,6 @@
 #include "Mahony_Filter.h"
 #include "Complementary_Filter.h"
 #include "WiFi_Controller.h"
-#include "Logger.h"
 
 
 using namespace flyhero;
@@ -48,7 +47,6 @@ extern "C" void app_main(void)
     LEDs::Init();
     motors_controller.Init();
 
-    Logger::Instance().Init();
     IMU & imu = IMU_Detector::Detect_IMU();
     imu.Init();
 
@@ -62,7 +60,6 @@ void imu_task(void * args)
     IMU::Read_Data_Type data_type;
 
     IMU & imu = IMU_Detector::Detect_IMU();
-    Logger & logger = Logger::Instance();
     Complementary_Filter complementary(0.97f);
 
     periph_module_enable(PERIPH_TIMG1_MODULE);  // enable TIMG1 watchdog clock
@@ -95,9 +92,6 @@ void imu_task(void * args)
 
             if (data_type == IMU::Read_Data_Type::ACCEL_GYRO)
             {
-                logger.Log_Next(&accel, sizeof(accel));
-                logger.Log_Next(&gyro, sizeof(gyro));
-
                 motors_controller.Feed_Stab_PIDs(complementary_euler);
                 motors_controller.Feed_Rate_PIDs(gyro);
             } else
@@ -230,62 +224,6 @@ void TCP_process(const char * command)
     {
         IMU_Detector::Detect_IMU().Accel_Calibrate();
         wifi.TCP_Send("yup", 3);
-    } else if (strncmp(command, "log", strlen("log")) == 0)
-    {
-        Logger::Instance().Erase();
-        Logger::Instance().Enable_Writes();
-        wifi.TCP_Send("yup", 3);
-    } else if (strncmp(command, "download", strlen("download")) == 0)
-    {
-        char buffer[1024];
-
-        Logger & logger = Logger::Instance();
-
-        logger.Reset_Read_Pointer();
-        if (!logger.Read_Next(buffer, 1024))
-        {
-            wifi.TCP_Send("nah", 3);
-            return;
-        }
-
-        bool empty = true;
-
-        for (uint8_t i = 0; i < 100; i++)
-        {
-            if (buffer[i] != 0xFF)
-            {
-                empty = false;
-                break;
-            }
-        }
-
-        if (empty)
-        {
-            wifi.TCP_Send("nah", 3);
-            return;
-        }
-
-
-        wifi.TCP_Send("yup", 3);
-
-        do
-        {
-            wifi.TCP_Send(buffer, 1024);
-            if (!logger.Read_Next(buffer, 1024))
-                break;
-
-            empty = true;
-
-            for (uint8_t i = 0; i < 100; i++)
-            {
-                if (buffer[i] != 0xFF)
-                {
-                    empty = false;
-                    break;
-                }
-            }
-
-        } while (!empty);
     } else
         wifi.TCP_Send("nah", 3);
 }
