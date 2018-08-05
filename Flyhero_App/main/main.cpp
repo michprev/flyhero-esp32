@@ -62,6 +62,11 @@ void imu_task(void * args)
     IMU & imu = IMU_Detector::Detect_IMU();
     Complementary_Filter complementary(0.97f);
 
+    // some dummy reads to heat up SPI/I2C drivers
+    imu.Read_Data(accel, gyro);
+    imu.Read_Data(accel, gyro);
+    imu.Read_Data(accel, gyro);
+
     periph_module_enable(PERIPH_TIMG1_MODULE);  // enable TIMG1 watchdog clock
     TIMERG1.wdt_wprotect = 0x50d83aa1;          // disable write protection
     TIMERG1.wdt_config0.sys_reset_length = 7;
